@@ -1,10 +1,11 @@
 from chunk import Chunk
 from funciones import consDisp
 import numpy as np
-import sys
-sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph/funciones')
-sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph')  # Add this line
-from filtPond import filtA, filtC, filtFrecA, filtFrecC
+# import sys
+# sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph/funciones')
+# sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph')  # Add this line
+from funciones.filtPond import filtA, filtC, filtFrecA, filtFrecC
+# from filtPond import filtA, filtC, filtFrecA, filtFrecC
 from scipy.fftpack import fft
 
 

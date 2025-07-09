@@ -1,5 +1,5 @@
 import numpy as np 
-from filEnv import filEnv, filEnvPico, filEnvInst, filEnvFast, filEnvSlow, filtA, filtC
+from funciones.filEnv import filEnvPico, filEnvInst, filEnvFast, filEnvSlow, filtA, filtC
 from scipy.signal import  lfilter
 
 

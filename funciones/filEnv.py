@@ -7,7 +7,7 @@
 
 import numpy as np
 
-from filtPond import filtA, filtC
+from funciones.filtPond import filtA, filtC
 
 def filEnv(x, fs, gainAuxZ, gainAuxC, gainAuxA ,ATT,RLS, env):
     T = 1/fs;    #% Periodo de muestreo T.

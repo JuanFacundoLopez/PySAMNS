@@ -4,16 +4,16 @@ from view import vista
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
 import struct
+# from pyaudio import PyAudio, paInt16
 import pyaudio
-
 # from scipy.fftpack import fft
 
 import numpy as np 
 
 # import sys
-# sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph/funciones')
+# sys.path.append('./funciones')
 
-from grabacionSAMNS import grabacion
+from funciones.grabacionSAMNS import grabacion
 from scipy.signal import butter
 
 # from matplotlib import pyplot as plt 
