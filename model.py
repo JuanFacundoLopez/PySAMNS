@@ -1,11 +1,9 @@
 from chunk import Chunk
 from funciones import consDisp
 import numpy as np
-# import sys
-# sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph/funciones')
-# sys.path.append('C:/Users/Facu/Desktop/SAMNS PyVersion pygraph/SAMNS PyVersion pygraph')  # Add this line
+import pyaudio
+import time
 from funciones.filtPond import filtA, filtC, filtFrecA, filtFrecC
-# from filtPond import filtA, filtC, filtFrecA, filtFrecC
 from scipy.fftpack import fft
 
 
@@ -44,10 +42,61 @@ class modelo:
         self.signaldataC = np.empty(0)
         self.signaldataZ = np.empty(0)
 
+
+
         self.Fs = 44100
 
-        self.CHUNK = 1024
 
+        # --------------------Codigo Yamili-------------------------
+        self.rate = 44100
+        self.chunk = 1024
+        device_index = None
+        self.format = pyaudio.paInt16
+        self.channels = 1
+        self.normalized_all = []
+        # Limitar a 100 chunks (aproximadamente 2.3 segundos a 44100Hz)
+        self.max_chunks = 10000
+        self.buffer = []
+        self.start_time = None  # Add start time tracking
+        self.times = []  # Add times array to track timestamps
+        
+        # Valores de referencia para normalización y dB
+        self.max_int16 = 32767
+        self.reference = 1.0  # Referencia para dB (1.0 = 0dB)
+
+        try:
+            self.pyaudio_instance = pyaudio.PyAudio()
+            
+            # Verificar si el dispositivo existe y está disponible
+            device_info = None
+            if device_index is not None:
+                try:
+                    device_info = self.pyaudio_instance.get_device_info_by_index(device_index)
+                except Exception:
+                    raise ValueError(f"Dispositivo con índice {device_index} no encontrado")
+                
+                if device_info['maxInputChannels'] <= 0:
+                    raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
+
+            self.stream = self.pyaudio_instance.open(
+                format=self.format,
+                channels=self.channels,
+                rate=self.rate,
+                input=True,
+                input_device_index=device_index,
+                frames_per_buffer=self.chunk,
+                stream_callback=None
+            )
+
+            # Verificar si el stream está activo
+            if not self.stream.is_active():
+                raise ValueError("No se pudo activar el stream de audio")
+
+        except Exception as e:
+            if hasattr(self, 'pyaudio_instance'):
+                self.pyaudio_instance.terminate()
+            raise Exception(f"Error al inicializar el dispositivo de audio: {str(e)}")
+        # ------------------Codigo Yamili-------------------
     
 # Setters
     def setChunk(self, chunk):
@@ -173,4 +222,80 @@ class modelo:
         if NP == 'A':
             return (self.recorderPicoZ, self.recorderInstZ, self.recorderFastZ, self.recorderSlowZ)
     def getCalibracionAutomatica(self):
+
         return self.cal
+    
+# -------------- funcion codigo YAMILI-----------------
+    def get_audio_data(self):
+        try:
+            # Verificar si el stream está activo
+            if not self.stream.is_active():
+                raise Exception("Stream de audio no activo")
+
+            # Iniciar start_time si no está establecido
+            if self.start_time is None:
+                self.start_time = time.time()
+                self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
+                self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
+
+            # Leer nuevo chunk de audio
+            data = self.stream.read(self.chunk, exception_on_overflow=False)
+            if not data:
+                raise Exception("No se recibieron datos del dispositivo")
+
+            # Luego de cada lectura de audio se calcula la diferencia de tiempo
+            current_time = time.time()
+            time_diff = current_time - self.start_time
+            self.times.append(time_diff)
+
+            # Comparar current_data con data, para verificar que no se vea afectada la amplitud de onda
+            current_data = np.frombuffer(data, dtype=np.int16)
+            
+            # Verificar que la conversión mantiene la amplitud de la onda
+            # Convertir data (bytes) a int16 para comparar amplitudes
+            data_as_int16 = np.frombuffer(data, dtype=np.int16)
+            
+            # Comparar las amplitudes máximas y mínimas de la onda
+            if (np.max(current_data) != np.max(data_as_int16) or 
+                np.min(current_data) != np.min(data_as_int16) or
+                np.mean(np.abs(current_data)) != np.mean(np.abs(data_as_int16))):
+                print(f"Advertencia: Posible pérdida de amplitud en la conversión")
+                print(f"Data max: {np.max(data_as_int16)}, Current max: {np.max(current_data)}")
+                print(f"Data min: {np.min(data_as_int16)}, Current min: {np.min(current_data)}")
+                print(f"Data mean abs: {np.mean(np.abs(data_as_int16)):.2f}, Current mean abs: {np.mean(np.abs(current_data)):.2f}")
+            
+            # Verificar que los valores están dentro del rango esperado para int16
+            if np.any(current_data < -32768) or np.any(current_data > 32767):
+                raise Exception("Error en la conversión de datos: valores fuera de rango")
+            
+            # Verificar si los datos son válidos
+            if len(current_data) == 0 or np.all(current_data == 0):
+                raise Exception("Datos de audio inválidos o silenciosos")
+            
+            # Agregar el nuevo chunk al buffer
+            self.buffer.append(current_data)
+            
+            # Mantener solo los últimos max_chunks
+            if len(self.buffer) > self.max_chunks:
+                self.buffer.pop(0)  # Eliminar el chunk más antiguo
+                self.times.pop(0)  # Remove corresponding time
+                self.normalized_all.pop(0)
+            
+            # Concatenar todos los chunks en un solo array
+            all_data = np.concatenate(self.buffer)
+            
+            # Calcular valores normalizados y dB
+            normalized_current = self.normalize_data(current_data)
+            self.normalized_all.append(normalized_current)
+            current_db = self.calculate_db(current_data)
+            
+            # Convertir normalized_all a array numpy para mejor rendimiento
+            normalized_all_array = np.concatenate(self.normalized_all)
+            
+            return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times
+
+        except Exception as e:
+            print(f"Error en get_audio_data: {e}")
+            empty_current = np.zeros(self.chunk)
+            empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
+            return empty_current, empty_all, empty_current, empty_all, -100.0, []

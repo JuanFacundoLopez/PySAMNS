@@ -33,61 +33,9 @@ class controlador():
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.cronometro)
         self.msCounter = 0
-
-        # Codigo de Yamili
-        rate=44100 
-        chunk=1024 
-        device_index=2
-
-        self.rate = rate
-        self.chunk = chunk
-        self.format = pyaudio.paInt16
-        self.channels = 1
-        self.normalized_all = []
-
-        # Limitar a 100 chunks (aproximadamente 2.3 segundos a 44100Hz)
-        self.max_chunks = 10000
-        self.buffer = []
         self.start_time = None  # Add start time tracking
-        self.times = []  # Add times array to track timestamps
-        
-        # Valores de referencia para normalización y dB
-        self.max_int16 = 32767
-        self.reference = 1.0  # Referencia para dB (1.0 = 0dB)
+        #    Setear todas las ganancias en Cero
 
-        try:
-            self.pyaudio_instance = pyaudio.PyAudio()
-            
-            # Verificar si el dispositivo existe y está disponible
-            device_info = None
-            if device_index is not None:
-                try:
-                    device_info = self.pyaudio_instance.get_device_info_by_index(device_index)
-                except Exception:
-                    raise ValueError(f"Dispositivo con índice {device_index} no encontrado")
-                
-                if device_info['maxInputChannels'] <= 0:
-                    raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
-            # Abre el dispositivo de audio
-            self.stream = self.pyaudio_instance.open(
-                format=self.format,
-                channels=self.channels,
-                rate=self.rate,
-                input=True,
-                input_device_index=device_index,
-                frames_per_buffer=self.chunk,
-                stream_callback=None
-            )
-
-            # Verificar si el stream está activo
-            if not self.stream.is_active():
-                raise ValueError("No se pudo activar el stream de audio")
-
-        except Exception as e:
-            if hasattr(self, 'pyaudio_instance'):
-                self.pyaudio_instance.terminate()
-            raise Exception(f"Error al inicializar el dispositivo de audio: {str(e)}")
-            
         self.setGainZero()
 
         #Filtro pasa bajos
@@ -268,11 +216,19 @@ class controlador():
             self.timer.start(100) 
             self.stream.start_stream()
 
-    def cronometro(self):                           # Cronometro
 
-        self.msCounter += 100 
-        seg = str(self.msCounter / 1000)
-        self.cVista.cronometroGrabacion.setText(seg + ' s ')
+
+    def cronometro(self):                           # Cronometro
+        if self.start_time is None:
+            self.start_time = time.time()
+            # self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
+            self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
+
+        current_time = time.time()
+        time_diff = current_time - self.start_time
+        # self.msCounter += 100 
+        # seg = str(self.msCounter / 1000)
+        self.cVista.cronometroGrabacion.setText(time_diff + ' s ')
 
     def calAutomatica(self):                        # Funcion de calibracion
         self.stream.start_stream()
