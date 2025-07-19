@@ -31,14 +31,16 @@ class controlador():
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
 
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.cronometro)
+        self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
         self.start_time = None  # Add start time tracking
         #    Setear todas las ganancias en Cero
-
+        self.device_active = False
+        self.device1_name = "Nombre del dispositivo de audio"
         self.setGainZero()
 
         #Filtro pasa bajos
+        self.rate = 44100 #evitar, se debe pasar el chunck predefinido
         nyq = self.rate/2
         normal_cutoff = 100 / nyq #Cutoff = 100
         (self.b, self.a) = butter(1, normal_cutoff, btype='low', analog=False)
@@ -205,20 +207,29 @@ class controlador():
         if self.cVista.btngbr.isChecked() == False:
             self.timer.stop() 
             self.cVista.btngbr.setText('Grabar')
-            self.stream.stop_stream()
+            self.cModel.stream.stop_stream() #Verificar estas funciones
             # self.stream.close()
         else:
             self.setGainZero()
-            
             self.cVista.btngbr.setText('Stop')  
-
             self.msCounter = 0
-            self.timer.start(100) 
-            self.stream.start_stream()
+            self.timer.start(30) 
+            self.device_active = True
+            self.cModel.stream.start_stream() #Verificar estas funciones
 
+    def update_view(self):                           # Cronometro
+         # Actualizar dispositivo 1 si está activo
+        if self.device_active:
+            try:
+                current_data1, all_data1, norm_current1, norm_all1, db1, times1 = self.cModel.get_audio_data()
+                if len(current_data1) > 0:  # Verificar si hay datos
+                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, db1, self.device1_name, times1)
+            except Exception as e:
+                print(f"Error al actualizar dispositivo 1: {e}")
+                self.device1_active = False
+        else:
+            print("No se inicio grabacion")
 
-
-    def cronometro(self):                           # Cronometro
         if self.start_time is None:
             self.start_time = time.time()
             # self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
@@ -226,9 +237,8 @@ class controlador():
 
         current_time = time.time()
         time_diff = current_time - self.start_time
-        # self.msCounter += 100 
-        # seg = str(self.msCounter / 1000)
-        self.cVista.cronometroGrabacion.setText(time_diff + ' s ')
+        time_diff_str = f"{time_diff:.2f}"
+        self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
     def calAutomatica(self):                        # Funcion de calibracion
         self.stream.start_stream()

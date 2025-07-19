@@ -8,8 +8,7 @@ from scipy.fftpack import fft
 
 
 class modelo:
-
-    def __init__(self,Controller):          # Constructor del modelo
+    def __init__(self, Controller, rate=44100, chunk=1024, device_index=None):          # Constructor del modelo
         self.mController = Controller
         dispEn, dispEnIndice, dispSal, dispSalIndice = consDisp.consDisp()
         self.dispEn = dispEn
@@ -42,14 +41,11 @@ class modelo:
         self.signaldataC = np.empty(0)
         self.signaldataZ = np.empty(0)
 
-
-
         self.Fs = 44100
 
-
         # --------------------Codigo Yamili-------------------------
-        self.rate = 44100
-        self.chunk = 1024
+        self.rate = rate
+        self.chunk = chunk
         device_index = None
         self.format = pyaudio.paInt16
         self.channels = 1
@@ -226,6 +222,46 @@ class modelo:
         return self.cal
     
 # -------------- funcion codigo YAMILI-----------------
+    def normalize_data(self, data):
+        """Normaliza los datos a un rango de -1 a 1"""
+        return data / self.max_int16
+
+    def calculate_db(self, data):
+        """Calcula el nivel en decibelios"""
+        normalized = self.normalize_data(data)
+        rms = np.sqrt(np.mean(normalized**2))
+        if rms < 1e-10:  # Evitar log(0)
+            return -100.0
+        db = 20 * np.log10(rms / self.reference)
+        return max(-100.0, min(db, 0.0))  # Limitar entre -100 y 0 dB
+
+    def calculate_fft(self, data):
+        """Calcula la FFT (Transformada Rápida de Fourier) de los datos de audio"""
+        if len(data) == 0:
+            return [], []
+        
+        # Calcular la FFT (Transformada Rápida de Fourier)
+        fft_data = np.fft.rfft(data)
+        
+        # Generar el array de frecuencias
+        fft_freqs = np.fft.rfftfreq(len(data), d=1.0/self.rate)
+        
+        # Calcular la magnitud normalizada
+        fft_magnitude = np.abs(fft_data) / len(data)
+        
+        # Evitar log(0) para valores muy pequeños
+        fft_magnitude[fft_magnitude == 0] = 1e-12
+        
+        # Convertir a escala logarítmica (dB)
+        fft_db = 20 * np.log10(fft_magnitude)
+
+        # Filtrar valores inválidos para eje logarítmico
+        valid = fft_freqs > 0
+        fft_freqs = fft_freqs[valid]
+        fft_db = fft_db[valid]
+
+        return fft_freqs, fft_db
+
     def get_audio_data(self):
         try:
             # Verificar si el stream está activo
@@ -237,7 +273,8 @@ class modelo:
                 self.start_time = time.time()
                 self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
                 self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
-
+            else:
+                self.start_time = 0
             # Leer nuevo chunk de audio
             data = self.stream.read(self.chunk, exception_on_overflow=False)
             if not data:
@@ -299,3 +336,17 @@ class modelo:
             empty_current = np.zeros(self.chunk)
             empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
             return empty_current, empty_all, empty_current, empty_all, -100.0, []
+        
+    def close(self):
+        try:
+            if hasattr(self, 'stream') and self.stream is not None:
+                if self.stream.is_active():
+                    self.stream.stop_stream()
+                self.stream.close()
+            if hasattr(self, 'pyaudio_instance') and self.pyaudio_instance is not None:
+                self.pyaudio_instance.terminate()
+            self.buffer = []
+        except Exception as e:
+            print(f"Error al cerrar el audio: {e}")
+
+    

@@ -20,6 +20,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 #import utilidades del sistema
 import sys
 
+import numpy as np
 
 class vista(QMainWindow):
 
@@ -572,6 +573,7 @@ class vista(QMainWindow):
         self.tabFilt.setDisabled(True)
         self.tabNieles.setDisabled(True)
         
+        
         # Limpiar el gráfico actual
         self.waveform1.clear()
         
@@ -866,3 +868,125 @@ class vista(QMainWindow):
             
         except Exception as e:
             print(f"Error en configuración automática: {e}")
+
+# CODIGO YAMILI
+
+    def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_db):
+        try:
+            if self.btnTiempo.isChecked(): # modif
+                if device_num == 1:
+                    # Usar datos crudos para cálculos
+                    values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
+                    
+                    # Aplicar suavizado SOLO para visualización
+                    smooth_data = np.interp(
+                        np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
+                        np.arange(len(normalized_all)),
+                        normalized_all
+                    )
+                    # Crear array de tiempo suavizado
+                    smooth_times = np.interp(
+                        np.linspace(0, len(times)-1, len(smooth_data)),
+                        np.arange(len(times)),
+                        times
+                    )
+                    
+                    # Actualizar gráfico con datos suavizados
+                    self.waveform1.setData(smooth_times, smooth_data, connect='finite')
+                    # --- Ajuste de eje Y ---
+                    if len(smooth_data) > 0:
+                        ymin = float(np.min(smooth_data))
+                        ymax = float(np.max(smooth_data))
+                        changed = False
+                        if ymin < self.ymin1:
+                            self.ymin1 = ymin
+                            changed = True
+                        if ymax > self.ymax1:
+                            self.ymax1 = ymax
+                            changed = True
+                        if changed:
+                            self.waveform1.setYRange(self.ymin1, self.ymax1)
+
+                    # self.waveform1.setTitle(f"Onda de Sonido - {device_name}", color='#ffffff', size='14pt')
+                    # self.valueText1.setText(f"Valores normalizados: {values_str}...")
+                    # self.valueText1.setPos(0, 0.8)
+                    
+                    if len(times) > 0:
+                        self.waveform1.setXRange(times[0], times[-1])
+                        self.cronometroGrabacion.setText(f"Tiempo transcurrido: {times[-1]:.2f} s")
+                    else:
+                        self.cronometroGrabacion.setText("Tiempo transcurrido: 0.00 s")
+                    
+                    # Usar db_level calculado con datos crudos
+                    # self.db1Label.setText(f"Nivel: {db_level:.1f} dB")
+                    
+                    # if db_level > -20:
+                    #     self.db1Label.setStyleSheet("color: red; font-weight: bold;")
+                    # elif db_level > -40:
+                    #     self.db1Label.setStyleSheet("color: yellow; font-weight: bold;")
+                    # else:
+                    #     self.db1Label.setStyleSheet("color: blue; font-weight: bold;")
+                    
+                    # self.db1Label.show()
+                    # self.fftDb1Label.hide()
+                else:
+                    # Usar datos crudos para cálculos
+                    values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
+                    
+                    # Aplicar suavizado SOLO para visualización
+                    smooth_data = np.interp(
+                        np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
+                        np.arange(len(normalized_all)),
+                        normalized_all
+                    )
+                    # Crear array de tiempo suavizado
+                    smooth_times = np.interp(
+                        np.linspace(0, len(times)-1, len(smooth_data)),
+                        np.arange(len(times)),
+                        times
+                    )
+                    
+            if self.btnFrecuencia.isChecked():  # modif
+                if device_num == 1:
+                    # Usar datos de FFT precalculados desde el modelo
+                    if len(fft_freqs) > 0:
+                        self.waveform1.setData(np.log10(fft_freqs), fft_db)
+                        # --- Ajuste de eje Y para FFT ---
+                        ymin = float(np.min(fft_db))
+                        ymax = float(np.max(fft_db))
+                        changed = False
+                        if ymin < self.fft_ymin1:
+                            self.fft_ymin1 = ymin
+                            changed = True
+                        if ymax > self.fft_ymax1:
+                            self.fft_ymax1 = ymax
+                            changed = True
+                        if changed:
+                            self.waveform1.setYRange(self.fft_ymin1, self.fft_ymax1)
+                            print(f"[DEBUG FFT1] YRange actualizado: min={self.fft_ymin1:.2f}, max={self.fft_ymax1:.2f}")
+                        else:
+                            print(f"[DEBUG FFT1] YRange actual: min={self.fft_ymin1:.2f}, max={self.fft_ymax1:.2f}")
+                        self.waveform1.setTitle(f"Espectro de Frecuencia - {device_name}", color='#ffffff', size='14pt')
+                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
+                        # self.fftDb1Label.setText(f"Nivel: {db_level:.1f} dB")
+                        # if db_level > -20:
+                        #     self.fftDb1Label.setStyleSheet("color: red; font-weight: bold;")
+                        # elif db_level > -40:
+                        #     self.fftDb1Label.setStyleSheet("color: yellow; font-weight: bold;")
+                        # else:
+                        #     self.fftDb1Label.setStyleSheet("color: blue; font-weight: bold;")
+                        # self.fftDb1Label.show()
+                        # self.db1Label.hide()
+                    else:
+                        self.waveform1.setData([], [])
+                        # self.fftDb1Label.setText("Nivel: -- dB")
+                        # self.fftDb1Label.show()
+                        # self.db1Label.hide()
+            
+            if self.btnNivel.isChecked():
+                pass
+        except Exception as e:
+            print(f"Error en update_plot: {e}")
+
+            
+
