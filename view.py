@@ -8,7 +8,7 @@ import pyqtgraph as pg
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
 from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox
+from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox
 
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QRect
@@ -24,8 +24,8 @@ import numpy as np
 
 class vista(QMainWindow):
 
-    #def norm(self, x, y, ancho, alto):
-    #    return QtCore.QRect(int(self.anchoX * x), int(self.altoY * y), int(self.anchoX * ancho), int(self.altoY * alto))
+    def norm(self, x, y, ancho, alto):
+        return QtCore.QRect(int(self.anchoX * x), int(self.altoY * y), int(self.anchoX * ancho), int(self.altoY * alto))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -95,9 +95,9 @@ class vista(QMainWindow):
         
         # Configuración de tabs
         self.tab_1 = QWidget()
-        self.tab_2 = QWidget()
+        #self.tab_2 = QWidget()
         self.tabWidget.addTab(self.tab_1, "Gráfico")
-        self.tabWidget.addTab(self.tab_2, "Valores del gráfico")
+        #self.tabWidget.addTab(self.tab_2, "Valores del gráfico")
         
         # Layout para tab_1
         self.tab1Layout = QHBoxLayout(self.tab_1)
@@ -107,6 +107,32 @@ class vista(QMainWindow):
         self.winGraph1 = pg.GraphicsLayoutWidget()
         self.winGraph1.setBackground('w')
         self.columna1tab1.addWidget(self.winGraph1)
+        
+        #variables para configuracion de grafico
+        self.var_logModeXTiempo = False
+        self.var_logModeYTiempo = False
+        self.var_logModeXEspectro = False
+        self.var_logModeYEspectro = False
+        self.var_logModeXNivel = False
+        self.var_logModeYNivel = False
+        self.var_xMinTiempo = 0
+        self.var_xMaxTiempo = 1024
+        self.var_yMinTiempo = -1
+        self.var_yMaxTiempo = 1
+        self.var_xMinEspectro = 0
+        self.var_xMaxEspectro = 1024
+        self.var_yMinEspectro = -1
+        self.var_yMaxEspectro = 1
+        self.var_xMinNivel = 0
+        self.var_xMaxNivel = 1024
+        self.var_yMinNivel = -1
+        self.var_yMaxNivel = 1
+        self.var_etiquetaXTiempo = "Tiempo"
+        self.var_etiquetaYTiempo = "Amplitud Normalizada"
+        self.var_etiquetaXEspectro = "Tiempo"
+        self.var_etiquetaYEspectro = "Amplitud Normalizada"
+        self.var_etiquetaXNivel = "Tiempo"
+        self.var_etiquetaYNivel = "Amplitud Normalizada"
         
         # Configuración del gráfico
         self.waveform1 = self.winGraph1.addPlot()
@@ -149,99 +175,6 @@ class vista(QMainWindow):
         buttonLayout.addWidget(self.cronometroGrabacion)
         buttonLayout.addStretch()
         self.columna1tab1.addLayout(buttonLayout)
-        
-        # Layout para tab_2 (Configuración de ejes)
-        self.tab2Layout = QVBoxLayout(self.tab_2)
-        
-        # Grupo de configuración de ejes
-        ejesGroup = QGroupBox("Configuración de Ejes del Gráfico")
-        ejesLayout = QVBoxLayout()
-        
-        # Configuración de escala
-        escalaLayout = QHBoxLayout()
-        escalaLayout.addWidget(QLabel("Escala:"))
-        
-        self.cbEscalaX = QCheckBox("Eje X Logarítmico")
-        self.cbEscalaY = QCheckBox("Eje Y Logarítmico")
-        self.cbEscalaX.stateChanged.connect(self.actualizarEscala)
-        self.cbEscalaY.stateChanged.connect(self.actualizarEscala)
-        
-        escalaLayout.addWidget(self.cbEscalaX)
-        escalaLayout.addWidget(self.cbEscalaY)
-        escalaLayout.addStretch()
-        ejesLayout.addLayout(escalaLayout)
-        
-        # Configuración de límites del eje X
-        ejeXGroup = QGroupBox("Límites del Eje X")
-        ejeXLayout = QGridLayout()
-        
-        ejeXLayout.addWidget(QLabel("Mínimo:"), 0, 0)
-        self.txtXMin = QLineEdit("0")
-        self.txtXMin.setMaximumWidth(100)
-        ejeXLayout.addWidget(self.txtXMin, 0, 1)
-        
-        ejeXLayout.addWidget(QLabel("Máximo:"), 0, 2)
-        self.txtXMax = QLineEdit("1024")
-        self.txtXMax.setMaximumWidth(100)
-        ejeXLayout.addWidget(self.txtXMax, 0, 3)
-        
-        self.btnAplicarX = QPushButton("Aplicar")
-        self.btnAplicarX.clicked.connect(self.aplicarLimitesX)
-        ejeXLayout.addWidget(self.btnAplicarX, 0, 4)
-        
-        ejeXGroup.setLayout(ejeXLayout)
-        ejesLayout.addWidget(ejeXGroup)
-        
-        # Configuración de límites del eje Y
-        ejeYGroup = QGroupBox("Límites del Eje Y")
-        ejeYLayout = QGridLayout()
-        
-        ejeYLayout.addWidget(QLabel("Mínimo:"), 0, 0)
-        self.txtYMin = QLineEdit("-1")
-        self.txtYMin.setMaximumWidth(100)
-        ejeYLayout.addWidget(self.txtYMin, 0, 1)
-        
-        ejeYLayout.addWidget(QLabel("Máximo:"), 0, 2)
-        self.txtYMax = QLineEdit("1")
-        self.txtYMax.setMaximumWidth(100)
-        ejeYLayout.addWidget(self.txtYMax, 0, 3)
-        
-        self.btnAplicarY = QPushButton("Aplicar")
-        self.btnAplicarY.clicked.connect(self.aplicarLimitesY)
-        ejeYLayout.addWidget(self.btnAplicarY, 0, 4)
-        
-        ejeYGroup.setLayout(ejeYLayout)
-        ejesLayout.addWidget(ejeYGroup)
-        
-        # Configuración de etiquetas
-        etiquetasGroup = QGroupBox("Etiquetas de Ejes")
-        etiquetasLayout = QGridLayout()
-        
-        etiquetasLayout.addWidget(QLabel("Eje X:"), 0, 0)
-        self.txtEtiquetaX = QLineEdit("Tiempo")
-        etiquetasLayout.addWidget(self.txtEtiquetaX, 0, 1)
-        
-        etiquetasLayout.addWidget(QLabel("Eje Y:"), 1, 0)
-        self.txtEtiquetaY = QLineEdit("Amplitud Normalizada")
-        etiquetasLayout.addWidget(self.txtEtiquetaY, 1, 1)
-        
-        self.btnAplicarEtiquetas = QPushButton("Aplicar")
-        self.btnAplicarEtiquetas.clicked.connect(self.aplicarEtiquetas)
-        etiquetasLayout.addWidget(self.btnAplicarEtiquetas, 2, 0, 1, 2)
-        
-        etiquetasGroup.setLayout(etiquetasLayout)
-        ejesLayout.addWidget(etiquetasGroup)
-        
-        # Botón para aplicar configuración automática según el tipo de gráfico
-        self.btnConfigAuto = QPushButton("Configuración Automática")
-        self.btnConfigAuto.clicked.connect(self.configuracionAutomatica)
-        ejesLayout.addWidget(self.btnConfigAuto)
-        
-        ejesGroup.setLayout(ejesLayout)
-        self.tab2Layout.addWidget(ejesGroup)
-        
-        # Agregar stretch para empujar todo hacia arriba
-        self.tab2Layout.addStretch()
         
         # Panel derecho
         self.rightPanel = QWidget()
@@ -529,6 +462,10 @@ class vista(QMainWindow):
 
         # Otros menús
         self.menuConfiguracion = QMenu("Configuración", self)
+        configAct = QAction("Configuración de Gráficos", self)
+        configAct.triggered.connect(self.configuracion)
+        self.menuConfiguracion.addAction(configAct)
+        
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
 
@@ -573,26 +510,19 @@ class vista(QMainWindow):
         self.tabFilt.setDisabled(True)
         self.tabNieles.setDisabled(True)
         
-        
         # Limpiar el gráfico actual
         self.waveform1.clear()
         
-        # Configuración para gráfico de tiempo
-        self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
-        self.waveform1.setYRange(-1, 1, padding=0)   # Amplitud normalizada
-        self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
-        self.waveform1.setLabel('left', 'Amplitud Normalizada')
-        self.waveform1.setLabel('bottom', 'Tiempo')
-        
-        # Actualizar controles de configuración en tab_2
-        self.cbEscalaX.setChecked(False)
-        self.cbEscalaY.setChecked(False)
-        self.txtXMin.setText("0")
-        self.txtXMax.setText("1024")
-        self.txtYMin.setText("-1")
-        self.txtYMax.setText("1")
-        self.txtEtiquetaX.setText("Tiempo")
-        self.txtEtiquetaY.setText("Amplitud Normalizada")
+        # Aplicar configuración personalizada si existe, sino usar valores por defecto
+        if hasattr(self, 'txtXMinTiempo') and hasattr(self, 'txtXMaxTiempo'):
+            self.aplicarConfiguracionTiempo()
+        else:
+            # Configuración por defecto para gráfico de tiempo
+            self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
+            self.waveform1.setYRange(-1, 1, padding=0)   # Amplitud normalizada
+            self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
+            self.waveform1.setLabel('left', 'Amplitud Normalizada')
+            self.waveform1.setLabel('bottom', 'Tiempo')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -607,22 +537,16 @@ class vista(QMainWindow):
         # Limpiar el gráfico actual
         self.waveform1.clear()
         
-        # Configuración para gráfico de frecuencia
-        self.waveform1.setLogMode(x=True, y=True)    # Escala logarítmica
-        self.waveform1.setXRange(20, 20000, padding=0) # Rango de frecuencia
-        self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
-        self.waveform1.setLabel('left', 'Nivel (dB)')
-        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-        
-        # Actualizar controles de configuración en tab_2
-        self.cbEscalaX.setChecked(True)
-        self.cbEscalaY.setChecked(True)
-        self.txtXMin.setText("20")
-        self.txtXMax.setText("20000")
-        self.txtYMin.setText("-120")
-        self.txtYMax.setText("0")
-        self.txtEtiquetaX.setText("Frecuencia (Hz)")
-        self.txtEtiquetaY.setText("Nivel (dB)")
+        # Aplicar configuración personalizada si existe, sino usar valores por defecto
+        if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
+            self.aplicarConfiguracionEspectro()
+        else:
+            # Configuración por defecto para gráfico de frecuencia
+            self.waveform1.setLogMode(x=True, y=True)    # Escala logarítmica
+            self.waveform1.setXRange(20, 20000, padding=0) # Rango de frecuencia
+            self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
+            self.waveform1.setLabel('left', 'Nivel (dB)')
+            self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -637,22 +561,16 @@ class vista(QMainWindow):
         # Limpiar el gráfico actual
         self.waveform1.clear()
         
-        # Configuración para gráfico de nivel
-        self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
-        self.waveform1.setYRange(-120, 0, padding=0)  # Rango de presión en dB
-        self.waveform1.setXRange(0, 1024, padding=0)  # Rango de tiempo
-        self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
-        self.waveform1.setLabel('bottom', 'Tiempo')
-        
-        # Actualizar controles de configuración en tab_2
-        self.cbEscalaX.setChecked(False)
-        self.cbEscalaY.setChecked(False)
-        self.txtXMin.setText("0")
-        self.txtXMax.setText("1024")
-        self.txtYMin.setText("-120")
-        self.txtYMax.setText("0")
-        self.txtEtiquetaX.setText("Tiempo")
-        self.txtEtiquetaY.setText("Nivel fondo de escala (dB)")
+        # Aplicar configuración personalizada si existe, sino usar valores por defecto
+        if hasattr(self, 'txtXMinNivel') and hasattr(self, 'txtXMaxNivel'):
+            self.aplicarConfiguracionNivel()
+        else:
+            # Configuración por defecto para gráfico de nivel
+            self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
+            self.waveform1.setYRange(-120, 0, padding=0)  # Rango de presión en dB
+            self.waveform1.setXRange(0, 1024, padding=0)  # Rango de tiempo
+            self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
+            self.waveform1.setLabel('bottom', 'Tiempo')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -806,68 +724,296 @@ class vista(QMainWindow):
         except Exception as e:
             print(f"Error al aplicar etiquetas: {e}")
 
-    def configuracionAutomatica(self):
-        """Aplica la configuración automática según el tipo de gráfico seleccionado"""
+    def aplicarconfiguracion(self):
+        """Aplica la configuración personalizada según el tipo de gráfico seleccionado"""
         try:
+            # Guardar la configuración actual
+            self.guardarConfiguracion()
+            
             if self.btnTiempo.isChecked():
-                # Configuración para gráfico de tiempo
-                self.cbEscalaX.setChecked(False)
-                self.cbEscalaY.setChecked(False)
-                self.txtXMin.setText("0")
-                self.txtXMax.setText("1024")
-                self.txtYMin.setText("-1")
-                self.txtYMax.setText("1")
-                self.txtEtiquetaX.setText("Tiempo")
-                self.txtEtiquetaY.setText("Amplitud Normalizada")
-                
-                # Aplicar configuración
-                self.waveform1.setLogMode(x=False, y=False)
-                self.waveform1.setXRange(0, 1024, padding=0)
-                self.waveform1.setYRange(-1, 1, padding=0)
-                self.waveform1.setLabel('bottom', 'Tiempo')
-                self.waveform1.setLabel('left', 'Amplitud Normalizada')
+                # Aplicar configuración personalizada para gráfico de tiempo
+                self.aplicarConfiguracionTiempo()
                 
             elif self.btnFrecuencia.isChecked():
-                # Configuración para gráfico de frecuencia
-                self.cbEscalaX.setChecked(True)
-                self.cbEscalaY.setChecked(True)
-                self.txtXMin.setText("20")
-                self.txtXMax.setText("20000")
-                self.txtYMin.setText("-120")
-                self.txtYMax.setText("0")
-                self.txtEtiquetaX.setText("Frecuencia (Hz)")
-                self.txtEtiquetaY.setText("Nivel (dB)")
-                
-                # Aplicar configuración
-                self.waveform1.setLogMode(x=True, y=True)
-                self.waveform1.setXRange(20, 20000, padding=0)
-                self.waveform1.setYRange(-120, 0, padding=0)
-                self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                self.waveform1.setLabel('left', 'Nivel (dB)')
+                # Aplicar configuración personalizada para gráfico de frecuencia
+                self.aplicarConfiguracionEspectro()
                 
             elif self.btnNivel.isChecked():
-                # Configuración para gráfico de nivel
-                self.cbEscalaX.setChecked(False)
-                self.cbEscalaY.setChecked(False)
-                self.txtXMin.setText("0")
-                self.txtXMax.setText("1024")
-                self.txtYMin.setText("-120")
-                self.txtYMax.setText("0")
-                self.txtEtiquetaX.setText("Tiempo")
-                self.txtEtiquetaY.setText("Nivel fondo de escala (dB)")
-                
-                # Aplicar configuración
-                self.waveform1.setLogMode(x=False, y=False)
-                self.waveform1.setXRange(0, 1024, padding=0)
-                self.waveform1.setYRange(-120, 0, padding=0)
-                self.waveform1.setLabel('bottom', 'Tiempo')
-                self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
+                # Aplicar configuración personalizada para gráfico de nivel
+                self.aplicarConfiguracionNivel()
             
             # Actualizar el gráfico
             self.waveform1.replot()
             
+            # Cerrar la ventana de configuración
+            self.confWin.close()
+            
         except Exception as e:
             print(f"Error en configuración automática: {e}")
+
+    def guardarConfiguracion(self):
+        """Guarda la configuración actual en las variables de configuración"""
+        try:
+            # Guardar configuración de tiempo
+            if hasattr(self, 'cbEscalaXTiempo'):
+                self.var_logModeXTiempo = self.cbEscalaXTiempo.isChecked()
+            if hasattr(self, 'cbEscalaYTiempo'):
+                self.var_logModeYTiempo = self.cbEscalaYTiempo.isChecked()
+            if hasattr(self, 'txtXMinTiempo'):
+                self.var_xMinTiempo = float(self.txtXMinTiempo.text())
+            if hasattr(self, 'txtXMaxTiempo'):
+                self.var_xMaxTiempo = float(self.txtXMaxTiempo.text())
+            if hasattr(self, 'txtYMinTiempo'):
+                self.var_yMinTiempo = float(self.txtYMinTiempo.text())
+            if hasattr(self, 'txtYMaxTiempo'):
+                self.var_yMaxTiempo = float(self.txtYMaxTiempo.text())
+            if hasattr(self, 'txtEtiquetaXTiempo'):
+                self.var_etiquetaXTiempo = self.txtEtiquetaXTiempo.text()
+            if hasattr(self, 'txtEtiquetaYTiempo'):
+                self.var_etiquetaYTiempo = self.txtEtiquetaYTiempo.text()
+            
+            # Guardar configuración de espectro
+            if hasattr(self, 'cbEscalaXEspectro'):
+                self.var_logModeXEspectro = self.cbEscalaXEspectro.isChecked()
+            if hasattr(self, 'cbEscalaYEspectro'):
+                self.var_logModeYEspectro = self.cbEscalaYEspectro.isChecked()
+            if hasattr(self, 'txtXMinEspectro'):
+                self.var_xMinEspectro = float(self.txtXMinEspectro.text())
+            if hasattr(self, 'txtXMaxEspectro'):
+                self.var_xMaxEspectro = float(self.txtXMaxEspectro.text())
+            if hasattr(self, 'txtYMinEspectro'):
+                self.var_yMinEspectro = float(self.txtYMinEspectro.text())
+            if hasattr(self, 'txtYMaxEspectro'):
+                self.var_yMaxEspectro = float(self.txtYMaxEspectro.text())
+            if hasattr(self, 'txtEtiquetaXEspectro'):
+                self.var_etiquetaXEspectro = self.txtEtiquetaXEspectro.text()
+            if hasattr(self, 'txtEtiquetaYEspectro'):
+                self.var_etiquetaYEspectro = self.txtEtiquetaYEspectro.text()
+            
+            # Guardar configuración de nivel
+            if hasattr(self, 'cbEscalaYNivel'):
+                self.var_logModeYNivel = self.cbEscalaYNivel.isChecked()
+            if hasattr(self, 'txtXMinNivel'):
+                self.var_xMinNivel = float(self.txtXMinNivel.text())
+            if hasattr(self, 'txtXMaxNivel'):
+                self.var_xMaxNivel = float(self.txtXMaxNivel.text())
+            if hasattr(self, 'txtYMinNivel'):
+                self.var_yMinNivel = float(self.txtYMinNivel.text())
+            if hasattr(self, 'txtYMaxNivel'):
+                self.var_yMaxNivel = float(self.txtYMaxNivel.text())
+            if hasattr(self, 'txtEtiquetaXNivel'):
+                self.var_etiquetaXNivel = self.txtEtiquetaXNivel.text()
+            if hasattr(self, 'txtEtiquetaYNivel'):
+                self.var_etiquetaYNivel = self.txtEtiquetaYNivel.text()
+                
+        except Exception as e:
+            print(f"Error al guardar configuración: {e}")
+
+    def aplicarConfiguracionTiempo(self):
+        """Aplica la configuración personalizada para el gráfico de tiempo"""
+        try:
+            # Escalas
+            escalaX = self.cbEscalaXTiempo.isChecked()
+            self.var_logModeXTiempo = escalaX
+            escalaY = self.cbEscalaYTiempo.isChecked()
+            self.var_logModeYTiempo = escalaY
+            self.waveform1.setLogMode(x=escalaX, y=escalaY)
+            
+            # Límites
+            x_min = float(self.txtXMinTiempo.text())
+            x_max = float(self.txtXMaxTiempo.text())
+            y_min = float(self.txtYMinTiempo.text())
+            y_max = float(self.txtYMaxTiempo.text())
+            
+            # Guardar límites en variables de configuración
+            self.var_xMinTiempo = x_min
+            self.var_xMaxTiempo = x_max
+            self.var_yMinTiempo = y_min
+            self.var_yMaxTiempo = y_max
+            
+            self.waveform1.setXRange(x_min, x_max, padding=0)
+            self.waveform1.setYRange(y_min, y_max, padding=0)
+            
+            # Etiquetas
+            etiqueta_x = self.txtEtiquetaXTiempo.text()
+            etiqueta_y = self.txtEtiquetaYTiempo.text()
+            
+            # Guardar etiquetas en variables de configuración
+            self.var_etiquetaXTiempo = etiqueta_x
+            self.var_etiquetaYTiempo = etiqueta_y
+            
+            self.waveform1.setLabel('bottom', etiqueta_x)
+            self.waveform1.setLabel('left', etiqueta_y)
+            
+            # Color y tipo de línea
+            if hasattr(self, 'colorTiempo'):
+                color = self.colorTiempo.name()
+            else:
+                color = "#8A0101"  # Color por defecto
+            
+            tipoLinea = self.obtenerTipoLinea("tiempo")
+            self.actualizarEstiloLinea(color, tipoLinea)
+            
+        except Exception as e:
+            print(f"Error al aplicar configuración de tiempo: {e}")
+
+    def aplicarConfiguracionEspectro(self):
+        """Aplica la configuración personalizada para el gráfico de espectro"""
+        try:
+            # Escalas
+            escalaX = self.cbEscalaXEspectro.isChecked()
+            self.var_logModeXEspectro = escalaX
+            escalaY = self.cbEscalaYEspectro.isChecked()
+            self.var_logModeYEspectro = escalaY
+            self.waveform1.setLogMode(x=escalaX, y=escalaY)
+            
+            # Límites
+            x_min = float(self.txtXMinEspectro.text())
+            x_max = float(self.txtXMaxEspectro.text())
+            y_min = float(self.txtYMinEspectro.text())
+            y_max = float(self.txtYMaxEspectro.text())
+            
+            # Guardar límites en variables de configuración
+            self.var_xMinEspectro = x_min
+            self.var_xMaxEspectro = x_max
+            self.var_yMinEspectro = y_min
+            self.var_yMaxEspectro = y_max
+            
+            self.waveform1.setXRange(x_min, x_max, padding=0)
+            self.waveform1.setYRange(y_min, y_max, padding=0)
+            
+            # Etiquetas
+            etiqueta_x = self.txtEtiquetaXEspectro.text()
+            etiqueta_y = self.txtEtiquetaYEspectro.text()
+            
+            # Guardar etiquetas en variables de configuración
+            self.var_etiquetaXEspectro = etiqueta_x
+            self.var_etiquetaYEspectro = etiqueta_y
+            
+            self.waveform1.setLabel('bottom', etiqueta_x)
+            self.waveform1.setLabel('left', etiqueta_y)
+            
+            # Color y tipo de gráfico
+            if hasattr(self, 'colorEspectro'):
+                color = self.colorEspectro.name()
+            else:
+                color = "#8A3F01"  # Color por defecto
+            
+            tipoGrafico = self.obtenerTipoGraficoEspectro()
+            self.actualizarEstiloGraficoEspectro(color, tipoGrafico)
+            
+        except Exception as e:
+            print(f"Error al aplicar configuración de espectro: {e}")
+
+    def aplicarConfiguracionNivel(self):
+        """Aplica la configuración personalizada para el gráfico de nivel"""
+        try:
+            # Escalas
+            escalaY = self.cbEscalaYNivel.isChecked()
+            self.var_logModeYNivel = escalaY
+            self.waveform1.setLogMode(x=False, y=escalaY)
+            
+            # Límites
+            x_min = float(self.txtXMinNivel.text())
+            x_max = float(self.txtXMaxNivel.text())
+            y_min = float(self.txtYMinNivel.text())
+            y_max = float(self.txtYMaxNivel.text())
+            
+            # Guardar límites en variables de configuración
+            self.var_xMinNivel = x_min
+            self.var_xMaxNivel = x_max
+            self.var_yMinNivel = y_min
+            self.var_yMaxNivel = y_max
+            
+            self.waveform1.setXRange(x_min, x_max, padding=0)
+            self.waveform1.setYRange(y_min, y_max, padding=0)
+            
+            # Etiquetas
+            etiqueta_x = self.txtEtiquetaXNivel.text()
+            etiqueta_y = self.txtEtiquetaYNivel.text()
+            
+            # Guardar etiquetas en variables de configuración
+            self.var_etiquetaXNivel = etiqueta_x
+            self.var_etiquetaYNivel = etiqueta_y
+            
+            self.waveform1.setLabel('bottom', etiqueta_x)
+            self.waveform1.setLabel('left', etiqueta_y)
+            
+            # Color y tipo de línea
+            if hasattr(self, 'colorNivel'):
+                color = self.colorNivel.name()
+            else:
+                color = "#000000"  # Color por defecto
+            
+            tipoLinea = self.obtenerTipoLinea("nivel")
+            self.actualizarEstiloLinea(color, tipoLinea)
+            
+        except Exception as e:
+            print(f"Error al aplicar configuración de nivel: {e}")
+
+    def actualizarEstiloLinea(self, color, tipoLinea):
+        """Actualiza el estilo de la línea del gráfico"""
+        try:
+            if tipoLinea == "Sólida":
+                pen = pg.mkPen(color=color, width=2)
+            elif tipoLinea == "Punteada":
+                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DotLine)
+            elif tipoLinea == "Rayada":
+                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DashLine)
+            else:
+                pen = pg.mkPen(color=color, width=2)
+            
+            # Actualizar el pen de la línea principal
+            if hasattr(self, 'ptdomTiempo'):
+                self.ptdomTiempo.setPen(pen)
+            if hasattr(self, 'ptdomEspect'):
+                self.ptdomEspect.setPen(pen)
+            
+        except Exception as e:
+            print(f"Error al actualizar estilo de línea: {e}")
+
+    def actualizarEstiloGraficoEspectro(self, color, tipoGrafico):
+        """Actualiza el estilo del gráfico de espectro"""
+        try:
+            if tipoGrafico == "Línea":
+                pen = pg.mkPen(color=color, width=2)
+                if hasattr(self, 'ptdomEspect'):
+                    self.ptdomEspect.setPen(pen)
+            elif tipoGrafico == "Barras":
+                # Para barras, cambiar el tipo de gráfico
+                if hasattr(self, 'ptdomEspect'):
+                    # Aquí se cambiaría a gráfico de barras
+                    # Por ahora mantenemos línea pero con estilo diferente
+                    pen = pg.mkPen(color=color, width=3)
+                    self.ptdomEspect.setPen(pen)
+            
+        except Exception as e:
+            print(f"Error al actualizar estilo de gráfico de espectro: {e}")
+
+    def seleccionarColor(self, colorFrame, tipoGrafico):
+        """Abre el diálogo de selección de color y actualiza el frame de color"""
+        color = QColorDialog.getColor()
+        if color.isValid():
+            colorFrame.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
+            # Aquí puedes guardar el color seleccionado según el tipo de gráfico
+            if tipoGrafico == "tiempo":
+                self.colorTiempo = color
+            elif tipoGrafico == "espectro":
+                self.colorEspectro = color
+            elif tipoGrafico == "nivel":
+                self.colorNivel = color
+
+    def obtenerTipoLinea(self, tipoGrafico):
+        """Obtiene el tipo de línea seleccionado para el gráfico especificado"""
+        if tipoGrafico == "tiempo":
+            return self.cmbTipoLineaTiempo.currentText()
+        elif tipoGrafico == "nivel":
+            return self.cmbTipoLineaNivel.currentText()
+        return "Sólida"  # Valor por defecto
+
+    def obtenerTipoGraficoEspectro(self):
+        """Obtiene el tipo de gráfico seleccionado para el espectro"""
+        return self.cmbTipoGraficoEspectro.currentText()
 
 # CODIGO YAMILI
 
@@ -987,6 +1133,350 @@ class vista(QMainWindow):
                 pass
         except Exception as e:
             print(f"Error en update_plot: {e}")
-
             
+    # CODIGO configuracion del graficos
+    def configuracion(self):
+            self.confWin = QMainWindow()
+            self.confWin.setWindowTitle("Configuracion de Gráficos")
+            self.confWin.setGeometry(self.norm(0.2, 0.2, 0.6, 0.6))
+            
+            # Crear widget central para la ventana de configuración
+            centralWidget = QWidget()
+            self.confWin.setCentralWidget(centralWidget)
+            
+            # Layout principal para la ventana de configuración
+            self.confWinLayout = QVBoxLayout(centralWidget)
+            self.confinfoLayout = QHBoxLayout()
+            self.confBotonesLayout = QHBoxLayout()
+            self.confWinLayout.addLayout(self.confinfoLayout)
+            self.confWinLayout.addLayout(self.confBotonesLayout)
+            
+            # Grupo de configuración de ejes
+            ejesGroupTiempo = QGroupBox("Configuración de Ejes Tiempo")
+            ejesGroupEspectro = QGroupBox("Configuración de Ejes Espectro")
+            ejesGroupNivel = QGroupBox("Configuración de Ejes Nivel")
+            configLayout = QHBoxLayout()
+            ejesLayoutTiempo = QVBoxLayout()
+            ejesLayoutEspectro = QVBoxLayout()
+            ejesLayoutNivel = QVBoxLayout()
+            
+            
+            #CONFIGURACION DE ESCALA
+            # Configuración de escala Tiempo
+            escalaLayoutTiempo = QHBoxLayout()
+            escalaLayoutTiempo.addWidget(QLabel("Escala:"))
+            
+            self.cbEscalaXTiempo = QCheckBox("Eje X Logarítmico")
+            self.cbEscalaXTiempo.setChecked(self.var_logModeXTiempo)
+            self.cbEscalaYTiempo = QCheckBox("Eje Y Logarítmico")
+            self.cbEscalaYTiempo.setChecked(self.var_logModeYTiempo)
+            
+            
+            escalaLayoutTiempo.addWidget(self.cbEscalaXTiempo)
+            escalaLayoutTiempo.addWidget(self.cbEscalaYTiempo)
+            escalaLayoutTiempo.addStretch()
+            ejesLayoutTiempo.addLayout(escalaLayoutTiempo)
+            
+            # Configuración de escala Espectro
+            escalaLayoutEspectro = QHBoxLayout()
+            escalaLayoutEspectro.addWidget(QLabel("Escala:"))
+            
+            self.cbEscalaXEspectro = QCheckBox("Eje X Logarítmico")
+            self.cbEscalaXEspectro.setChecked(self.var_logModeXEspectro)
+            self.cbEscalaYEspectro = QCheckBox("Eje Y Logarítmico")
+            self.cbEscalaYEspectro.setChecked(self.var_logModeYEspectro)
+            
+            
+            escalaLayoutEspectro.addWidget(self.cbEscalaXEspectro)
+            escalaLayoutEspectro.addWidget(self.cbEscalaYEspectro)
+            escalaLayoutEspectro.addStretch()
+            ejesLayoutEspectro.addLayout(escalaLayoutEspectro)
+            
+            # Configuración de escala Nivel
+            escalaLayoutNivel = QHBoxLayout()
+            escalaLayoutNivel.addWidget(QLabel("Escala:"))
+            
+            self.cbEscalaYNivel = QCheckBox("Eje Y Logarítmico")
+            self.cbEscalaYNivel.setChecked(self.var_logModeYNivel)
+            
+            
+            escalaLayoutNivel.addWidget(self.cbEscalaYNivel)
+            escalaLayoutNivel.addStretch()
+            ejesLayoutNivel.addLayout(escalaLayoutNivel)
+            
+            
+            #CONFIGURACION DE LIMITES
+            # Configuración de límites del eje X Tiempo
+            ejeXGroupTiempo = QGroupBox("Límites del Eje X")
+            ejeXLayoutTiempo = QGridLayout()
+            
+            ejeXLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtXMinTiempo = QLineEdit(str(self.var_xMinTiempo))
+            self.txtXMinTiempo.setMaximumWidth(100)
+            ejeXLayoutTiempo.addWidget(self.txtXMinTiempo, 0, 1)
+            
+            ejeXLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtXMaxTiempo = QLineEdit(str(self.var_xMaxTiempo))
+            self.txtXMaxTiempo.setMaximumWidth(100)
+            ejeXLayoutTiempo.addWidget(self.txtXMaxTiempo, 0, 3)
+            
+            
+            ejeXGroupTiempo.setLayout(ejeXLayoutTiempo)
+            ejesLayoutTiempo.addWidget(ejeXGroupTiempo)
+            
+            # Configuración de límites del eje Y Tiempo
+            ejeYGroupTiempo = QGroupBox("Límites del Eje Y")
+            ejeYLayoutTiempo = QGridLayout()
+            
+            ejeYLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtYMinTiempo = QLineEdit(str(self.var_yMinTiempo))
+            self.txtYMinTiempo.setMaximumWidth(100)
+            ejeYLayoutTiempo.addWidget(self.txtYMinTiempo, 0, 1)
+            
+            ejeYLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtYMaxTiempo = QLineEdit(str(self.var_yMaxTiempo))
+            self.txtYMaxTiempo.setMaximumWidth(100)
+            ejeYLayoutTiempo.addWidget(self.txtYMaxTiempo, 0, 3)
+            
+            ejeYGroupTiempo.setLayout(ejeYLayoutTiempo)
+            ejesLayoutTiempo.addWidget(ejeYGroupTiempo)
+            
+            # Configuración de límites del eje X Espectro
+            ejeXGroupEspectro = QGroupBox("Límites del Eje X")
+            ejeXLayoutEspectro = QGridLayout()
+            
+            ejeXLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtXMinEspectro = QLineEdit(str(self.var_xMinEspectro))
+            self.txtXMinEspectro.setMaximumWidth(100)
+            ejeXLayoutEspectro.addWidget(self.txtXMinEspectro, 0, 1)
+            
+            ejeXLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtXMaxEspectro = QLineEdit(str(self.var_xMaxEspectro))
+            self.txtXMaxEspectro.setMaximumWidth(100)
+            ejeXLayoutEspectro.addWidget(self.txtXMaxEspectro, 0, 3)
+            
+            ejeXGroupEspectro.setLayout(ejeXLayoutEspectro)
+            ejesLayoutEspectro.addWidget(ejeXGroupEspectro)
+            
+            # Configuración de límites del eje Y Espectro
+            ejeYGroupEspectro = QGroupBox("Límites del Eje Y")
+            ejeYLayoutEspectro = QGridLayout()
+            
+            ejeYLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtYMinEspectro = QLineEdit(str(self.var_yMinEspectro))
+            self.txtYMinEspectro.setMaximumWidth(100)
+            ejeYLayoutEspectro.addWidget(self.txtYMinEspectro, 0, 1)
+            
+            ejeYLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtYMaxEspectro = QLineEdit(str(self.var_yMaxEspectro))
+            self.txtYMaxEspectro.setMaximumWidth(100)
+            ejeYLayoutEspectro.addWidget(self.txtYMaxEspectro, 0, 3)
+            
+            ejeYGroupEspectro.setLayout(ejeYLayoutEspectro)
+            ejesLayoutEspectro.addWidget(ejeYGroupEspectro)
+            
+            # Configuración de límites del eje X Nivel
+            ejeXGroupNivel = QGroupBox("Límites del Eje X")
+            ejeXLayoutNivel = QGridLayout()
+            
+            ejeXLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtXMinNivel = QLineEdit(str(self.var_xMinNivel))
+            self.txtXMinNivel.setMaximumWidth(100)
+            ejeXLayoutNivel.addWidget(self.txtXMinNivel, 0, 1)
+            
+            ejeXLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtXMaxNivel = QLineEdit(str(self.var_xMaxNivel))
+            self.txtXMaxNivel.setMaximumWidth(100)
+            ejeXLayoutNivel.addWidget(self.txtXMaxNivel, 0, 3)
+            
+            ejeXGroupNivel.setLayout(ejeXLayoutNivel)
+            ejesLayoutNivel.addWidget(ejeXGroupNivel)
+            
+            # Configuración de límites del eje Y Nivel
+            ejeYGroupNivel = QGroupBox("Límites del Eje Y")
+            ejeYLayoutNivel = QGridLayout()
+            
+            ejeYLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
+            self.txtYMinNivel = QLineEdit(str(self.var_yMinNivel))
+            self.txtYMinNivel.setMaximumWidth(100)
+            ejeYLayoutNivel.addWidget(self.txtYMinNivel, 0, 1)
+            
+            ejeYLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
+            self.txtYMaxNivel = QLineEdit(str(self.var_yMaxNivel))
+            self.txtYMaxNivel.setMaximumWidth(100)
+            ejeYLayoutNivel.addWidget(self.txtYMaxNivel, 0, 3)
+            
+            ejeYGroupNivel.setLayout(ejeYLayoutNivel)
+            ejesLayoutNivel.addWidget(ejeYGroupNivel)
+            
+            
+            #CONFIGURACION DE ETIQUETAS
+            # Configuración de etiquetas Tiempo
+            etiquetasGroupTiempo = QGroupBox("Etiquetas de Ejes")
+            etiquetasLayoutTiempo = QGridLayout()
+            
+            etiquetasLayoutTiempo.addWidget(QLabel("Eje X:"), 0, 0)
+            self.txtEtiquetaXTiempo = QLineEdit(self.var_etiquetaXTiempo)
+            etiquetasLayoutTiempo.addWidget(self.txtEtiquetaXTiempo, 0, 1)
+            
+            etiquetasLayoutTiempo.addWidget(QLabel("Eje Y:"), 1, 0)
+            self.txtEtiquetaYTiempo = QLineEdit(self.var_etiquetaYTiempo)
+            etiquetasLayoutTiempo.addWidget(self.txtEtiquetaYTiempo, 1, 1)
+            
+            etiquetasGroupTiempo.setLayout(etiquetasLayoutTiempo)
+            ejesLayoutTiempo.addWidget(etiquetasGroupTiempo)
+            
+            # Configuración de etiquetas Espectro
+            etiquetasGroupEspectro = QGroupBox("Etiquetas de Ejes")
+            etiquetasLayoutEspectro = QGridLayout()
+            
+            etiquetasLayoutEspectro.addWidget(QLabel("Eje X:"), 0, 0)
+            self.txtEtiquetaXEspectro = QLineEdit(self.var_etiquetaXEspectro)
+            etiquetasLayoutEspectro.addWidget(self.txtEtiquetaXEspectro, 0, 1)
+            
+            etiquetasLayoutEspectro.addWidget(QLabel("Eje Y:"), 1, 0)
+            self.txtEtiquetaYEspectro = QLineEdit(self.var_etiquetaYEspectro)
+            etiquetasLayoutEspectro.addWidget(self.txtEtiquetaYEspectro, 1, 1)
+            
+            etiquetasGroupEspectro.setLayout(etiquetasLayoutEspectro)
+            ejesLayoutEspectro.addWidget(etiquetasGroupEspectro)
+            
+            # Configuración de etiquetas Nivel
+            etiquetasGroupNivel = QGroupBox("Etiquetas de Ejes")
+            etiquetasLayoutNivel = QGridLayout()
+            
+            etiquetasLayoutNivel.addWidget(QLabel("Eje X:"), 0, 0)
+            self.txtEtiquetaXNivel = QLineEdit(self.var_etiquetaXNivel)
+            etiquetasLayoutNivel.addWidget(self.txtEtiquetaXNivel, 0, 1)
+            
+            etiquetasLayoutNivel.addWidget(QLabel("Eje Y:"), 1, 0)
+            self.txtEtiquetaYNivel = QLineEdit(self.var_etiquetaYNivel)
+            etiquetasLayoutNivel.addWidget(self.txtEtiquetaYNivel, 1, 1)
+            
+            etiquetasGroupNivel.setLayout(etiquetasLayoutNivel)
+            ejesLayoutNivel.addWidget(etiquetasGroupNivel)
+            
+            
+            #CONFIGURACION DE COLORES
+            # Configuración de color Tiempo
+            colorGroupTiempo = QGroupBox("Color de Línea")
+            colorLayoutTiempo = QHBoxLayout()
+            
+            self.colorFrameTiempo = QFrame()
+            self.colorFrameTiempo.setFixedSize(30, 20)
+            self.colorFrameTiempo.setStyleSheet("background-color: #8A0101; border: 1px solid black;")
+            
+            self.btnColorTiempo = QPushButton("Seleccionar Color")
+            self.btnColorTiempo.clicked.connect(lambda: self.seleccionarColor(self.colorFrameTiempo, "tiempo"))
+            
+            colorLayoutTiempo.addWidget(QLabel("Color:"))
+            colorLayoutTiempo.addWidget(self.colorFrameTiempo)
+            colorLayoutTiempo.addWidget(self.btnColorTiempo)
+            colorLayoutTiempo.addStretch()
+            
+            colorGroupTiempo.setLayout(colorLayoutTiempo)
+            ejesLayoutTiempo.addWidget(colorGroupTiempo)
+            
+            # Configuración de color Espectro
+            colorGroupEspectro = QGroupBox("Color de Línea")
+            colorLayoutEspectro = QHBoxLayout()
+            
+            self.colorFrameEspectro = QFrame()
+            self.colorFrameEspectro.setFixedSize(30, 20)
+            self.colorFrameEspectro.setStyleSheet("background-color: #8A3F01; border: 1px solid black;")
+            
+            self.btnColorEspectro = QPushButton("Seleccionar Color")
+            self.btnColorEspectro.clicked.connect(lambda: self.seleccionarColor(self.colorFrameEspectro, "espectro"))
+            
+            colorLayoutEspectro.addWidget(QLabel("Color:"))
+            colorLayoutEspectro.addWidget(self.colorFrameEspectro)
+            colorLayoutEspectro.addWidget(self.btnColorEspectro)
+            colorLayoutEspectro.addStretch()
+            
+            colorGroupEspectro.setLayout(colorLayoutEspectro)
+            ejesLayoutEspectro.addWidget(colorGroupEspectro)
+            
+            # Configuración de color Nivel
+            colorGroupNivel = QGroupBox("Color de Línea")
+            colorLayoutNivel = QHBoxLayout()
+            
+            self.colorFrameNivel = QFrame()
+            self.colorFrameNivel.setFixedSize(30, 20)
+            self.colorFrameNivel.setStyleSheet("background-color: #000000; border: 1px solid black;")
+            
+            self.btnColorNivel = QPushButton("Seleccionar Color")
+            self.btnColorNivel.clicked.connect(lambda: self.seleccionarColor(self.colorFrameNivel, "nivel"))
+            
+            colorLayoutNivel.addWidget(QLabel("Color:"))
+            colorLayoutNivel.addWidget(self.colorFrameNivel)
+            colorLayoutNivel.addWidget(self.btnColorNivel)
+            colorLayoutNivel.addStretch()
+            
+            colorGroupNivel.setLayout(colorLayoutNivel)
+            ejesLayoutNivel.addWidget(colorGroupNivel)
+            
+            # CONFIGURACION DE TIPO DE LINEA y TIPO DE GRAFICO
+            # Configuración de tipo de línea Tiempo
+            tipoLineaGroupTiempo = QGroupBox("Tipo de Línea")
+            tipoLineaLayoutTiempo = QHBoxLayout()
+            
+            tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"))
+            self.cmbTipoLineaTiempo = QComboBox()
+            self.cmbTipoLineaTiempo.addItems(["Sólida", "Punteada", "Rayada"])
+            tipoLineaLayoutTiempo.addWidget(self.cmbTipoLineaTiempo)
+            tipoLineaLayoutTiempo.addStretch()
+            
+            tipoLineaGroupTiempo.setLayout(tipoLineaLayoutTiempo)
+            ejesLayoutTiempo.addWidget(tipoLineaGroupTiempo)
+            
+            # Configuración de tipo de gráfico Espectro
+            tipoGraficoGroupEspectro = QGroupBox("Tipo de Gráfico")
+            tipoGraficoLayoutEspectro = QHBoxLayout()
+            
+            tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
+            self.cmbTipoGraficoEspectro = QComboBox()
+            self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras"])
+            tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro)
+            tipoGraficoLayoutEspectro.addStretch()
+            
+            tipoGraficoGroupEspectro.setLayout(tipoGraficoLayoutEspectro)
+            ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
+            
+            # Configuración de tipo de línea Nivel
+            tipoLineaGroupNivel = QGroupBox("Tipo de Línea")
+            tipoLineaLayoutNivel = QHBoxLayout()
+            
+            tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"))
+            self.cmbTipoLineaNivel = QComboBox()
+            self.cmbTipoLineaNivel.addItems(["Sólida", "Punteada", "Rayada"])
+            tipoLineaLayoutNivel.addWidget(self.cmbTipoLineaNivel)
+            tipoLineaLayoutNivel.addStretch()
+            
+            tipoLineaGroupNivel.setLayout(tipoLineaLayoutNivel)
+            ejesLayoutNivel.addWidget(tipoLineaGroupNivel)
+            
+            
+            
+            # Botón para aplicar configuración automática según el tipo de gráfico
+            self.btnConfigAplicar = QPushButton("Aplicar")
+            self.btnConfigAplicar.clicked.connect(self.aplicarconfiguracion)
+            self.btnConfigCancelar = QPushButton("Cancelar")
+            self.btnConfigCancelar.clicked.connect(self.confWin.close)
+            
+            ejesGroupTiempo.setLayout(ejesLayoutTiempo)
+            ejesGroupEspectro.setLayout(ejesLayoutEspectro)
+            ejesGroupNivel.setLayout(ejesLayoutNivel)
+            
+            self.confinfoLayout.addWidget(ejesGroupTiempo)
+            self.confinfoLayout.addWidget(ejesGroupEspectro)
+            self.confinfoLayout.addWidget(ejesGroupNivel)
+            self.confBotonesLayout.addWidget(self.btnConfigCancelar)
+            self.confBotonesLayout.addWidget(self.btnConfigAplicar)
+            
+            
+            # Agregar stretch para empujar todo hacia arriba
+            self.confWinLayout.addStretch()
+            
+            # Mostrar la ventana de configuración
+            self.confWin.show()
 
