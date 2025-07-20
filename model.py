@@ -329,13 +329,16 @@ class modelo:
             # Convertir normalized_all a array numpy para mejor rendimiento
             normalized_all_array = np.concatenate(self.normalized_all)
             
-            return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times
+            # Calcular FFT para el espectro de frecuencia
+            fft_freqs, fft_db = self.calculate_fft(current_data)
+            
+            return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times, fft_freqs, fft_db
 
         except Exception as e:
             print(f"Error en get_audio_data: {e}")
             empty_current = np.zeros(self.chunk)
             empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
-            return empty_current, empty_all, empty_current, empty_all, -100.0, []
+            return empty_current, empty_all, empty_current, empty_all, -100.0, [], [], []
         
     def close(self):
         try:

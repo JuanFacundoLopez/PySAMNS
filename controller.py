@@ -221,9 +221,9 @@ class controlador():
          # Actualizar dispositivo 1 si está activo
         if self.device_active:
             try:
-                current_data1, all_data1, norm_current1, norm_all1, db1, times1 = self.cModel.get_audio_data()
+                current_data1, all_data1, norm_current1, norm_all1, db1, times1, fft_freqs1, fft_db1 = self.cModel.get_audio_data()
                 if len(current_data1) > 0:  # Verificar si hay datos
-                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, db1, self.device1_name, times1)
+                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, db1, self.device1_name, times1, fft_freqs1, fft_db1)
             except Exception as e:
                 print(f"Error al actualizar dispositivo 1: {e}")
                 self.device1_active = False
