@@ -129,15 +129,15 @@ class controlador():
             # Espectro
             if self.cVista.r0.isChecked():
                 yf_data = self.cModel.getSignalFrec('A')
-                f = np.linspace(0, int(self.RATE/2), int(self.CHUNK/2))
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
                 self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r1.isChecked():
                 yf_data = self.cModel.getSignalFrec('C')
-                f = np.linspace(0, int(self.RATE/2), int(self.CHUNK/2))
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
                 self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r2.isChecked():
                 yf_data = self.cModel.getSignalFrec('Z')
-                f = np.linspace(0, int(self.RATE/2), int(self.CHUNK/2))
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
                 self.cVista.ptdomEspect.setData(f, yf_data)
 
         elif self.cVista.btnNivel.isChecked():
