@@ -8,7 +8,7 @@ from scipy.fftpack import fft
 
 
 class modelo:
-    def __init__(self, Controller, rate=44100, chunk=1024, device_index=None):          # Constructor del modelo
+    def __init__(self, Controller, rate=44100, chunk=1024, device_index=1):          # Constructor del modelo
         self.mController = Controller
         dispEn, dispEnIndice, dispSal, dispSalIndice = consDisp.consDisp()
         self.dispEn = dispEn
@@ -238,29 +238,16 @@ class modelo:
     def calculate_fft(self, data):
         """Calcula la FFT (Transformada Rápida de Fourier) de los datos de audio"""
         if len(data) == 0:
-            return [], []
-        
-        # Calcular la FFT (Transformada Rápida de Fourier)
+            return [], [], []
         fft_data = np.fft.rfft(data)
-        
-        # Generar el array de frecuencias
-        fft_freqs = np.fft.rfftfreq(len(data), d=1.0/self.rate)
-        
-        # Calcular la magnitud normalizada
-        fft_magnitude = np.abs(fft_data) / len(data)
-        
-        # Evitar log(0) para valores muy pequeños
-        fft_magnitude[fft_magnitude == 0] = 1e-12
-        
-        # Convertir a escala logarítmica (dB)
-        fft_db = 20 * np.log10(fft_magnitude)
-
-        # Filtrar valores inválidos para eje logarítmico
+        N = len(data)
+        fft_magnitude = np.abs(fft_data) / N  # Normalización por número de muestras
+        fft_freqs = np.fft.rfftfreq(N, d=1.0/self.rate)
         valid = fft_freqs > 0
         fft_freqs = fft_freqs[valid]
-        fft_db = fft_db[valid]
+        fft_magnitude = fft_magnitude[valid]
+        return fft_freqs, fft_magnitude
 
-        return fft_freqs, fft_db
 
     def get_audio_data(self):
         try:
@@ -273,8 +260,6 @@ class modelo:
                 self.start_time = time.time()
                 self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
                 self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
-            else:
-                self.start_time = 0
             # Leer nuevo chunk de audio
             data = self.stream.read(self.chunk, exception_on_overflow=False)
             if not data:
