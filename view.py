@@ -140,6 +140,16 @@ class vista(QMainWindow):
         self.waveform1.setClipToView(True)
         self.waveform1.showGrid(x=True, y=True)
         self.waveform1.setYRange(-1.2, 1.2, padding=0)
+        # Línea principal para graficar datos en tiempo real
+        self.plot_line = self.waveform1.plot([], [], pen=pg.mkPen(color='r', width=2))
+        # Línea para graficar el espectro de frecuencia
+        self.plot_line_freq = self.waveform1.plot([], [], pen=pg.mkPen(color='b', width=2))
+        # Inicializar límites de eje Y para update_plot
+        self.ymin1 = -1.2
+        self.ymax1 = 1.2
+        # Inicializar límites de eje Y para el espectro de frecuencia
+        self.fft_ymin1 = -120
+        self.fft_ymax1 = 0
 
         # Definir las líneas del gráfico
         self.ptdomTiempo = self.waveform1.plot(pen=(138, 1, 1), width=2)
@@ -465,6 +475,10 @@ class vista(QMainWindow):
         configAct = QAction("Configuración de Gráficos", self)
         configAct.triggered.connect(self.configuracion)
         self.menuConfiguracion.addAction(configAct)
+        # Nueva acción para configuración de dispositivo
+        configDispAct = QAction("Configuración de Dispositivo", self)
+        configDispAct.triggered.connect(self.configuracionDispositivo)
+        self.menuConfiguracion.addAction(configDispAct)
         
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
@@ -545,7 +559,7 @@ class vista(QMainWindow):
             self.waveform1.setLogMode(x=True, y=True)    # Escala logarítmica
             self.waveform1.setXRange(20, 20000, padding=0) # Rango de frecuencia
             self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
-            self.waveform1.setLabel('left', 'Nivel (dB)')
+            self.waveform1.setLabel('left', 'Amplitud')
             self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
         
         # Actualizar el gráfico
@@ -1019,116 +1033,52 @@ class vista(QMainWindow):
 
     def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_db):
         try:
-            if self.btnTiempo.isChecked(): # modif
-                if device_num == 1:
-                    # Usar datos crudos para cálculos
-                    values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
-                    
-                    # Aplicar suavizado SOLO para visualización
-                    smooth_data = np.interp(
-                        np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
-                        np.arange(len(normalized_all)),
-                        normalized_all
-                    )
-                    # Crear array de tiempo suavizado
-                    smooth_times = np.interp(
-                        np.linspace(0, len(times)-1, len(smooth_data)),
-                        np.arange(len(times)),
-                        times
-                    )
-                    
-                    # Actualizar gráfico con datos suavizados
-                    self.waveform1.setData(smooth_times, smooth_data, connect='finite')
-                    # --- Ajuste de eje Y ---
-                    if len(smooth_data) > 0:
-                        ymin = float(np.min(smooth_data))
-                        ymax = float(np.max(smooth_data))
-                        changed = False
-                        if ymin < self.ymin1:
-                            self.ymin1 = ymin
-                            changed = True
-                        if ymax > self.ymax1:
-                            self.ymax1 = ymax
-                            changed = True
-                        if changed:
-                            self.waveform1.setYRange(self.ymin1, self.ymax1)
+            if self.btnTiempo.isChecked():
+                # Usar datos crudos para cálculos
+                values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
+                
+                # Aplicar suavizado SOLO para visualización
+                smooth_data = np.interp(
+                    np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
+                    np.arange(len(normalized_all)),
+                    normalized_all
+                )
+                # Crear array de tiempo suavizado
+                smooth_times = np.interp(
+                    np.linspace(0, len(times)-1, len(smooth_data)),
+                    np.arange(len(times)),
+                    times
+                )
+                
+                # Mostrar solo los últimos N puntos
+                N = 2000
+                xdata = smooth_times[-N:]
+                ydata = smooth_data[-N:]
+                print("Graficando:", len(xdata), len(ydata), "Ejemplo:", ydata[:5])
+                print("Eje X:", xdata[:10])
+                # Fuerza la creación de la línea en cada actualización (depuración)
+                self.plot_line = self.waveform1.plot([], [], pen=pg.mkPen(color='r', width=2))
+                self.plot_line.setData(xdata, ydata)
+                self.waveform1.setXRange(xdata[0], xdata[-1])
+                self.waveform1.setYRange(-1, 1)
+                self.plot_line_freq.setData([], [])
 
-                    # self.waveform1.setTitle(f"Onda de Sonido - {device_name}", color='#ffffff', size='14pt')
-                    # self.valueText1.setText(f"Valores normalizados: {values_str}...")
-                    # self.valueText1.setPos(0, 0.8)
-                    
-                    if len(times) > 0:
-                        self.waveform1.setXRange(times[0], times[-1])
-                        self.cronometroGrabacion.setText(f"Tiempo transcurrido: {times[-1]:.2f} s")
-                    else:
-                        self.cronometroGrabacion.setText("Tiempo transcurrido: 0.00 s")
-                    
-                    # Usar db_level calculado con datos crudos
-                    # self.db1Label.setText(f"Nivel: {db_level:.1f} dB")
-                    
-                    # if db_level > -20:
-                    #     self.db1Label.setStyleSheet("color: red; font-weight: bold;")
-                    # elif db_level > -40:
-                    #     self.db1Label.setStyleSheet("color: yellow; font-weight: bold;")
-                    # else:
-                    #     self.db1Label.setStyleSheet("color: blue; font-weight: bold;")
-                    
-                    # self.db1Label.show()
-                    # self.fftDb1Label.hide()
+            if self.btnFrecuencia.isChecked():
+                if device_num == 1 and len(fft_freqs) > 0:
+                    fft_amp = fft_db  # fft_db ahora es amplitud lineal
+                    self.plot_line_freq.setData(np.log10(fft_freqs), fft_amp)
+                    self.waveform1.setXRange(np.log10(20), np.log10(20000))
+                    max_amp = np.max(fft_amp)
+                    if max_amp > self.fft_ymax1:
+                        self.fft_ymax1 = max_amp
+                    self.waveform1.setYRange(0, self.fft_ymax1)
+                    self.waveform1.setLabel('left', 'Amplitud')
+                    self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                    self.waveform1.setLogMode(x=True, y=False)
+                    self.plot_line.setData([], [])
                 else:
-                    # Usar datos crudos para cálculos
-                    values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
-                    
-                    # Aplicar suavizado SOLO para visualización
-                    smooth_data = np.interp(
-                        np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
-                        np.arange(len(normalized_all)),
-                        normalized_all
-                    )
-                    # Crear array de tiempo suavizado
-                    smooth_times = np.interp(
-                        np.linspace(0, len(times)-1, len(smooth_data)),
-                        np.arange(len(times)),
-                        times
-                    )
-                    
-            if self.btnFrecuencia.isChecked():  # modif
-                if device_num == 1:
-                    # Usar datos de FFT precalculados desde el modelo
-                    if len(fft_freqs) > 0:
-                        self.waveform1.setData(np.log10(fft_freqs), fft_db)
-                        # --- Ajuste de eje Y para FFT ---
-                        ymin = float(np.min(fft_db))
-                        ymax = float(np.max(fft_db))
-                        changed = False
-                        if ymin < self.fft_ymin1:
-                            self.fft_ymin1 = ymin
-                            changed = True
-                        if ymax > self.fft_ymax1:
-                            self.fft_ymax1 = ymax
-                            changed = True
-                        if changed:
-                            self.waveform1.setYRange(self.fft_ymin1, self.fft_ymax1)
-                            print(f"[DEBUG FFT1] YRange actualizado: min={self.fft_ymin1:.2f}, max={self.fft_ymax1:.2f}")
-                        else:
-                            print(f"[DEBUG FFT1] YRange actual: min={self.fft_ymin1:.2f}, max={self.fft_ymax1:.2f}")
-                        self.waveform1.setTitle(f"Espectro de Frecuencia - {device_name}", color='#ffffff', size='14pt')
-                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
-                        # self.fftDb1Label.setText(f"Nivel: {db_level:.1f} dB")
-                        # if db_level > -20:
-                        #     self.fftDb1Label.setStyleSheet("color: red; font-weight: bold;")
-                        # elif db_level > -40:
-                        #     self.fftDb1Label.setStyleSheet("color: yellow; font-weight: bold;")
-                        # else:
-                        #     self.fftDb1Label.setStyleSheet("color: blue; font-weight: bold;")
-                        # self.fftDb1Label.show()
-                        # self.db1Label.hide()
-                    else:
-                        self.waveform1.setData([], [])
-                        # self.fftDb1Label.setText("Nivel: -- dB")
-                        # self.fftDb1Label.show()
-                        # self.db1Label.hide()
-            
+                    self.plot_line_freq.setData([], [])
+
             if self.btnNivel.isChecked():
                 pass
         except Exception as e:
@@ -1479,4 +1429,66 @@ class vista(QMainWindow):
             
             # Mostrar la ventana de configuración
             self.confWin.show()
+
+    def configuracionDispositivo(self):
+        self.confDispWin = QMainWindow()
+        self.confDispWin.setWindowTitle("Configuración de Dispositivo")
+        self.confDispWin.setGeometry(self.norm(0.25, 0.25, 0.5, 0.4))
+
+        # Widget central y layout principal
+        centralWidget = QWidget()
+        self.confDispWin.setCentralWidget(centralWidget)
+        mainLayout = QVBoxLayout(centralWidget)
+
+        # Layout de selección de dispositivo
+        dispGroup = QGroupBox("Dispositivo de Entrada")
+        dispLayout = QHBoxLayout()
+        self.cmbDispositivos = QComboBox()
+        # Obtener lista de dispositivos del modelo
+        dispositivos = self.vController.cModel.getDispositivosEntrada('nombre')
+        self.cmbDispositivos.addItems(dispositivos)
+        dispLayout.addWidget(QLabel("Seleccionar:"))
+        dispLayout.addWidget(self.cmbDispositivos)
+        dispGroup.setLayout(dispLayout)
+        mainLayout.addWidget(dispGroup)
+
+        # Layout de configuración de rate y chunk
+        rateChunkGroup = QGroupBox("Parámetros de Audio")
+        rateChunkLayout = QHBoxLayout()
+        self.txtRate = QLineEdit(str(self.vController.cModel.rate))
+        self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
+        rateChunkLayout.addWidget(QLabel("Rate (Hz):"))
+        rateChunkLayout.addWidget(self.txtRate)
+        rateChunkLayout.addWidget(QLabel("Chunk:"))
+        rateChunkLayout.addWidget(self.txtChunk)
+        rateChunkGroup.setLayout(rateChunkLayout)
+        mainLayout.addWidget(rateChunkGroup)
+
+        # Botones Agregar y Cancelar
+        botonesLayout = QHBoxLayout()
+        self.btnDispAgregar = QPushButton("Agregar")
+        self.btnDispAgregar.clicked.connect(self.aplicarConfiguracionDispositivo)
+        self.btnDispCancelar = QPushButton("Cancelar")
+        self.btnDispCancelar.clicked.connect(self.confDispWin.close)
+        botonesLayout.addWidget(self.btnDispCancelar)
+        botonesLayout.addWidget(self.btnDispAgregar)
+        mainLayout.addLayout(botonesLayout)
+
+        self.confDispWin.show()
+
+    def aplicarConfiguracionDispositivo(self):
+        try:
+            # Obtener valores seleccionados
+            dispositivo_idx = self.cmbDispositivos.currentIndex()
+            rate = int(self.txtRate.text())
+            chunk = int(self.txtChunk.text())
+            # Actualizar en el modelo/controlador
+            self.vController.cModel.rate = rate
+            self.vController.cModel.chunk = chunk
+            # Si quieres cambiar el dispositivo, deberías reiniciar el stream aquí
+            # self.vController.cModel.setDeviceIndex(dispositivo_idx)
+            # Cerrar ventana
+            self.confDispWin.close()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")
 
