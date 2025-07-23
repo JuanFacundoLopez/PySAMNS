@@ -1043,6 +1043,7 @@ class vista(QMainWindow):
     def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_magnitude):
         try:
             if self.btnTiempo.isChecked():
+                import numpy as np
                 # Usar datos crudos para cálculos
                 values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
                 
