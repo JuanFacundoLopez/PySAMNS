@@ -133,6 +133,12 @@ class vista(QMainWindow):
         self.var_etiquetaYEspectro = "Amplitud Normalizada"
         self.var_etiquetaXNivel = "Tiempo"
         self.var_etiquetaYNivel = "Amplitud Normalizada"
+        self.var_tipoLineaTiempo = ""
+        self.var_tipoGraficoEspectro = ""
+        self.var_tipoLineaNivel = ""
+        self.var_colorTiempo=""
+        self.var_colorEspectro=""
+        self.var_colorNivel=""
         
         # Configuración del gráfico
         self.waveform1 = self.winGraph1.addPlot()
@@ -557,7 +563,13 @@ class vista(QMainWindow):
         else:
             # Configuración por defecto para gráfico de frecuencia
             self.waveform1.setLogMode(x=True, y=True)    # Escala logarítmica
-            self.waveform1.setXRange(20, 20000, padding=0) # Rango de frecuencia
+            # Validar límites antes de aplicar log10
+            x_min = max(self.var_xMinEspectro, 1)
+            x_max = max(self.var_xMaxEspectro, x_min + 1)
+            if x_min > 0 and x_max > x_min:
+                self.waveform1.setXRange(np.log10(x_min), np.log10(x_max)) # Rango de frecuencia
+            else:
+                QMessageBox.warning(self, "Error", "El rango de frecuencia debe ser mayor que 0 y el máximo mayor que el mínimo.")
             self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
             self.waveform1.setLabel('left', 'Amplitud')
             self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
@@ -785,7 +797,11 @@ class vista(QMainWindow):
                 self.var_etiquetaXTiempo = self.txtEtiquetaXTiempo.text()
             if hasattr(self, 'txtEtiquetaYTiempo'):
                 self.var_etiquetaYTiempo = self.txtEtiquetaYTiempo.text()
-            
+            # Guardar tipo de línea y color de tiempo
+            if hasattr(self, 'cmbTipoLineaTiempo'):
+                self.var_tipoLineaTiempo = self.cmbTipoLineaTiempo.currentText()
+            if hasattr(self, 'colorTiempo'):
+                self.var_colorTiempo = self.colorTiempo.name()
             # Guardar configuración de espectro
             if hasattr(self, 'cbEscalaXEspectro'):
                 self.var_logModeXEspectro = self.cbEscalaXEspectro.isChecked()
@@ -803,7 +819,11 @@ class vista(QMainWindow):
                 self.var_etiquetaXEspectro = self.txtEtiquetaXEspectro.text()
             if hasattr(self, 'txtEtiquetaYEspectro'):
                 self.var_etiquetaYEspectro = self.txtEtiquetaYEspectro.text()
-            
+            # Guardar tipo de gráfico y color de espectro
+            if hasattr(self, 'cmbTipoGraficoEspectro'):
+                self.var_tipoGraficoEspectro = self.cmbTipoGraficoEspectro.currentText()
+            if hasattr(self, 'colorEspectro'):
+                self.var_colorEspectro = self.colorEspectro.name()
             # Guardar configuración de nivel
             if hasattr(self, 'cbEscalaYNivel'):
                 self.var_logModeYNivel = self.cbEscalaYNivel.isChecked()
@@ -819,7 +839,11 @@ class vista(QMainWindow):
                 self.var_etiquetaXNivel = self.txtEtiquetaXNivel.text()
             if hasattr(self, 'txtEtiquetaYNivel'):
                 self.var_etiquetaYNivel = self.txtEtiquetaYNivel.text()
-                
+            # Guardar tipo de línea y color de nivel
+            if hasattr(self, 'cmbTipoLineaNivel'):
+                self.var_tipoLineaNivel = self.cmbTipoLineaNivel.currentText()
+            if hasattr(self, 'colorNivel'):
+                self.var_colorNivel = self.colorNivel.name()
         except Exception as e:
             print(f"Error al guardar configuración: {e}")
 
@@ -1056,28 +1080,78 @@ class vista(QMainWindow):
                 ydata = smooth_data[-N:]
                 print("Graficando:", len(xdata), len(ydata), "Ejemplo:", ydata[:5])
                 print("Eje X:", xdata[:10])
-                # Fuerza la creación de la línea en cada actualización (depuración)
-                self.plot_line = self.waveform1.plot([], [], pen=pg.mkPen(color='r', width=2))
+                # Eliminar la línea anterior si existe
+                if hasattr(self, 'plot_line'):
+                    self.waveform1.removeItem(self.plot_line)
+                # Obtener color y tipo de línea configurados
+                color = "#8A0101"  # Color por defecto
+                if hasattr(self, 'colorTiempo'):
+                    color = self.colorTiempo.name()
+                tipoLinea = "Sólida"
+                if hasattr(self, 'cmbTipoLineaTiempo'):
+                    tipoLinea = self.cmbTipoLineaTiempo.currentText()
+                # Crear el pen según el tipo de línea
+                if tipoLinea == "Sólida":
+                    pen = pg.mkPen(color=color, width=2)
+                elif tipoLinea == "Punteada":
+                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DotLine)
+                elif tipoLinea == "Rayada":
+                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DashLine)
+                else:
+                    pen = pg.mkPen(color=color, width=2)
+                # Crear la línea con el pen configurado
+                self.plot_line = self.waveform1.plot([], [], pen=pen)
                 self.plot_line.setData(xdata, ydata)
                 self.waveform1.setXRange(xdata[0], xdata[-1])
                 self.waveform1.setYRange(-1, 1)
                 self.plot_line_freq.setData([], [])
 
             if self.btnFrecuencia.isChecked():
+                # Eliminar gráficos anteriores si existen
+                if hasattr(self, 'plot_line_freq'):
+                    self.waveform1.removeItem(self.plot_line_freq)
+                if hasattr(self, 'bar_item_freq'):
+                    self.waveform1.removeItem(self.bar_item_freq)
+                    del self.bar_item_freq
                 if device_num == 1 and len(fft_freqs) > 0:
-                    fft_amp = fft_db  # fft_db ahora es amplitud lineal
-                    self.plot_line_freq.setData(np.log10(fft_freqs), fft_amp)
-                    self.waveform1.setXRange(np.log10(20), np.log10(20000))
-                    max_amp = np.max(fft_amp)
-                    if max_amp > self.fft_ymax1:
-                        self.fft_ymax1 = max_amp
-                    self.waveform1.setYRange(0, self.fft_ymax1)
-                    self.waveform1.setLabel('left', 'Amplitud')
-                    self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                    self.waveform1.setLogMode(x=True, y=False)
-                    self.plot_line.setData([], [])
+                    tipoGrafico = self.var_tipoGraficoEspectro if self.var_tipoGraficoEspectro else "Línea"
+                    color = self.var_colorEspectro if self.var_colorEspectro else "#8A3F01"
+                    # Validar límites antes de aplicar log10
+                    x_min = max(self.var_xMinEspectro, 1)
+                    x_max = max(self.var_xMaxEspectro, x_min + 1)
+                    if x_min > 0 and x_max > x_min:
+                        if tipoGrafico == "Línea":
+                            # Graficar como línea
+                            pen = pg.mkPen(color=color, width=2)
+                            self.plot_line_freq = self.waveform1.plot([], [], pen=pen)
+                            self.plot_line_freq.setData(np.log10(fft_freqs), fft_db)
+                        elif tipoGrafico == "Barras":
+                            # Graficar como barras
+                            x = np.log10(fft_freqs)
+                            y = fft_db
+                            width = (x[1] - x[0]) if len(x) > 1 else 0.01
+                            from pyqtgraph import BarGraphItem
+                            self.bar_item_freq = BarGraphItem(x=x, height=y, width=width, brush=color)
+                            self.waveform1.addItem(self.bar_item_freq)
+                            self.plot_line_freq = self.waveform1.plot([], [], pen=None)
+                        self.waveform1.setXRange(np.log10(x_min), np.log10(x_max))
+                        max_amp = np.max(fft_db)
+                        if max_amp > self.fft_ymax1:
+                            self.fft_ymax1 = max_amp
+                        self.waveform1.setYRange(0, self.fft_ymax1)
+                        self.waveform1.setLabel('left', 'Amplitud')
+                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        self.waveform1.setLogMode(x=True, y=False)
+                        if hasattr(self, 'plot_line'):
+                            self.plot_line.setData([], [])
+                    else:
+                        QMessageBox.warning(self, "Error", "El rango de frecuencia debe ser mayor que 0 y el máximo mayor que el mínimo.")
                 else:
-                    self.plot_line_freq.setData([], [])
+                    if hasattr(self, 'plot_line_freq'):
+                        self.plot_line_freq.setData([], [])
+                    if hasattr(self, 'bar_item_freq'):
+                        self.waveform1.removeItem(self.bar_item_freq)
+                        del self.bar_item_freq
 
             if self.btnNivel.isChecked():
                 pass
@@ -1373,9 +1447,13 @@ class vista(QMainWindow):
             tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"))
             self.cmbTipoLineaTiempo = QComboBox()
             self.cmbTipoLineaTiempo.addItems(["Sólida", "Punteada", "Rayada"])
+            # Seleccionar el valor guardado
+            if self.var_tipoLineaTiempo:
+                idx = self.cmbTipoLineaTiempo.findText(self.var_tipoLineaTiempo)
+                if idx >= 0:
+                    self.cmbTipoLineaTiempo.setCurrentIndex(idx)
             tipoLineaLayoutTiempo.addWidget(self.cmbTipoLineaTiempo)
             tipoLineaLayoutTiempo.addStretch()
-            
             tipoLineaGroupTiempo.setLayout(tipoLineaLayoutTiempo)
             ejesLayoutTiempo.addWidget(tipoLineaGroupTiempo)
             
@@ -1386,9 +1464,13 @@ class vista(QMainWindow):
             tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
             self.cmbTipoGraficoEspectro = QComboBox()
             self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras"])
+            # Seleccionar el valor guardado
+            if self.var_tipoGraficoEspectro:
+                idx = self.cmbTipoGraficoEspectro.findText(self.var_tipoGraficoEspectro)
+                if idx >= 0:
+                    self.cmbTipoGraficoEspectro.setCurrentIndex(idx)
             tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro)
             tipoGraficoLayoutEspectro.addStretch()
-            
             tipoGraficoGroupEspectro.setLayout(tipoGraficoLayoutEspectro)
             ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
             
@@ -1399,9 +1481,13 @@ class vista(QMainWindow):
             tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"))
             self.cmbTipoLineaNivel = QComboBox()
             self.cmbTipoLineaNivel.addItems(["Sólida", "Punteada", "Rayada"])
+            # Seleccionar el valor guardado
+            if self.var_tipoLineaNivel:
+                idx = self.cmbTipoLineaNivel.findText(self.var_tipoLineaNivel)
+                if idx >= 0:
+                    self.cmbTipoLineaNivel.setCurrentIndex(idx)
             tipoLineaLayoutNivel.addWidget(self.cmbTipoLineaNivel)
             tipoLineaLayoutNivel.addStretch()
-            
             tipoLineaGroupNivel.setLayout(tipoLineaLayoutNivel)
             ejesLayoutNivel.addWidget(tipoLineaGroupNivel)
             
