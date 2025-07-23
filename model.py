@@ -248,7 +248,7 @@ class modelo:
         fft_magnitude = fft_magnitude[valid]
         # Convertir a dB
         fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
-        return fft_freqs, fft_magnitude_db
+        return fft_freqs, fft_magnitude
 
 
     def get_audio_data(self):

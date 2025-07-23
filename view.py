@@ -22,6 +22,18 @@ import sys
 
 import numpy as np
 
+# --- Eje logarítmico personalizado para frecuencia ---
+class LogAxis(pg.AxisItem):
+    def tickStrings(self, values, scale, spacing):
+        strings = []
+        for val in values:
+            exp = int(np.round(val))
+            if np.isclose(val, exp, atol=0.01) and 0 <= exp <= 5:
+                strings.append(f"10^{exp}")
+            else:
+                strings.append(" ")  # Espacio en vez de string vacío para evitar duplicados
+        return strings
+
 class vista(QMainWindow):
 
     def norm(self, x, y, ancho, alto):
@@ -1028,7 +1040,7 @@ class vista(QMainWindow):
 
 # CODIGO YAMILI
 
-    def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_db):
+    def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_magnitude):
         try:
             if self.btnTiempo.isChecked():
                 # Usar datos crudos para cálculos
@@ -1066,10 +1078,14 @@ class vista(QMainWindow):
                 test_freqs = np.linspace(20, 20000, 100)
                 test_amp = 20 * np.log10(np.abs(np.sin(np.linspace(0, 10, 100))) + 1e-2)
                 self.waveform1.clear()
-                self.plot_line_freq = self.waveform1.plot(test_freqs, test_amp, pen=pg.mkPen(color='r', width=2))
-                self.waveform1.setXRange(test_freqs[0], test_freqs[-1])
+                # Usar eje logarítmico para X
+                if not hasattr(self, 'log_x_axis'):
+                    self.log_x_axis = LogAxis(orientation='bottom')
+                self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                self.plot_line_freq = self.waveform1.plot(np.log10(test_freqs), test_amp, pen=pg.mkPen(color='r', width=2))
+                self.waveform1.setXRange(np.log10(20), np.log10(20000))
                 self.waveform1.setYRange(-40, 0)
-                self.waveform1.setLabel('left', 'Amplitud (dB)')
+                self.waveform1.setLabel('left', 'Amplitud')
                 self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                 self.waveform1.setLogMode(x=False, y=False)
                 print('GRAFICO DE PRUEBA FIJO MOSTRADO')
@@ -1078,14 +1094,15 @@ class vista(QMainWindow):
                     # Filtra frecuencias audibles
                     mask = (fft_freqs >= 20) & (fft_freqs <= 20000)
                     freqs_plot = fft_freqs[mask]
-                    amp_plot = fft_db[mask]
+                    amp_plot = fft_magnitude[mask]
                     print("fft_freqs:", freqs_plot[:10], " ... total:", len(freqs_plot))
                     print("amp_plot:", amp_plot[:10], " ... total:", len(amp_plot))
                     if len(freqs_plot) > 0:
                         self.waveform1.clear()
-                        self.plot_line_freq = self.waveform1.plot(freqs_plot, amp_plot, pen=pg.mkPen(color='b', width=2))
+                        self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                        self.plot_line_freq = self.waveform1.plot(np.log10(freqs_plot), amp_plot, pen=pg.mkPen(color='b', width=2))
                         print(f"Ajustando XRange: {freqs_plot[0]} - {freqs_plot[-1]}")
-                        self.waveform1.setXRange(freqs_plot[0], freqs_plot[-1])
+                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
                         # --- Eje Y dinámico ---
                         if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
                             self.fft_ymin = np.min(amp_plot)
@@ -1096,7 +1113,7 @@ class vista(QMainWindow):
                             if np.max(amp_plot) > self.fft_ymax:
                                 self.fft_ymax = np.max(amp_plot)
                         self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                    self.waveform1.setLabel('left', 'Amplitud (dB)')
+                    self.waveform1.setLabel('left', 'Amplitud')
                     self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                     self.waveform1.setLogMode(x=False, y=False)
                     if hasattr(self, 'plot_line'):
