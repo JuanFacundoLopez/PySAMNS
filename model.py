@@ -236,9 +236,9 @@ class modelo:
         return max(-100.0, min(db, 0.0))  # Limitar entre -100 y 0 dB
 
     def calculate_fft(self, data):
-        """Calcula la FFT (Transformada Rápida de Fourier) de los datos de audio"""
+        """Calcula la FFT (Transformada Rápida de Fourier) de los datos de audio y devuelve la magnitud en dB"""
         if len(data) == 0:
-            return [], [], []
+            return [], []
         fft_data = np.fft.rfft(data)
         N = len(data)
         fft_magnitude = np.abs(fft_data) / N  # Normalización por número de muestras
@@ -246,6 +246,8 @@ class modelo:
         valid = fft_freqs > 0
         fft_freqs = fft_freqs[valid]
         fft_magnitude = fft_magnitude[valid]
+        # Convertir a dB
+        fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
         return fft_freqs, fft_magnitude
 
 
@@ -272,7 +274,7 @@ class modelo:
 
             # Comparar current_data con data, para verificar que no se vea afectada la amplitud de onda
             current_data = np.frombuffer(data, dtype=np.int16)
-            
+            print("current_data max:", np.max(current_data), "min:", np.min(current_data))
             # Verificar que la conversión mantiene la amplitud de la onda
             # Convertir data (bytes) a int16 para comparar amplitudes
             data_as_int16 = np.frombuffer(data, dtype=np.int16)
