@@ -246,9 +246,8 @@ class modelo:
         valid = fft_freqs > 0
         fft_freqs = fft_freqs[valid]
         fft_magnitude = fft_magnitude[valid]
-        print("fft_magnitude:", fft_magnitude)
         # Convertir a dB
-        fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
+        # fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
         return fft_freqs, fft_magnitude
 
 

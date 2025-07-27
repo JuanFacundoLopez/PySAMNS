@@ -1153,20 +1153,20 @@ class vista(QMainWindow):
             if self.btnFrecuencia.isChecked():
                 # Graficar espectro de prueba fijo
                 import numpy as np
-                test_freqs = np.linspace(20, 20000, 100)
+                """ test_freqs = np.linspace(20, 20000, 100)
                 test_amp = 20 * np.log10(np.abs(np.sin(np.linspace(0, 10, 100))) + 1e-2)
-                self.waveform1.clear()
+                self.waveform1.clear() """
                 # Usar eje logarítmico para X
                 if not hasattr(self, 'log_x_axis'):
                     self.log_x_axis = LogAxis(orientation='bottom')
                 self.waveform1.setAxisItems({'bottom': self.log_x_axis})
-                self.plot_line_freq = self.waveform1.plot(np.log10(test_freqs), test_amp, pen=pg.mkPen(color='r', width=2))
+                """ self.plot_line_freq = self.waveform1.plot(np.log10(test_freqs), test_amp, pen=pg.mkPen(color='r', width=2))
                 self.waveform1.setXRange(np.log10(20), np.log10(20000))
-                self.waveform1.setYRange(-40, 0)
+                self.waveform1.setYRange(-40, 0) """
                 self.waveform1.setLabel('left', 'Amplitud')
                 self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                 self.waveform1.setLogMode(x=False, y=False)
-                print('GRAFICO DE PRUEBA FIJO MOSTRADO')
+                # print('GRAFICO DE PRUEBA FIJO MOSTRADO')
                 # ---
                 if device_num == 1 and len(fft_freqs) > 0:
                     # Filtra frecuencias audibles
