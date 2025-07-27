@@ -34,6 +34,19 @@ class LogAxis(pg.AxisItem):
                 strings.append(" ")  # Espacio en vez de string vacío para evitar duplicados
         return strings
 
+# --- Eje de tiempo personalizado para mostrar segundos ---
+class TimeAxisItem(pg.AxisItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    def tickStrings(self, values, scale, spacing):
+        # Formatea los valores del eje X para mostrar segundos
+        strings = []
+        for val in values:
+            # Formatea el valor como segundos con 2 decimales
+            strings.append(f"{val:.2f} s")
+        return strings
+
 class vista(QMainWindow):
 
     def norm(self, x, y, ancho, alto):
@@ -147,7 +160,9 @@ class vista(QMainWindow):
         self.var_etiquetaYNivel = "Amplitud Normalizada"
         
         # Configuración del gráfico
-        self.waveform1 = self.winGraph1.addPlot()
+        # Crear eje de tiempo personalizado para mostrar segundos
+        self.time_axis = TimeAxisItem(orientation='bottom')
+        self.waveform1 = self.winGraph1.addPlot(axisItems={'bottom': self.time_axis})
         self.waveform1.setDownsampling(mode='peak')
         self.waveform1.setClipToView(True)
         self.waveform1.showGrid(x=True, y=True)
@@ -540,7 +555,7 @@ class vista(QMainWindow):
         self.waveform1.setYRange(-1, 1, padding=0)   # Amplitud normalizada
         self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
         self.waveform1.setLabel('left', 'Amplitud Normalizada')
-        self.waveform1.setLabel('bottom', 'Tiempo')
+        self.waveform1.setLabel('bottom', 'Tiempo (s)')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -565,6 +580,11 @@ class vista(QMainWindow):
         # Limpiar el gráfico actual
         self.waveform1.clear()
         
+        # Asegurar que se use el eje de tiempo personalizado
+        if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
+            self.time_axis = TimeAxisItem(orientation='bottom')
+            self.waveform1.setAxisItems({'bottom': self.time_axis})
+        
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         if hasattr(self, 'txtXMinTiempo') and hasattr(self, 'txtXMaxTiempo'):
             self.aplicarConfiguracionTiempo()
@@ -574,7 +594,7 @@ class vista(QMainWindow):
             self.waveform1.setYRange(-1, 1, padding=0)   # Amplitud normalizada
             self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
             self.waveform1.setLabel('left', 'Amplitud Normalizada')
-            self.waveform1.setLabel('bottom', 'Tiempo')
+            self.waveform1.setLabel('bottom', 'Tiempo (s)')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -1097,6 +1117,12 @@ class vista(QMainWindow):
                 import numpy as np
                 # Usar datos crudos para cálculos
                 values_str = ", ".join([f"{v:.2f}" for v in normalized_current[:10]])
+                
+                # Asegurar que se use el eje de tiempo personalizado
+                if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
+                    self.time_axis = TimeAxisItem(orientation='bottom')
+                    self.waveform1.setAxisItems({'bottom': self.time_axis})
+                    self.waveform1.setLabel('bottom', 'Tiempo (s)')
                 
                 # Aplicar suavizado SOLO para visualización
                 smooth_data = np.interp(
