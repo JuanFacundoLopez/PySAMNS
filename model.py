@@ -96,7 +96,7 @@ class modelo:
     
 # Setters
     def setChunk(self, chunk):
-        self.CHUNK = chunk
+        self.chunk = chunk
     def setFs(self,Fs):
         self.Fs = Fs
     def setSignalData(self, signaldata):
@@ -107,7 +107,7 @@ class modelo:
         self.signaldataC = signaldataC
             # Forma de onda en frecuencia
         yf = fft(signaldata)
-        yf = np.abs(yf[0:int(self.CHUNK/2)])
+        yf = np.abs(yf[0:int(self.chunk/2)])
         self.setSignalFrec(yf) #Guardo en modelo
         
     def setNivelesZ(self, recorderPicoZ, recorderInstZ, recorderFastZ, recorderSlowZ, mode='a'):
@@ -335,5 +335,4 @@ class modelo:
             self.buffer = []
         except Exception as e:
             print(f"Error al cerrar el audio: {e}")
-
-    
+        
