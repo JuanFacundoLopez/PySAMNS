@@ -159,12 +159,30 @@ class controlador():
             
             print(f"DEBUG: Datos obtenidos - Z: {len(dataVectorPicoZ)}, C: {len(dataVectorPicoC)}, A: {len(dataVectorPicoA)}")
             
-            # Crear eje de tiempo real (en segundos)
-            # Asumiendo que cada muestra representa un chunk de audio
-            chunk_duration = self.cModel.chunk / self.cModel.rate  # duración de cada chunk en segundos
-            timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
-            
-            print(f"DEBUG: Tiempo creado - {len(timeNivelData)} puntos, duración: {chunk_duration:.4f}s")
+            # Crear eje de tiempo real sincronizado
+            # Usar el tiempo de inicio real pero con intervalos consistentes
+            try:
+                # Obtener el tiempo real transcurrido desde el inicio
+                if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
+                    elapsed_real_time = time.time() - self.cModel.start_time
+                    # Calcular el intervalo de tiempo promedio por muestra de nivel
+                    if len(dataVectorPicoZ) > 1:
+                        time_interval = elapsed_real_time / len(dataVectorPicoZ)
+                        timeNivelData = np.arange(len(dataVectorPicoZ)) * time_interval
+                    else:
+                        timeNivelData = np.array([elapsed_real_time])
+                else:
+                    # Fallback al método basado en chunks
+                    chunk_duration = self.cModel.chunk / self.cModel.rate
+                    timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
+                    
+            except Exception as e:
+                print(f"DEBUG: Error en cálculo de tiempo: {e}")
+                # Fallback al método anterior si hay error
+                chunk_duration = self.cModel.chunk / self.cModel.rate
+                timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
+        
+            print(f"DEBUG: Tiempo real usado - {len(timeNivelData)} puntos, rango: {timeNivelData[0]:.2f}s - {timeNivelData[-1]:.2f}s")
             
             # Solo limpiar los plots que no se van a usar (comentado temporalmente para debug)
             # if not self.cVista.cbNivPicoZ.isChecked():
@@ -276,9 +294,26 @@ class controlador():
         (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
         (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
         
-        # Crear eje de tiempo (asumiendo que cada muestra es un chunk)
-        chunk_duration = self.cModel.chunk / self.cModel.rate
-        tiempos = np.arange(len(pico_z)) * chunk_duration
+        # Crear eje de tiempo usando el tiempo real transcurrido
+        try:
+            # Obtener el tiempo real transcurrido desde el inicio
+            if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
+                elapsed_real_time = time.time() - self.cModel.start_time
+                # Calcular el intervalo de tiempo promedio por muestra de nivel
+                if len(pico_z) > 1:
+                    time_interval = elapsed_real_time / len(pico_z)
+                    tiempos = np.arange(len(pico_z)) * time_interval
+                else:
+                    tiempos = np.array([elapsed_real_time])
+            else:
+                # Fallback al método basado en chunks
+                chunk_duration = self.cModel.chunk / self.cModel.rate
+                tiempos = np.arange(len(pico_z)) * chunk_duration
+        except Exception as e:
+            print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
+            # Fallback al método anterior si hay error
+            chunk_duration = self.cModel.chunk / self.cModel.rate
+            tiempos = np.arange(len(pico_z)) * chunk_duration
         
         # Organizar datos en estructura para la vista
         niveles_z = {

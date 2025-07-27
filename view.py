@@ -1211,13 +1211,15 @@ class vista(QMainWindow):
                 # Configuración del gráfico de nivel
                 self.waveform1.setLogMode(x=False, y=False)
                 self.waveform1.setYRange(-150, 0, padding=0)  # Rango típico para dB
-                self.waveform1.setXRange(0, 10, padding=0)    # 10 segundos de visualización
                 
                 # Obtener datos de nivel del controlador
                 tiempos, niveles_Z, niveles_C, niveles_A = self.vController.get_nivel_data()
                 
                 if len(tiempos) > 0:
                     xdata = np.array(tiempos)
+                    # Configurar el rango X basado en los datos reales
+                    max_time = max(xdata) if len(xdata) > 0 else 10
+                    self.waveform1.setXRange(0, max_time * 1.1, padding=0)  # 10% extra para visualización
                     
                     # Crear nuevas líneas de plot en cada actualización (como hace el gráfico de tiempo)
                     # --- Z Weighting ---
