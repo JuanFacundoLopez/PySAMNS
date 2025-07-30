@@ -41,6 +41,8 @@ class controlador():
 
         #Filtro pasa bajos
         self.rate = 44100 #evitar, se debe pasar el chunck predefinido
+        self.RATE = 44100  # Agregar RATE para compatibilidad con grabacionSAMNS
+        self.c = 0  # Contador para el callback
         nyq = self.rate/2
         normal_cutoff = 100 / nyq #Cutoff = 100
         (self.b, self.a) = butter(1, normal_cutoff, btype='low', analog=False)
@@ -109,7 +111,14 @@ class controlador():
         # para que los datos levantados sean cargados
         self.graficar()
 
+    
+
     def graficar(self):                             # Funcion para graficar las señales
+        print(f"DEBUG: Función graficar llamada")
+        print(f"DEBUG: btnTiempo.isChecked(): {self.cVista.btnTiempo.isChecked()}")
+        print(f"DEBUG: btnFrecuencia.isChecked(): {self.cVista.btnFrecuencia.isChecked()}")
+        print(f"DEBUG: btnNivel.isChecked(): {self.cVista.btnNivel.isChecked()}")
+        
         if self.cVista.btnTiempo.isChecked():
             # Tiempo
             if self.cVista.r0.isChecked():
@@ -141,44 +150,194 @@ class controlador():
                 self.cVista.ptdomEspect.setData(f, yf_data)
 
         elif self.cVista.btnNivel.isChecked():
-            # Nivel
-            timeNivelData = np.arange(0, len(self.dataVectorPicoZ))
-            
-            # Vista de filtro Z
+            print("DEBUG: Entrando en sección de nivel")
+            # Nivel - Crear eje de tiempo real basado en la frecuencia de muestreo
+            # Obtener datos del modelo
             (dataVectorPicoZ, dataVectorInstZ, dataVectorFastZ, dataVectorSlowZ) = self.cModel.getNivelesZ()
-            
-            if self.cVista.cbNivPicoZ.isChecked():             
-                self.cVista.ptNivZPico.setData(timeNivelData, dataVectorPicoZ)
-            elif self.cVista.cbNivInstZ.isChecked():
-                self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
-            elif self.cVista.cbNivFastZ.isChecked():
-                self.cVista.ptNivZFast.setData(timeNivelData, dataVectorFastZ)
-            elif self.cVista.cbNivSlowZ.isChecked():
-                self.cVista.ptNivZSlow.setData(timeNivelData, dataVectorSlowZ)
-
-            # Vista de filtro C
             (dataVectorPicoC, dataVectorInstC, dataVectorFastC, dataVectorSlowC) = self.cModel.getNivelesC()
-            
-            if self.cVista.cbNivPicoC.isChecked():
-                self.cVista.ptNivCPico.setData(timeNivelData, dataVectorPicoC)
-            elif self.cVista.cbNivInstC.isChecked():
-                self.cVista.ptNivCInst.setData(timeNivelData, dataVectorInstC)
-            elif self.cVista.cbNivFastC.isChecked():
-                self.cVista.ptNivCFast.setData(timeNivelData, dataVectorFastC)
-            elif self.cVista.cbNivSlowC.isChecked():
-                self.cVista.ptNivCSlow.setData(timeNivelData, dataVectorSlowC)
-
-            # Vista de filtro A
             (dataVectorPicoA, dataVectorInstA, dataVectorFastA, dataVectorSlowA) = self.cModel.getNivelesA()
             
-            if self.cVista.cbNivPicoA.isChecked():
-                self.cVista.ptNivAPico.setData(timeNivelData, dataVectorPicoA)
-            elif self.cVista.cbNivInstA.isChecked():
-                self.cVista.ptNivAInst.setData(timeNivelData, dataVectorInstA)
-            elif self.cVista.cbNivFastA.isChecked():
-                self.cVista.ptNivAFast.setData(timeNivelData, dataVectorFastA)
-            elif self.cVista.cbNivSlowA.isChecked():
-                self.cVista.ptNivASlow.setData(timeNivelData, dataVectorSlowA)
+            print(f"DEBUG: Datos obtenidos - Z: {len(dataVectorPicoZ)}, C: {len(dataVectorPicoC)}, A: {len(dataVectorPicoA)}")
+            
+            # Crear eje de tiempo real sincronizado
+            # Usar el tiempo de inicio real pero con intervalos consistentes
+            try:
+                # Obtener el tiempo real transcurrido desde el inicio
+                if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
+                    elapsed_real_time = time.time() - self.cModel.start_time
+                    # Calcular el intervalo de tiempo promedio por muestra de nivel
+                    if len(dataVectorPicoZ) > 1:
+                        time_interval = elapsed_real_time / len(dataVectorPicoZ)
+                        timeNivelData = np.arange(len(dataVectorPicoZ)) * time_interval
+                    else:
+                        timeNivelData = np.array([elapsed_real_time])
+                else:
+                    # Fallback al método basado en chunks
+                    chunk_duration = self.cModel.chunk / self.cModel.rate
+                    timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
+                    
+            except Exception as e:
+                print(f"DEBUG: Error en cálculo de tiempo: {e}")
+                # Fallback al método anterior si hay error
+                chunk_duration = self.cModel.chunk / self.cModel.rate
+                timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
+        
+            print(f"DEBUG: Tiempo real usado - {len(timeNivelData)} puntos, rango: {timeNivelData[0]:.2f}s - {timeNivelData[-1]:.2f}s")
+            
+            # Solo limpiar los plots que no se van a usar (comentado temporalmente para debug)
+            # if not self.cVista.cbNivPicoZ.isChecked():
+            #     self.cVista.ptNivZPico.clear()
+            # if not self.cVista.cbNivInstZ.isChecked():
+            #     self.cVista.ptNivZInst.clear()
+            # if not self.cVista.cbNivFastZ.isChecked():
+            #     self.cVista.ptNivZFast.clear()
+            # if not self.cVista.cbNivSlowZ.isChecked():
+            #     self.cVista.ptNivZSlow.clear()
+            # if not self.cVista.cbNivPicoC.isChecked():
+            #     self.cVista.ptNivCPico.clear()
+            # if not self.cVista.cbNivInstC.isChecked():
+            #     self.cVista.ptNivCInst.clear()
+            # if not self.cVista.cbNivFastC.isChecked():
+            #     self.cVista.ptNivCFast.clear()
+            # if not self.cVista.cbNivSlowC.isChecked():
+            #     self.cVista.ptNivCSlow.clear()
+            # if not self.cVista.cbNivPicoA.isChecked():
+            #     self.cVista.ptNivAPico.clear()
+            # if not self.cVista.cbNivInstA.isChecked():
+            #     self.cVista.ptNivAInst.clear()
+            # if not self.cVista.cbNivFastA.isChecked():
+            #     self.cVista.ptNivAFast.clear()
+            # if not self.cVista.cbNivSlowA.isChecked():
+            #     self.cVista.ptNivASlow.clear()
+            
+            # Solo graficar si hay datos
+            if len(timeNivelData) > 0:
+                print(f"DEBUG: Hay {len(timeNivelData)} puntos de tiempo")
+                print(f"DEBUG: Checkboxes Z - Pico: {self.cVista.cbNivPicoZ.isChecked()}, Inst: {self.cVista.cbNivInstZ.isChecked()}, Fast: {self.cVista.cbNivFastZ.isChecked()}, Slow: {self.cVista.cbNivSlowZ.isChecked()}")
+                print(f"DEBUG: Datos Z - Pico: {len(dataVectorPicoZ)}, Inst: {len(dataVectorInstZ)}, Fast: {len(dataVectorFastZ)}, Slow: {len(dataVectorSlowZ)}")
+                if len(dataVectorFastZ) > 0:
+                    print(f"DEBUG: Valores Fast Z: {dataVectorFastZ}")
+                if len(dataVectorSlowZ) > 0:
+                    print(f"DEBUG: Valores Slow Z: {dataVectorSlowZ}")
+                
+                # Ajustar el rango del eje X automáticamente
+                max_time = timeNivelData[-1] if len(timeNivelData) > 0 else 10
+                self.cVista.waveform1.setXRange(0, max_time + 1, padding=0)
+                
+                # Ajustar el rango del eje Y automáticamente basado en los datos
+                all_data = []
+                if self.cVista.cbNivPicoZ.isChecked() and len(dataVectorPicoZ) > 0:
+                    all_data.extend(dataVectorPicoZ)
+                if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
+                    all_data.extend(dataVectorInstZ)
+                if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
+                    all_data.extend(dataVectorFastZ)
+                if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
+                    all_data.extend(dataVectorSlowZ)
+                
+                if len(all_data) > 0:
+                    min_db = min(all_data)
+                    max_db = max(all_data)
+                    # Agregar margen de 5 dB arriba y abajo
+                    y_min = max(-150, min_db - 5)
+                    y_max = min(0, max_db + 5)
+                    self.cVista.waveform1.setYRange(y_min, y_max, padding=0)
+                
+                # Vista de filtro Z
+                if self.cVista.cbNivPicoZ.isChecked() and len(dataVectorPicoZ) > 0:             
+                    self.cVista.ptNivZPico.setData(timeNivelData, dataVectorPicoZ)
+                if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
+                    self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
+                if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
+                    print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
+                    print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
+                    self.cVista.ptNivZFast.setData(timeNivelData, dataVectorFastZ)
+                    print(f"DEBUG FAST Z: setData llamado")
+                    # Forzar actualización del gráfico
+                    self.cVista.waveform1.replot()
+                    print(f"DEBUG FAST Z: replot llamado")
+                if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
+                    print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
+                    print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
+                    self.cVista.ptNivZSlow.setData(timeNivelData, dataVectorSlowZ)
+                    print(f"DEBUG SLOW Z: setData llamado")
+                    # Forzar actualización del gráfico
+                    self.cVista.waveform1.replot()
+                    print(f"DEBUG SLOW Z: replot llamado")
+                else:
+                    print(f"DEBUG SLOW Z: NO se grafica - checkbox: {self.cVista.cbNivSlowZ.isChecked()}, datos: {len(dataVectorSlowZ)}")
+
+                # Vista de filtro C
+                if self.cVista.cbNivPicoC.isChecked() and len(dataVectorPicoC) > 0:
+                    self.cVista.ptNivCPico.setData(timeNivelData, dataVectorPicoC)
+                if self.cVista.cbNivInstC.isChecked() and len(dataVectorInstC) > 0:
+                    self.cVista.ptNivCInst.setData(timeNivelData, dataVectorInstC)
+                if self.cVista.cbNivFastC.isChecked() and len(dataVectorFastC) > 0:
+                    self.cVista.ptNivCFast.setData(timeNivelData, dataVectorFastC)
+                if self.cVista.cbNivSlowC.isChecked() and len(dataVectorSlowC) > 0:
+                    self.cVista.ptNivCSlow.setData(timeNivelData, dataVectorSlowC)
+
+                # Vista de filtro A
+                if self.cVista.cbNivPicoA.isChecked() and len(dataVectorPicoA) > 0:
+                    self.cVista.ptNivAPico.setData(timeNivelData, dataVectorPicoA)
+                if self.cVista.cbNivInstA.isChecked() and len(dataVectorInstA) > 0:
+                    self.cVista.ptNivAInst.setData(timeNivelData, dataVectorInstA)
+                if self.cVista.cbNivFastA.isChecked() and len(dataVectorFastA) > 0:
+                    self.cVista.ptNivAFast.setData(timeNivelData, dataVectorFastA)
+                if self.cVista.cbNivSlowA.isChecked() and len(dataVectorSlowA) > 0:
+                    self.cVista.ptNivASlow.setData(timeNivelData, dataVectorSlowA)
+
+    def get_nivel_data(self):
+        """Obtiene los datos de nivel del modelo y los prepara para la vista"""
+        # Obtener datos del modelo
+        (pico_z, inst_z, fast_z, slow_z) = self.cModel.getNivelesZ()
+        (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
+        (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
+        
+        # Crear eje de tiempo usando el tiempo real transcurrido
+        try:
+            # Obtener el tiempo real transcurrido desde el inicio
+            if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
+                elapsed_real_time = time.time() - self.cModel.start_time
+                # Calcular el intervalo de tiempo promedio por muestra de nivel
+                if len(pico_z) > 1:
+                    time_interval = elapsed_real_time / len(pico_z)
+                    tiempos = np.arange(len(pico_z)) * time_interval
+                else:
+                    tiempos = np.array([elapsed_real_time])
+            else:
+                # Fallback al método basado en chunks
+                chunk_duration = self.cModel.chunk / self.cModel.rate
+                tiempos = np.arange(len(pico_z)) * chunk_duration
+        except Exception as e:
+            print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
+            # Fallback al método anterior si hay error
+            chunk_duration = self.cModel.chunk / self.cModel.rate
+            tiempos = np.arange(len(pico_z)) * chunk_duration
+        
+        # Organizar datos en estructura para la vista
+        niveles_z = {
+            'pico': pico_z,
+            'inst': inst_z,
+            'fast': fast_z,
+            'slow': slow_z
+        }
+        
+        niveles_c = {
+            'pico': pico_c,
+            'inst': inst_c,
+            'fast': fast_c,
+            'slow': slow_c
+        }
+        
+        niveles_a = {
+            'pico': pico_a,
+            'inst': inst_a,
+            'fast': fast_a,
+            'slow': slow_a
+        }
+    
+        return tiempos, niveles_z, niveles_c, niveles_a
 
     def callback(self, in_data, frame_count, time_info, status):    # Stream de audio
         in_data = struct.unpack( "f"*frame_count, in_data )
@@ -194,16 +353,15 @@ class controlador():
                 self.wf_data = np.zeros(1024)+0.001
 
         self.c+=1
-        # print(self.wf_data)
-        # self.grabar()
-        return (self.grabar(), pyaudio.paContinue)  
+        # Procesar los datos de audio
+        self.grabar()
+        return (self.wf_data.tobytes(), pyaudio.paContinue)
 
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
         self.graficar()
         
     def dalePlay(self):                            # Comunicacion con la Vista
-
         if self.cVista.btngbr.isChecked() == False:
             self.timer.stop() 
             self.cVista.btngbr.setText('Grabar')
@@ -211,6 +369,10 @@ class controlador():
             # self.stream.close()
         else:
             self.setGainZero()
+            # Resetear los datos de nivel en el modelo
+            self.cModel.setNivelesZ(0, 0, 0, 0, mode='r')
+            self.cModel.setNivelesC(0, 0, 0, 0, mode='r')
+            self.cModel.setNivelesA(0, 0, 0, 0, mode='r')
             self.cVista.btngbr.setText('Stop')  
             self.msCounter = 0
             self.timer.start(30) 
@@ -226,9 +388,18 @@ class controlador():
                     # Calcular FFT
                     fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
                     self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, db1, self.device1_name, times1, fft_freqs, fft_db)
+                    
+                    # Procesar datos para el gráfico de nivel si está activo
+                    if self.cVista.btnNivel.isChecked():
+                        # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
+                        # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
+                        normalized_data = current_data1.astype(np.float32) / 32767.0
+                        self.wf_data = normalized_data
+                        self.grabar()
+                        
             except Exception as e:
                 print(f"Error al actualizar dispositivo 1: {e}")
-                self.device1_active = False
+                self.device_active = False
         else:
             print("No se inicio grabacion")
 
