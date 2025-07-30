@@ -250,6 +250,50 @@ class modelo:
         fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
         return fft_freqs, fft_magnitude
 
+    def calcular_tercios_octava(self, fft_freqs, fft_magnitude):
+        """
+        Calcula los niveles en bandas de tercio de octava a partir de la FFT en tiempo real.
+        Usa la amplitud (no dB) y toma el promedio de todos los valores desde cada banda hasta la siguiente.
+        Devuelve:
+            bandas: frecuencias centrales de cada banda
+            niveles: nivel promedio de amplitud de cada banda
+        """
+        # Frecuencias centrales típicas de tercios de octava (20 Hz a 20 kHz)
+        fcs = [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
+        bandas = []
+        niveles = []
+        for i, fc in enumerate(fcs):
+            # Definir el rango de frecuencias para esta banda
+            if i == 0:
+                # Para la primera banda (16 Hz), usar desde 0 hasta la mitad entre 16 y 20
+                f_low = 0
+                f_high = (16 + 20) / 2
+            elif i == len(fcs) - 1:
+                # Para la última banda (20000 Hz), usar desde la mitad entre 16000 y 20000 hasta el máximo
+                f_low = (16000 + 20000) / 2
+                f_high = fft_freqs[-1] if len(fft_freqs) > 0 else 20000
+            else:
+                # Para las bandas intermedias, usar desde la mitad entre la banda anterior y actual
+                # hasta la mitad entre la banda actual y la siguiente
+                f_low = (fcs[i-1] + fc) / 2
+                f_high = (fc + fcs[i+1]) / 2
+            
+            # Encontrar los índices de frecuencias que están en este rango
+            indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
+            
+            if len(indices) > 0:
+                # Calcular el promedio de las amplitudes en esta banda
+                # Usar la magnitud directamente (amplitud) en lugar de dB
+                nivel_promedio = np.mean(fft_magnitude[indices])
+                bandas.append(fc)
+                niveles.append(nivel_promedio)
+            else:
+                # Si no hay datos en esta banda, asignar 0
+                bandas.append(fc)
+                niveles.append(0.0)
+        
+        return np.array(bandas), np.array(niveles)
+
 
     def get_audio_data(self):
         try:

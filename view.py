@@ -8,17 +8,23 @@ import pyqtgraph as pg
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
 from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox
+from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog
 
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QRect
+from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
+from PyQt5.QtCore import QRect, QPoint
 # from PyQt5 import QtWidgets
 from pyqtgraph.Qt import QtGui, QtCore
+
+# Imports para QChart (solo para la ventana de calibración)
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis, QBarSeries, QBarSet, QBarCategoryAxis
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPen
 
 # from pyqtgraph.Point import Point
 
 #import utilidades del sistema
 import sys
+import os
 
 import numpy as np
 
@@ -191,10 +197,48 @@ class vista(QMainWindow):
         # Botones y cronómetro
         buttonLayout = QHBoxLayout()
         self.btn = QPushButton("Importar señal")
+        self.btn.setToolTip("Importar señal de audio de un archivo .Nuse")
         self.btn.clicked.connect(self.importSignal)
         self.btngbr = QPushButton("Grabar")
+        self.btngbr.setToolTip("Iniciar Grabacion de audio")
         self.btngbr.setCheckable(True)
         self.btngbr.clicked.connect(self.grabar)
+        
+        # Agregar icono de play al botón
+        # Intentar cargar icono personalizado desde archivo PNG
+        icon_play_path = "img/boton-de-play.png" 
+        self.btngbr.setIcon(QIcon(icon_play_path))
+        icon_import_path = "img/importar.png"
+        self.btn.setIcon(QIcon(icon_import_path))
+        
+        # Estilo para los botones con padding y bordes redondeados
+        button_style = """
+        QPushButton {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #cccccc;
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        QPushButton:hover {
+            background-color: #e0e0e0;
+            border-color: #999999;
+        }
+        QPushButton:pressed {
+            background-color: #d0d0d0;
+            border-color: #666666;
+        }
+        QPushButton:checked {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #45a049;
+        }
+        """
+        
+        # Aplicar estilo a ambos botones
+        self.btn.setStyleSheet(button_style)
+        self.btngbr.setStyleSheet(button_style)
         self.cronometroGrabacion = QLabel("0:00 s")
         self.cronometroGrabacion.setStyleSheet("font: bold 20pt")
         
@@ -476,17 +520,9 @@ class vista(QMainWindow):
 
         # Menú Calibración
         self.menuCalibracion = QMenu("Calibración", self)
-        calAutAct = QAction("Calibración Automática", self)
-        calAutAct.triggered.connect(self.calibracionAutomatica)
-        self.menuCalibracion.addAction(calAutAct)
-
-        calManAct = QAction("Calibración Manual", self)
-        calManAct.triggered.connect(self.calibracionManual)
-        self.menuCalibracion.addAction(calManAct)
-
-        calFondEscalaAct = QAction("Calibración a fondo de escala", self)
-        calFondEscalaAct.triggered.connect(self.calibracionFondoEscala)
-        self.menuCalibracion.addAction(calFondEscalaAct)
+        calAct = QAction("Menu Calibración", self)
+        calAct.triggered.connect(self.calibracionWin)
+        self.menuCalibracion.addAction(calAct)
 
         # Otros menús
         self.menuConfiguracion = QMenu("Configuración", self)
@@ -497,9 +533,16 @@ class vista(QMainWindow):
         configDispAct = QAction("Configuración de Dispositivo", self)
         configDispAct.triggered.connect(self.configuracionDispositivo)
         self.menuConfiguracion.addAction(configDispAct)
+       
+        self.menuConfiguracion.setToolTip("Configuraciones de gráfico y dispositivos")
         
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
+        
+        # Agregar acción para abrir el sitio web de CINTRA
+        acercaCintraAct = QAction("Sitio Web CINTRA", self)
+        acercaCintraAct.triggered.connect(self.abrirSitioCintra)
+        self.menuAcerca_de.addAction(acercaCintraAct)
 
         # Agrego los menús a la barra
         self.menuBar.addMenu(self.menuArchivo)
@@ -612,6 +655,25 @@ class vista(QMainWindow):
         """Inicia el bucle principal de la aplicación"""
         self.show()
         return self.app.exec_()
+    
+    def closeEvent(self, event):
+        """Se ejecuta cuando se cierra la ventana principal"""
+        # Cerrar todas las ventanas secundarias
+        if hasattr(self, 'calWin') and self.calWin.isVisible():
+            self.calWin.close()
+        if hasattr(self, 'confWin') and self.confWin.isVisible():
+            self.confWin.close()
+        if hasattr(self, 'confDispWin') and self.confDispWin.isVisible():
+            self.confDispWin.close()
+        if hasattr(self, 'calAutWin') and self.calAutWin.isVisible():
+            self.calAutWin.close()
+        if hasattr(self, 'calManWin') and self.calManWin.isVisible():
+            self.calManWin.close()
+        if hasattr(self, 'calFEWin') and self.calFEWin.isVisible():
+            self.calFEWin.close()
+        
+        # Aceptar el evento de cierre
+        event.accept()
         
     def calibracionAutomatica(self):
         self.calAutWin = QMainWindow()
@@ -673,6 +735,14 @@ class vista(QMainWindow):
 
     def fnGenerador(self):
         pass
+
+    def abrirSitioCintra(self):
+        """Abre el sitio web de CINTRA en el navegador predeterminado"""
+        import webbrowser
+        try:
+            webbrowser.open("https://cintra.ar")
+        except Exception as e:
+            print(f"Error al abrir el sitio web de CINTRA: {e}")
 
     def actualizarEscala(self):
         """Actualiza la escala del gráfico según los checkboxes seleccionados"""
@@ -901,6 +971,11 @@ class vista(QMainWindow):
     def aplicarConfiguracionEspectro(self):
         """Aplica la configuración personalizada para el gráfico de espectro"""
         try:
+            # Limpiar barras anteriores si existen
+            if hasattr(self, 'current_bar_item'):
+                self.waveform1.removeItem(self.current_bar_item)
+                delattr(self, 'current_bar_item')
+            
             # Escalas
             escalaX = self.cbEscalaXEspectro.isChecked()
             self.var_logModeXEspectro = escalaX
@@ -1017,16 +1092,18 @@ class vista(QMainWindow):
         """Actualiza el estilo del gráfico de espectro"""
         try:
             if tipoGrafico == "Línea":
+                # Para gráfico de línea, usar pen normal
                 pen = pg.mkPen(color=color, width=2)
                 if hasattr(self, 'ptdomEspect'):
                     self.ptdomEspect.setPen(pen)
             elif tipoGrafico == "Barras":
-                # Para barras, cambiar el tipo de gráfico
-                if hasattr(self, 'ptdomEspect'):
-                    # Aquí se cambiaría a gráfico de barras
-                    # Por ahora mantenemos línea pero con estilo diferente
-                    pen = pg.mkPen(color=color, width=3)
-                    self.ptdomEspect.setPen(pen)
+                # Para gráfico de barras, el estilo se maneja en update_plot
+                # Aquí solo guardamos el color para usar en las barras
+                if hasattr(self, 'colorEspectro'):
+                    self.colorEspectro = color
+                # Limpiar el gráfico para que se actualice en el próximo update_plot
+                if hasattr(self, 'waveform1'):
+                    self.waveform1.clear()
             
         except Exception as e:
             print(f"Error al actualizar estilo de gráfico de espectro: {e}")
@@ -1087,6 +1164,11 @@ class vista(QMainWindow):
                 # Eliminar la línea anterior si existe
                 if hasattr(self, 'plot_line'):
                     self.waveform1.removeItem(self.plot_line)
+                
+                # Limpiar barras anteriores si existen
+                if hasattr(self, 'current_bar_item'):
+                    self.waveform1.removeItem(self.current_bar_item)
+                    delattr(self, 'current_bar_item')
                 # Obtener color y tipo de línea configurados
                 color = "#8A0101"  # Color por defecto
                 if hasattr(self, 'colorTiempo'):
@@ -1120,51 +1202,297 @@ class vista(QMainWindow):
                 if not hasattr(self, 'log_x_axis'):
                     self.log_x_axis = LogAxis(orientation='bottom')
                 self.waveform1.setAxisItems({'bottom': self.log_x_axis})
-                self.plot_line_freq = self.waveform1.plot(np.log10(test_freqs), test_amp, pen=pg.mkPen(color='r', width=2))
-                self.waveform1.setXRange(np.log10(20), np.log10(20000))
-                self.waveform1.setYRange(-40, 0)
-                self.waveform1.setLabel('left', 'Amplitud')
-                self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                self.waveform1.setLogMode(x=False, y=False)
-                print('GRAFICO DE PRUEBA FIJO MOSTRADO')
                 # ---
-                if device_num == 1 and len(fft_freqs) > 0:
-                    # Filtra frecuencias audibles
-                    mask = (fft_freqs >= 20) & (fft_freqs <= 20000)
-                    freqs_plot = fft_freqs[mask]
-                    amp_plot = fft_magnitude[mask]
-                    print("fft_freqs:", freqs_plot[:10], " ... total:", len(freqs_plot))
-                    print("amp_plot:", amp_plot[:10], " ... total:", len(amp_plot))
-                    if len(freqs_plot) > 0:
+                # Determinar tipo de gráfico de espectro
+                tipoGrafico = "Línea"
+                if hasattr(self, 'cmbTipoGraficoEspectro'):
+                    tipoGrafico = self.cmbTipoGraficoEspectro.currentText()
+                color = '#8A3F01'
+                if hasattr(self, 'colorEspectro'):
+                    color = self.colorEspectro.name()
+                if tipoGrafico == "Barras" and device_num == 1 and len(fft_freqs) > 0:
+                    # Calcular tercios de octava desde el modelo
+                    bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
+                    
+                    if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
+                        
+                        # Usar eje logarítmico para X
+                        if not hasattr(self, 'log_x_axis'):
+                            self.log_x_axis = LogAxis(orientation='bottom')
                         self.waveform1.setAxisItems({'bottom': self.log_x_axis})
-                        self.plot_line_freq = self.waveform1.plot(np.log10(freqs_plot), amp_plot, pen=pg.mkPen(color='b', width=2))
-                        print(f"Ajustando XRange: {freqs_plot[0]} - {freqs_plot[-1]}")
-                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
-                        # --- Eje Y dinámico ---
-                        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
-                            self.fft_ymin = np.min(amp_plot)
-                            self.fft_ymax = np.max(amp_plot)
+                        
+                        # Calcular anchos de barras proporcionales a las bandas de frecuencia
+                        # Para tercios de octava, cada banda es 2^(1/3) veces la anterior
+                        log_bandas = np.log10(bandas)
+                        
+                        # Calcular anchos de barras
+                        if len(bandas) > 1:
+                            # Para múltiples bandas, calcular el ancho basado en la diferencia entre bandas
+                            widths = np.diff(log_bandas) * 0.8  # 0.8 para dejar espacio entre barras
+                            # Agregar un ancho para la última banda (aproximadamente igual al anterior)
+                            if len(widths) > 0:
+                                widths = np.append(widths, widths[-1])
                         else:
-                            if np.min(amp_plot) < self.fft_ymin:
-                                self.fft_ymin = np.min(amp_plot)
-                            if np.max(amp_plot) > self.fft_ymax:
-                                self.fft_ymax = np.max(amp_plot)
-                        self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                    self.waveform1.setLabel('left', 'Amplitud')
-                    self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                    self.waveform1.setLogMode(x=False, y=False)
-                    if hasattr(self, 'plot_line'):
-                        self.plot_line.setData([], [])
+                            # Si solo hay una banda, usar un ancho por defecto
+                            widths = [0.1]
+                        
+                        # Verificar que todos los arrays tengan la misma longitud
+                        if len(log_bandas) != len(niveles) or len(log_bandas) != len(widths):
+                            print(f"Error: Arrays con longitudes diferentes - log_bandas: {len(log_bandas)}, niveles: {len(niveles)}, widths: {len(widths)}")
+                            return
+                        
+                        # Crear el gráfico de barras
+                        bar_item = pg.BarGraphItem(
+                            x=log_bandas, 
+                            height=niveles, 
+                            width=widths, 
+                            brush=color,
+                            pen=pg.mkPen(color='black', width=1)
+                        )
+                        self.waveform1.addItem(bar_item)
+                        
+                        # Configurar rangos de ejes
+                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
+                        
+                        # Rango Y dinámico basado en los niveles
+                        y_min = np.min(niveles) if len(niveles) > 0 else 0
+                        y_max = np.max(niveles) if len(niveles) > 0 else 1
+                        y_range = y_max - y_min
+                        if y_range == 0:
+                            y_range = 1
+                        
+                        self.waveform1.setYRange(y_min - y_range*0.1, y_max + y_range*0.1)
+                        
+                        # Etiquetas de ejes
+                        self.waveform1.setLabel('left', 'Amplitud')
+                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        
+                        # Configurar modo logarítmico para X
+                        self.waveform1.setLogMode(x=False, y=False)
+                        
+                        # Limpiar línea de tiempo si existe
+                        if hasattr(self, 'plot_line'):
+                            self.plot_line.setData([], [])
+                        
+                        # Guardar referencia al item de barras para poder limpiarlo después
+                        self.current_bar_item = bar_item
+                        
+                        print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
+                        print(f"Anchos de barras: {len(widths)} anchos, valores: {widths[:5]}...")
+                        print(f"Posiciones X: {len(log_bandas)} posiciones, valores: {log_bandas[:5]}...")
+                    else:
+                        print("No hay datos de tercios de octava disponibles")
                 else:
-                    if hasattr(self, 'plot_line_freq') and self.plot_line_freq is not None:
-                        self.plot_line_freq.setData([], [])
+                    # Por defecto, línea
+                    if device_num == 1 and len(fft_freqs) > 0:
+                        mask = (fft_freqs >= 20) & (fft_freqs <= 20000)
+                        freqs_plot = fft_freqs[mask]
+                        amp_plot = fft_magnitude[mask]
+                        if len(freqs_plot) > 0:
+                            self.waveform1.clear()
+                            
+                            # Limpiar barras anteriores si existen
+                            if hasattr(self, 'current_bar_item'):
+                                self.waveform1.removeItem(self.current_bar_item)
+                                delattr(self, 'current_bar_item')
+                            
+                            self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                            self.plot_line_freq = self.waveform1.plot(np.log10(freqs_plot), amp_plot, pen=pg.mkPen(color=color, width=2))
+                            self.waveform1.setXRange(np.log10(20), np.log10(20000))
+                            if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
+                                self.fft_ymin = np.min(amp_plot)
+                                self.fft_ymax = np.max(amp_plot)
+                            else:
+                                if np.min(amp_plot) < self.fft_ymin:
+                                    self.fft_ymin = np.min(amp_plot)
+                                if np.max(amp_plot) > self.fft_ymax:
+                                    self.fft_ymax = np.max(amp_plot)
+                            self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
+                        self.waveform1.setLabel('left', 'Amplitud')
+                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        self.waveform1.setLogMode(x=False, y=False)
+                        if hasattr(self, 'plot_line'):
+                            self.plot_line.setData([], [])
+                    else:
+                        if hasattr(self, 'plot_line_freq') and self.plot_line_freq is not None:
+                            self.plot_line_freq.setData([], [])
 
             if self.btnNivel.isChecked():
                 pass
         except Exception as e:
             print(f"Error en update_plot: {e}")
+    
+    # CODIGO configuracion de calibración
+    def calibracionWin(self):
+            self.calWin = QMainWindow()
+            self.calWin.setWindowTitle("Calibracion")
+            self.calWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
             
+            # Widget central y layout principal
+            centralWidget = QWidget()
+            self.calWin.setCentralWidget(centralWidget)
+            mainLayout = QVBoxLayout(centralWidget)
+            
+            tipoCalLayoutHori = QHBoxLayout()
+            tipoCalLayoutVer = QVBoxLayout()
+            confHardLayout = QHBoxLayout()
+            valorRefLayout = QHBoxLayout()
+            importLayout = QHBoxLayout()
+            botonesLayout = QHBoxLayout()
+            
+            tipoCalLayoutHori.addWidget(QLabel("Tipo de Calibracion:"))
+            
+            self.radioBtnRelativa = QRadioButton("Calibración relativa")
+            self.radioBtnRelativa.setChecked(True) 
+            tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
+
+            self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
+            tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
+
+            self.radioBtnExterna = QRadioButton("Calibración externa")
+            self.radioBtnExterna.toggled.connect(self.toggleImportButton)
+            tipoCalLayoutVer.addWidget(self.radioBtnExterna)
+            
+            tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
+            tipoCalLayoutHori.addStretch()
+            
+            self.btnConfHard = QPushButton("Configurar Hardware")
+            confHardLayout.addWidget(self.btnConfHard)
+            self.txtConfHard = QLineEdit("")
+            confHardLayout.addWidget(self.txtConfHard)
+            
+            valorRefLayout.addWidget(QLabel("Valor de Referencia:"))
+            self.txtValorRef = QLineEdit("")
+            valorRefLayout.addWidget(self.txtValorRef)
+            
+            self.btnImportSig = QPushButton("Importar Señal")
+            self.btnImportSig.setEnabled(False)
+            self.btnImportSig.setToolTip("Importar desde archivo .wav")
+            self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
+            
+            # Crear QChart para la ventana de calibración
+            self.chart2 = QChart()
+            self.chart2.setTheme(QChart.ChartThemeDark)
+            
+            # Crear QChartView para mostrar el gráfico
+            self.winGraph2 = QChartView(self.chart2)
+            self.winGraph2.setRenderHint(QPainter.Antialiasing)
+            
+            # Crear series para el gráfico de calibración
+            self.plot_line_cal = QLineSeries()
+            
+            # Configurar ejes para el gráfico de calibración
+            self.axisX2 = QValueAxis()
+            self.axisX2.setTitleText("Tiempo")
+            self.axisX2.setRange(0, 1024)
+            
+            self.axisY2 = QValueAxis()
+            self.axisY2.setTitleText("Amplitud Normalizada")
+            self.axisY2.setRange(-1.2, 1.2)
+            
+            self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
+            self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
+            self.chart2.legend().hide()
+
+            # Definir las líneas del gráfico (para compatibilidad)
+            self.ptdomTiempo2 = self.plot_line_cal
+            self.ptdomEspect2 = self.plot_line_cal
+            
+            self.btnCalibrar = QPushButton("Calibrar")
+            self.btnRepetir = QPushButton("Repetir")
+            self.btnGenerador = QPushButton("Generador de señales")
+            self.btnCancel = QPushButton("Cancelar")
+            botonesLayout.addWidget(self.btnCalibrar)
+            botonesLayout.addWidget(self.btnRepetir)
+            botonesLayout.addWidget(self.btnGenerador)
+            botonesLayout.addWidget(self.btnCancel)
+            
+            # Agregar el grupo al layout principal
+            mainLayout.addLayout(tipoCalLayoutHori)
+            mainLayout.addLayout(confHardLayout)
+            mainLayout.addLayout(valorRefLayout)
+            #mainLayout.addLayout(importLayout)
+            mainLayout.addWidget(self.btnImportSig)
+            mainLayout.addWidget(self.winGraph2)
+            mainLayout.addLayout(botonesLayout)
+            
+            self.calWin.show()
+    
+    def toggleImportButton(self, checked):
+        """Habilita o deshabilita el botón Importar Señal según el estado del radio button externa"""
+        if hasattr(self, 'btnImportSig'):
+            self.btnImportSig.setEnabled(checked)
+    
+    def importarSenalCalibracion(self):
+        """Importa un archivo .wav y lo grafica en chart2"""
+        try:
+            from scipy.io.wavfile import read as wavread
+            
+            # Abrir explorador de archivos para seleccionar archivo .wav
+            fileName, _ = QFileDialog.getOpenFileName(
+                self.calWin, 
+                "Seleccionar archivo de audio", 
+                "", 
+                "Archivos de audio (*.wav);;Todos los archivos (*)"
+            )
+            
+            if fileName:
+                # Leer archivo .wav
+                Fs, x = wavread(fileName)
+                
+                # Manejar archivos estéreo (convertir a mono si es necesario)
+                if len(x.shape) > 1:
+                    # Si es estéreo, promediar los canales
+                    x = np.mean(x, axis=1)
+                
+                # Normalizar los datos
+                maxX = np.max(np.abs(x))
+                if maxX > 0:
+                    signaldata = x / maxX
+                else:
+                    signaldata = x
+                
+                # Crear array de tiempo
+                tiempo = np.arange(len(signaldata)) / Fs
+                
+                # Limpiar el gráfico anterior
+                if hasattr(self, 'plot_line_cal'):
+                    self.chart2.removeSeries(self.plot_line_cal)
+                
+                # Crear nueva serie para el gráfico
+                self.plot_line_cal = QLineSeries()
+                # Configurar color amarillo para la línea de calibración
+                pen = QPen(QColor(71, 142, 203))  # Color amarillo (R=255, G=255, B=0)
+                pen.setWidth(2)  # Grosor de la línea
+                self.plot_line_cal.setPen(pen)
+                
+                # Agregar puntos al gráfico (limitando a 10000 puntos para rendimiento)
+                step = max(1, len(signaldata) // 10000)
+                for i in range(0, len(signaldata), step):
+                    self.plot_line_cal.append(tiempo[i], signaldata[i])
+                
+                # Agregar la serie al gráfico
+                self.chart2.addSeries(self.plot_line_cal)
+                
+                # Configurar ejes
+                self.axisX2.setRange(0, tiempo[-1] if len(tiempo) > 0 else 1)
+                self.axisY2.setRange(-1.2, 1.2)
+                
+                # Actualizar etiquetas de ejes
+                self.axisX2.setTitleText("Tiempo (s)")
+                self.axisY2.setTitleText("Amplitud Normalizada")
+                
+                # Mostrar información del archivo
+                #print(f"Archivo cargado: {fileName}")
+                #print(f"Frecuencia de muestreo: {Fs} Hz")
+                #print(f"Duración: {tiempo[-1]:.2f} segundos")
+                #print(f"Número de muestras: {len(signaldata)}")
+                
+        except Exception as e:
+            QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
+            print(f"Error en importarSenalCalibracion: {e}")
+    
     # CODIGO configuracion del graficos
     def configuracion(self):
             self.confWin = QMainWindow()
