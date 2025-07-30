@@ -221,7 +221,7 @@ class controlador():
          # Actualizar dispositivo 1 si está activo
         if self.device_active:
             try:
-                current_data1, all_data1, norm_current1, norm_all1, db1, times1 = self.cModel.get_audio_data()
+                current_data1, all_data1, norm_current1, norm_all1, db1, times1, fft_freqs1, fft_db1 = self.cModel.get_audio_data()
                 if len(current_data1) > 0:  # Verificar si hay datos
                     # Calcular FFT
                     fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
