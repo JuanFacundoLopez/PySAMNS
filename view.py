@@ -1339,7 +1339,17 @@ class vista(QMainWindow):
                         if y_range == 0:
                             y_range = 1
                         
-                        self.waveform1.setYRange(y_min - y_range*0.1, y_max + y_range*0.1)
+                        # Usar el mismo sistema de rango Y fijo que el gráfico de línea
+                        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
+                            self.fft_ymin = y_min
+                            self.fft_ymax = y_max
+                        else:
+                            if y_min < self.fft_ymin:
+                                self.fft_ymin = y_min
+                            if y_max > self.fft_ymax:
+                                self.fft_ymax = y_max
+                        
+                        self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
                         
                         # Etiquetas de ejes
                         self.waveform1.setLabel('left', 'Amplitud')
@@ -2076,4 +2086,3 @@ class vista(QMainWindow):
             self.confDispWin.close()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")
-
