@@ -430,8 +430,6 @@ class controlador():
                 current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
                 if len(current_data) > 0:
                     # Proceso los datos para calcular niveles (simulando el bucle principal)
-                    normalized_data = current_data.astype(np.float32) / 32767.0
-                    self.wf_data = normalized_data
                     grabacion(self) # Esta funcion calcula y guarda los niveles
                 time.sleep(0.01) # Pequeña pausa para no saturar el CPU
             except Exception as e:
@@ -451,6 +449,51 @@ class controlador():
             print(cal)
         else:
             # Informar al usuario si no se pudieron medir niveles
+            error_message = "No se pudieron medir niveles. Verifique la fuente de audio."
+            self.cVista.txtValorRef.setText("Error")
+            QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
+            print(error_message)
+
+    def calRelativa(self):
+        try:
+            ref_level = float(self.cVista.txtValorRef.text())
+        except (ValueError, AttributeError):
+            QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
+            return
+
+        # Reseteo los niveles antes de empezar
+        self.setGainZero()
+        self.cModel.setNivelesZ(mode='r')
+        self.cModel.setNivelesC(mode='r')
+        self.cModel.setNivelesA(mode='r')
+
+        self.cModel.stream.start_stream()
+        
+        start_time = time.time()
+        # Bucle para procesar audio durante 3 segundos
+        while time.time() - start_time < 3.0:
+            try:
+                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                if len(current_data) > 0:
+                    grabacion(self)
+                time.sleep(0.01)
+            except Exception as e:
+                print(f"Error durante el bucle de calibración relativa: {e}")
+                break
+
+        self.cModel.stream.stop_stream()
+        
+        NZ = self.cModel.getNivelesZ('P')
+        
+        if len(NZ) > 0:
+            cal = ref_level - NZ[-1]
+            print(ref_level)
+            print(NZ[-1])
+            print(cal)
+            self.cModel.setCalibracionAutomatica(cal)
+            QMessageBox.information(self.cVista, "Calibración Exitosa", f"Calibración relativa completada. El factor de ajuste es: {cal:.2f} dB")
+            print(f"Factor de calibración relativo: {cal}")
+        else:
             error_message = "No se pudieron medir niveles. Verifique la fuente de audio."
             self.cVista.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)

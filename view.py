@@ -1518,10 +1518,12 @@ class vista(QMainWindow):
             tipoCalLayoutHori.addWidget(QLabel("Tipo de Calibracion:"))
             
             self.radioBtnRelativa = QRadioButton("Calibración relativa")
-            self.radioBtnRelativa.setChecked(True) 
+            self.radioBtnRelativa.setChecked(True)
+            self.radioBtnRelativa.toggled.connect(self.actualizarEstadoValorRef)
             tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
 
             self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
+            self.radioBtnAutomatica.toggled.connect(self.actualizarEstadoValorRef)
             tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
 
             self.radioBtnExterna = QRadioButton("Calibración externa")
@@ -1598,6 +1600,15 @@ class vista(QMainWindow):
     def iniciarCalibracion(self):
         if self.radioBtnAutomatica.isChecked():
             self.vController.calAutomatica()
+        elif self.radioBtnRelativa.isChecked():
+            self.vController.calRelativa()
+
+    def actualizarEstadoValorRef(self):
+        # Habilita el campo de texto solo si la calibración relativa está seleccionada
+        is_relative = self.radioBtnRelativa.isChecked()
+        self.txtValorRef.setEnabled(is_relative)
+        if not is_relative:
+            self.txtValorRef.clear()
     
     def toggleImportButton(self, checked):
         """Habilita o deshabilita el botón Importar Señal según el estado del radio button externa"""
