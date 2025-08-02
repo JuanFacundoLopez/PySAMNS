@@ -1590,8 +1590,14 @@ class vista(QMainWindow):
             mainLayout.addWidget(self.btnImportSig)
             mainLayout.addWidget(self.winGraph2)
             mainLayout.addLayout(botonesLayout)
+
+            self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
             
             self.calWin.show()
+
+    def iniciarCalibracion(self):
+        if self.radioBtnAutomatica.isChecked():
+            self.vController.calAutomatica()
     
     def toggleImportButton(self, checked):
         """Habilita o deshabilita el botón Importar Señal según el estado del radio button externa"""

@@ -414,10 +414,44 @@ class controlador():
         self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
     def calAutomatica(self):                        # Funcion de calibracion
-        self.stream.start_stream()
-        time.sleep(3.0)
-        self.stream.stop_stream()
-        NZ=self.cModel.getNivelesZ('P')
-        cal = NZ[-1]-93.97 # ultimo valor de la adquisicion Pico retado 20*log10(0.00002)
-        self.cModel.setCalibracionAutomatica(cal)
-        print(cal)
+        # Reseteo los niveles antes de empezar
+        self.setGainZero()
+        self.cModel.setNivelesZ(mode='r')
+        self.cModel.setNivelesC(mode='r')
+        self.cModel.setNivelesA(mode='r')
+
+        self.cModel.stream.start_stream()
+        
+        start_time = time.time()
+        # Bucle para procesar audio durante 3 segundos
+        while time.time() - start_time < 3.0:
+            try:
+                # Adquiero los datos de audio del modelo
+                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                if len(current_data) > 0:
+                    # Proceso los datos para calcular niveles (simulando el bucle principal)
+                    normalized_data = current_data.astype(np.float32) / 32767.0
+                    self.wf_data = normalized_data
+                    grabacion(self) # Esta funcion calcula y guarda los niveles
+                time.sleep(0.01) # Pequeña pausa para no saturar el CPU
+            except Exception as e:
+                print(f"Error durante el bucle de calibracion: {e}")
+                break
+
+        self.cModel.stream.stop_stream()
+        
+        NZ = self.cModel.getNivelesZ('P')
+        
+        # Verifico si se obtuvieron datos antes de usarlos
+        if len(NZ) > 0:
+            cal = NZ[-1] - 93.97 # ultimo valor de la adquisicion Pico retado 20*log10(0.00002)
+            self.cModel.setCalibracionAutomatica(cal)
+            # Actualizar la vista con el resultado
+            self.cVista.txtValorRef.setText(f"{cal:.2f}")
+            print(cal)
+        else:
+            # Informar al usuario si no se pudieron medir niveles
+            error_message = "No se pudieron medir niveles. Verifique la fuente de audio."
+            self.cVista.txtValorRef.setText("Error")
+            QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
+            print(error_message)
