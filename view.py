@@ -8,7 +8,7 @@ import pyqtgraph as pg
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
 from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog
+from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog, QGraphicsOpacityEffect
 
 from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt5.QtCore import QRect, QPoint
@@ -89,6 +89,9 @@ class vista(QMainWindow):
         super().__init__()
         self.vController = Controller
         
+        with open("estilos.qss", "r", encoding='utf-8') as f:
+            self.app.setStyleSheet(f.read())
+    
         # Obtenemos información de la pantalla
         self.screen = self.app.primaryScreen()
         self.size = self.screen.size()
@@ -1512,13 +1515,14 @@ class vista(QMainWindow):
             tipoCalLayoutVer = QVBoxLayout()
             confHardLayout = QHBoxLayout()
             valorRefLayout = QHBoxLayout()
-            importLayout = QHBoxLayout()
             botonesLayout = QHBoxLayout()
             
-            tipoCalLayoutHori.addWidget(QLabel("Tipo de Calibracion:"))
+            self.lblTipoCal = QLabel("Tipo de Calibracion:")
+            tipoCalLayoutHori.addWidget(self.lblTipoCal)
             
             self.radioBtnRelativa = QRadioButton("Calibración relativa")
             self.radioBtnRelativa.setChecked(True) 
+            self.radioBtnRelativa.toggled.connect(self.toggleValRef)
             tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
 
             self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
@@ -1531,12 +1535,16 @@ class vista(QMainWindow):
             tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
             tipoCalLayoutHori.addStretch()
             
-            self.btnConfHard = QPushButton("Configurar Hardware")
+            self.lblDispEnt = QLabel("Dispositivo de entrada: ")
+            confHardLayout.addWidget(self.lblDispEnt)
+            self.lblConfHard = QLabel("")
+            confHardLayout.addWidget(self.lblConfHard)
+            self.btnConfHard = QPushButton("Configurar Dispositivo")
             confHardLayout.addWidget(self.btnConfHard)
-            self.txtConfHard = QLineEdit("")
-            confHardLayout.addWidget(self.txtConfHard)
+            self.btnConfHard.clicked.connect(self.configuracionDispositivo)
             
-            valorRefLayout.addWidget(QLabel("Valor de Referencia:"))
+            self.lblValRef = QLabel("Valor de Referencia:")
+            valorRefLayout.addWidget(self.lblValRef)
             self.txtValorRef = QLineEdit("")
             valorRefLayout.addWidget(self.txtValorRef)
             
@@ -1591,12 +1599,36 @@ class vista(QMainWindow):
             mainLayout.addWidget(self.winGraph2)
             mainLayout.addLayout(botonesLayout)
             
+            # Actualizar el nombre del dispositivo actual en el label
+            self.actualizarNombreDispositivo()
+            
+            for boton in [self.btnCalibrar, self.btnRepetir, self.btnGenerador, self.btnCancel, self.btnConfHard, self.btnImportSig]:
+                boton.setProperty("class", "ventanasSec")
+
+            for radio in [self.radioBtnAutomatica, self.radioBtnExterna, self.radioBtnRelativa]:
+                radio.setProperty("class", "ventanasSec")
+            
+            for lbl in [self.lblDispEnt, self.lblValRef, self.lblTipoCal]:
+                lbl.setProperty("class", "ventanasSecLabelDestacado")    
+                
+            self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
+            self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
+            
             self.calWin.show()
     
+    def toggleChart2Visibility(self, checked):
+        if hasattr(self, 'winGraph2'):
+            self.winGraph2.setVisible(checked)
+        
     def toggleImportButton(self, checked):
         """Habilita o deshabilita el botón Importar Señal según el estado del radio button externa"""
         if hasattr(self, 'btnImportSig'):
             self.btnImportSig.setEnabled(checked)
+    
+    def toggleValRef(self, checked):
+        """Habilita o deshabilita el campo de texto del valor de la referencia segun el radio button relativa"""
+        if hasattr(self, 'txtValorRef'):
+            self.txtValorRef.setEnabled(checked)
     
     def importarSenalCalibracion(self):
         """Importa un archivo .wav y lo grafica en chart2"""
@@ -2022,46 +2054,163 @@ class vista(QMainWindow):
             # Agregar stretch para empujar todo hacia arriba
             self.confWinLayout.addStretch()
             
+            for boton in [self.btnColorTiempo, self.btnColorEspectro, self.btnColorNivel, self.btnConfigAplicar, self.btnConfigCancelar]:
+                boton.setProperty("class", "ventanasSec")
+    
+            for combo in [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel]:
+                combo.setProperty("class", "ventanasSec")
             # Mostrar la ventana de configuración
             self.confWin.show()
+
+    def actualizarNombreDispositivo(self):
+        """Actualiza el label con el nombre del dispositivo actual"""
+        try:
+            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
+            if not hasattr(self, 'lblConfHard'):
+                print("Label lblConfHard no existe - ventana de calibración no abierta")
+                return
+                
+            dispositivo_actual = self.vController.cModel.getDispositivoActual()
+            if dispositivo_actual is not None:
+                # Obtener los nombres e índices de dispositivos
+                nombres = self.vController.cModel.getDispositivosEntrada('nombre')
+                indices = self.vController.cModel.getDispositivosEntrada('indice')
+                
+                # Buscar el nombre del dispositivo actual
+                try:
+                    idx_actual = indices.index(dispositivo_actual)
+                    nombre_dispositivo = nombres[idx_actual]
+                    self.lblConfHard.setText(nombre_dispositivo)
+                    print(f"Dispositivo actualizado: {nombre_dispositivo}")
+                except ValueError:
+                    # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
+                    self.lblConfHard.setText("Desconocido")
+                    print("Dispositivo no encontrado en la lista")
+            else:
+                self.lblConfHard.setText("No disponible")
+                print("No hay dispositivo actual")
+        except Exception as e:
+            print(f"Error al actualizar nombre del dispositivo: {e}")
+            if hasattr(self, 'lblConfHard'):
+                self.lblConfHard.setText("Error")
+    
+    def actualizarNombreDispositivoSalida(self):
+        """Actualiza el label con el nombre del dispositivo de salida actual"""
+        try:
+            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
+            if not hasattr(self, 'lblConfHardSalida'):
+                print("Label lblConfHardSalida no existe - ventana de calibración no abierta")
+                return
+                
+            dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
+            if dispositivo_salida_actual is not None:
+                # Obtener los nombres e índices de dispositivos de salida
+                nombres = self.vController.cModel.getDispositivosSalida('nombre')
+                indices = self.vController.cModel.getDispositivosSalida('indice')
+                
+                # Buscar el nombre del dispositivo actual
+                try:
+                    idx_actual = indices.index(dispositivo_salida_actual)
+                    nombre_dispositivo = nombres[idx_actual]
+                    self.lblConfHardSalida.setText(nombre_dispositivo)
+                    print(f"Dispositivo de salida actualizado: {nombre_dispositivo}")
+                except ValueError:
+                    # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
+                    self.lblConfHardSalida.setText("Desconocido")
+                    print("Dispositivo de salida no encontrado en la lista")
+            else:
+                self.lblConfHardSalida.setText("No disponible")
+                print("No hay dispositivo de salida actual")
+        except Exception as e:
+            print(f"Error al actualizar nombre del dispositivo de salida: {e}")
+            if hasattr(self, 'lblConfHardSalida'):
+                self.lblConfHardSalida.setText("Error")
 
     def configuracionDispositivo(self):
         self.confDispWin = QMainWindow()
         self.confDispWin.setWindowTitle("Configuración de Dispositivo")
-        self.confDispWin.setGeometry(self.norm(0.25, 0.25, 0.5, 0.4))
+        self.confDispWin.setGeometry(self.norm(0.4, 0.4, 0.2, 0.2))
 
         # Widget central y layout principal
         centralWidget = QWidget()
         self.confDispWin.setCentralWidget(centralWidget)
         mainLayout = QVBoxLayout(centralWidget)
 
-        # Layout de selección de dispositivo
-        dispGroup = QGroupBox("Dispositivo de Entrada")
-        dispLayout = QHBoxLayout()
-        self.cmbDispositivos = QComboBox()
+        # Layout de selección de dispositivo Entrada
+        dispGroupEntrada = QGroupBox("Dispositivo de Entrada")
+        dispLayoutEntrada = QHBoxLayout()
+        self.cmbDispositivosEntrada = QComboBox()
         # Obtener lista de dispositivos del modelo
-        dispositivos = self.vController.cModel.getDispositivosEntrada('nombre')
-        self.cmbDispositivos.addItems(dispositivos)
-        dispLayout.addWidget(QLabel("Seleccionar:"))
-        dispLayout.addWidget(self.cmbDispositivos)
-        dispGroup.setLayout(dispLayout)
-        mainLayout.addWidget(dispGroup)
-
+        dispositivosEntrada = self.vController.cModel.getDispositivosEntrada('nombre')
+        self.cmbDispositivosEntrada.addItems(dispositivosEntrada)
+        
+        # Obtener el dispositivo actual y seleccionarlo en el ComboBox
+        dispositivo_actual = self.vController.cModel.getDispositivoActual()
+        if dispositivo_actual is not None:
+            # Buscar el índice del dispositivo actual en la lista de dispositivos
+            indices = self.vController.cModel.getDispositivosEntrada('indice')
+            try:
+                idx_actual = indices.index(dispositivo_actual)
+                self.cmbDispositivosEntrada.setCurrentIndex(idx_actual)
+            except ValueError:
+                # Si no se encuentra el dispositivo actual, usar el primer dispositivo
+                self.cmbDispositivosEntrada.setCurrentIndex(0)
+        else:
+            # Si no hay dispositivo actual, usar el primer dispositivo
+            self.cmbDispositivosEntrada.setCurrentIndex(0)
+        
+        self.lblSelEnt = QLabel("Seleccionar:")
+        dispLayoutEntrada.addWidget(self.lblSelEnt)
+        dispLayoutEntrada.addWidget(self.cmbDispositivosEntrada)
+        dispGroupEntrada.setLayout(dispLayoutEntrada)
+        mainLayout.addWidget(dispGroupEntrada)
+        
+        # Layout de selección de dispositivo Salida
+        dispGroupSalida = QGroupBox("Dispositivo de Salida")
+        dispLayoutSalida = QHBoxLayout()
+        self.cmbDispositivosSalida = QComboBox()
+        # Obtener lista de dispositivos de salida del modelo
+        dispositivosSalida = self.vController.cModel.getDispositivosSalida('nombre')
+        self.cmbDispositivosSalida.addItems(dispositivosSalida)
+        
+        # Obtener el dispositivo de salida actual y seleccionarlo en el ComboBox
+        dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
+        if dispositivo_salida_actual is not None:
+            # Buscar el índice del dispositivo actual en la lista de dispositivos
+            indicesSalida = self.vController.cModel.getDispositivosSalida('indice')
+            try:
+                idx_actual = indicesSalida.index(dispositivo_salida_actual)
+                self.cmbDispositivosSalida.setCurrentIndex(idx_actual)
+            except ValueError:
+                # Si no se encuentra el dispositivo actual, usar el primer dispositivo
+                self.cmbDispositivosSalida.setCurrentIndex(0)
+        else:
+            # Si no hay dispositivo actual, usar el primer dispositivo
+            self.cmbDispositivosSalida.setCurrentIndex(0)
+        
+        self.lblSelSal= QLabel("Seleccionar:")
+        dispLayoutSalida.addWidget(self.lblSelSal)
+        dispLayoutSalida.addWidget(self.cmbDispositivosSalida)
+        dispGroupSalida.setLayout(dispLayoutSalida)
+        mainLayout.addWidget(dispGroupSalida)
+        
         # Layout de configuración de rate y chunk
         rateChunkGroup = QGroupBox("Parámetros de Audio")
         rateChunkLayout = QHBoxLayout()
         self.txtRate = QLineEdit(str(self.vController.cModel.rate))
         self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
-        rateChunkLayout.addWidget(QLabel("Rate (Hz):"))
+        self.lblRate = QLabel("Rate (Hz):")
+        rateChunkLayout.addWidget(self.lblRate)
         rateChunkLayout.addWidget(self.txtRate)
-        rateChunkLayout.addWidget(QLabel("Chunk:"))
+        self.lblChunk = QLabel("Chunk:")
+        rateChunkLayout.addWidget(self.lblChunk)
         rateChunkLayout.addWidget(self.txtChunk)
         rateChunkGroup.setLayout(rateChunkLayout)
         mainLayout.addWidget(rateChunkGroup)
 
         # Botones Agregar y Cancelar
         botonesLayout = QHBoxLayout()
-        self.btnDispAgregar = QPushButton("Agregar")
+        self.btnDispAgregar = QPushButton("Aplicar")
         self.btnDispAgregar.clicked.connect(self.aplicarConfiguracionDispositivo)
         self.btnDispCancelar = QPushButton("Cancelar")
         self.btnDispCancelar.clicked.connect(self.confDispWin.close)
@@ -2069,20 +2218,91 @@ class vista(QMainWindow):
         botonesLayout.addWidget(self.btnDispAgregar)
         mainLayout.addLayout(botonesLayout)
 
+        for boton in [self.btnDispAgregar, self.btnDispCancelar]:
+            boton.setProperty("class", "ventanasSec")
+        
+        for lbl in [self.lblChunk, self.lblRate, self.lblSelEnt, self.lblSelSal]:
+            lbl.setProperty("class", "ventanasSecLabelDestacado")
+            
+        for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida]:
+            cmb.setProperty("class", "ventanasSec")
         self.confDispWin.show()
 
     def aplicarConfiguracionDispositivo(self):
         try:
             # Obtener valores seleccionados
-            dispositivo_idx = self.cmbDispositivos.currentIndex()
+            dispositivo_entrada_idx = self.cmbDispositivosEntrada.currentIndex()
+            dispositivo_salida_idx = self.cmbDispositivosSalida.currentIndex()
             rate = int(self.txtRate.text())
             chunk = int(self.txtChunk.text())
-            # Actualizar en el modelo/controlador
-            self.vController.cModel.rate = rate
-            self.vController.cModel.chunk = chunk
-            # Si quieres cambiar el dispositivo, deberías reiniciar el stream aquí
-            # self.vController.cModel.setDeviceIndex(dispositivo_idx)
+            
+            # Obtener el índice real del dispositivo de entrada seleccionado
+            indices_entrada = self.vController.cModel.getDispositivosEntrada('indice')
+            device_index_entrada = indices_entrada[dispositivo_entrada_idx] if dispositivo_entrada_idx < len(indices_entrada) else None
+            
+            # Obtener el índice real del dispositivo de salida seleccionado
+            indices_salida = self.vController.cModel.getDispositivosSalida('indice')
+            device_index_salida = indices_salida[dispositivo_salida_idx] if dispositivo_salida_idx < len(indices_salida) else None
+            
+            # Obtener el dispositivo actual antes del cambio
+            dispositivo_entrada_actual = self.vController.cModel.getDispositivoActual()
+            dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
+            
+            print(f"Dispositivo entrada actual: {dispositivo_entrada_actual}")
+            print(f"Dispositivo entrada seleccionado: {device_index_entrada}")
+            print(f"Dispositivo salida actual: {dispositivo_salida_actual}")
+            print(f"Dispositivo salida seleccionado: {device_index_salida}")
+            print(f"Rate: {rate}, Chunk: {chunk}")
+            
+            # Cambiar el dispositivo de entrada si es diferente al actual
+            if device_index_entrada != dispositivo_entrada_actual:
+                print(f"Cambiando dispositivo de entrada de {dispositivo_entrada_actual} a {device_index_entrada}")
+                
+                # Cerrar el stream actual si existe
+                if hasattr(self.vController.cModel, 'stream') and self.vController.cModel.stream is not None:
+                    print("Cerrando stream actual...")
+                    self.vController.cModel.stream.close()
+                
+                # Reinicializar el stream con el nuevo dispositivo
+                print("Inicializando nuevo stream...")
+                self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
+                
+                # Verificar que el cambio se aplicó correctamente
+                nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
+                print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
+                
+                if nuevo_dispositivo_entrada == device_index_entrada:
+                    print("✅ Cambio de dispositivo de entrada exitoso")
+                    # Actualizar el label con el nuevo nombre del dispositivo
+                    self.actualizarNombreDispositivo()
+                else:
+                    print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
+            else:
+                print("No se requiere cambio de dispositivo de entrada")
+            
+            # Cambiar el dispositivo de salida si es diferente al actual
+            if device_index_salida != dispositivo_salida_actual:
+                print(f"Cambiando dispositivo de salida de {dispositivo_salida_actual} a {device_index_salida}")
+                
+                # Actualizar el dispositivo de salida en el modelo
+                self.vController.cModel.setDispositivoSalida(device_index_salida)
+                
+                # Verificar que el cambio se aplicó correctamente
+                nuevo_dispositivo_salida = self.vController.cModel.getDispositivoSalidaActual()
+                print(f"Dispositivo salida después del cambio: {nuevo_dispositivo_salida}")
+                
+                if nuevo_dispositivo_salida == device_index_salida:
+                    print("✅ Cambio de dispositivo de salida exitoso")
+                    # Actualizar el label con el nuevo nombre del dispositivo de salida
+                    self.actualizarNombreDispositivoSalida()
+                else:
+                    print("⚠️ El cambio de dispositivo de salida no se aplicó correctamente")
+            else:
+                print("No se requiere cambio de dispositivo de salida")
+            
             # Cerrar ventana
             self.confDispWin.close()
+            
         except Exception as e:
+            print(f"Error al aplicar configuración: {e}")
             QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")

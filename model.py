@@ -46,7 +46,8 @@ class modelo:
         # --------------------Codigo Yamili-------------------------
         self.rate = rate
         self.chunk = chunk
-        device_index = None
+        self.device_index = device_index  # Guardar el device_index original
+        self.device_index_salida = 0  # Dispositivo de salida por defecto
         self.format = pyaudio.paInt16
         self.channels = 1
         self.normalized_all = []
@@ -62,6 +63,52 @@ class modelo:
 
         try:
             self.pyaudio_instance = pyaudio.PyAudio()
+            
+            # Verificar si el dispositivo existe y está disponible
+            device_info = None
+            if self.device_index is not None:
+                try:
+                    device_info = self.pyaudio_instance.get_device_info_by_index(self.device_index)
+                except Exception:
+                    raise ValueError(f"Dispositivo con índice {self.device_index} no encontrado")
+                
+                if device_info['maxInputChannels'] <= 0:
+                    raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
+
+            self.stream = self.pyaudio_instance.open(
+                format=self.format,
+                channels=self.channels,
+                rate=self.rate,
+                input=True,
+                input_device_index=self.device_index,
+                frames_per_buffer=self.chunk,
+                stream_callback=None
+            )
+
+            # Verificar si el stream está activo
+            if not self.stream.is_active():
+                raise ValueError("No se pudo activar el stream de audio")
+
+        except Exception as e:
+            if hasattr(self, 'pyaudio_instance'):
+                self.pyaudio_instance.terminate()
+            raise Exception(f"Error al inicializar el dispositivo de audio: {str(e)}")
+        # ------------------Codigo Yamili-------------------
+    
+    def initialize_audio_stream(self, device_index=None, rate=None, chunk=None):
+        """Inicializa o reinicializa el stream de audio con los parámetros especificados"""
+        try:
+            # Cerrar stream existente si hay uno
+            if hasattr(self, 'stream') and self.stream is not None:
+                self.stream.close()
+            
+            # Actualizar parámetros si se proporcionan
+            if rate is not None:
+                self.rate = rate
+            if chunk is not None:
+                self.chunk = chunk
+            if device_index is not None:
+                self.device_index = device_index  # Actualizar el device_index del modelo
             
             # Verificar si el dispositivo existe y está disponible
             device_info = None
@@ -87,12 +134,15 @@ class modelo:
             # Verificar si el stream está activo
             if not self.stream.is_active():
                 raise ValueError("No se pudo activar el stream de audio")
-
+            
+            # Reinicializar buffers y datos cuando se cambia el dispositivo
+            self.buffer = []
+            self.normalized_all = []
+            self.times = []
+            self.start_time = None
+                
         except Exception as e:
-            if hasattr(self, 'pyaudio_instance'):
-                self.pyaudio_instance.terminate()
-            raise Exception(f"Error al inicializar el dispositivo de audio: {str(e)}")
-        # ------------------Codigo Yamili-------------------
+            raise Exception(f"Error al inicializar el stream de audio: {str(e)}")
     
 # Setters
     def setChunk(self, chunk):
@@ -183,6 +233,32 @@ class modelo:
             return self.dispSalIndice
         if mode == 'nombre':
             return self.dispSal
+    
+    def getDispositivoActual(self):
+        """Retorna el índice del dispositivo de entrada actualmente en uso"""
+        # Primero intentar obtener del stream si está activo
+        if hasattr(self, 'stream') and self.stream is not None and self.stream.is_active():
+            try:
+                # Intentar obtener el device_index del stream
+                return self.stream._device_index
+            except AttributeError:
+                # Si el stream no tiene el atributo _device_index, usar el almacenado
+                pass
+        # Usar el device_index almacenado en el modelo
+        if hasattr(self, 'device_index'):
+            return self.device_index
+        return None
+    
+    def getDispositivoSalidaActual(self):
+        """Retorna el índice del dispositivo de salida actualmente en uso"""
+        # Usar el device_index_salida almacenado en el modelo
+        if hasattr(self, 'device_index_salida'):
+            return self.device_index_salida
+        return None
+    
+    def setDispositivoSalida(self, device_index_salida):
+        """Establece el dispositivo de salida"""
+        self.device_index_salida = device_index_salida
     def getNivelesA(self, NP='A'):
         if NP == 'P':
             return self.recorderPicoA
@@ -254,9 +330,8 @@ class modelo:
         """
         Calcula los niveles en bandas de tercio de octava a partir de la FFT en tiempo real.
         Usa la amplitud (no dB) y toma el promedio de todos los valores desde cada banda hasta la siguiente.
-        Devuelve:
-            bandas: frecuencias centrales de cada banda
-            niveles: nivel promedio de amplitud de cada banda
+        Devuelve:   bandas: frecuencias centrales de cada banda
+                    niveles: nivel promedio de amplitud de cada banda
         """
         # Frecuencias centrales típicas de tercios de octava (20 Hz a 20 kHz)
         fcs = [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
@@ -277,10 +352,8 @@ class modelo:
                 # hasta la mitad entre la banda actual y la siguiente
                 f_low = (fcs[i-1] + fc) / 2
                 f_high = (fc + fcs[i+1]) / 2
-            
             # Encontrar los índices de frecuencias que están en este rango
             indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
-            
             if len(indices) > 0:
                 # Calcular el promedio de las amplitudes en esta banda
                 # Usar la magnitud directamente (amplitud) en lugar de dB
@@ -291,7 +364,6 @@ class modelo:
                 # Si no hay datos en esta banda, asignar 0
                 bandas.append(fc)
                 niveles.append(0.0)
-        
         return np.array(bandas), np.array(niveles)
 
 
