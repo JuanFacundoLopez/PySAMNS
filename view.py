@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBo
 from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog, QGraphicsOpacityEffect
 
 from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
-from PyQt5.QtCore import QRect, QPoint
+from PyQt5.QtCore import QRect, QPointF
 # from PyQt5 import QtWidgets
 from pyqtgraph.Qt import QtGui, QtCore
 
@@ -1502,120 +1502,202 @@ class vista(QMainWindow):
     
     # CODIGO configuracion de calibración
     def calibracionWin(self):
-            self.calWin = QMainWindow()
-            self.calWin.setWindowTitle("Calibracion")
-            self.calWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
+        self.calWin = QMainWindow()
+        self.calWin.setWindowTitle("Calibracion")
+        self.calWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
             
-            # Widget central y layout principal
-            centralWidget = QWidget()
-            self.calWin.setCentralWidget(centralWidget)
-            mainLayout = QVBoxLayout(centralWidget)
+        # Widget central y layout principal
+        centralWidget = QWidget()
+        self.calWin.setCentralWidget(centralWidget)
+        mainLayout = QVBoxLayout(centralWidget)
             
-            tipoCalLayoutHori = QHBoxLayout()
-            tipoCalLayoutVer = QVBoxLayout()
-            confHardLayout = QHBoxLayout()
-            valorRefLayout = QHBoxLayout()
-            botonesLayout = QHBoxLayout()
+        tipoCalLayoutHori = QHBoxLayout()
+        tipoCalLayoutVer = QVBoxLayout()
+        confHardLayout = QHBoxLayout()
+        valorRefLayout = QHBoxLayout()
+        botonesLayout = QHBoxLayout()
             
-            self.lblTipoCal = QLabel("Tipo de Calibracion:")
-            tipoCalLayoutHori.addWidget(self.lblTipoCal)
+        self.lblTipoCal = QLabel("Tipo de Calibracion:")
+        tipoCalLayoutHori.addWidget(self.lblTipoCal)
             
-            self.radioBtnRelativa = QRadioButton("Calibración relativa")
-            self.radioBtnRelativa.setChecked(True) 
-            self.radioBtnRelativa.toggled.connect(self.toggleValRef)
-            tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
+        self.radioBtnRelativa = QRadioButton("Calibración relativa")
+        self.radioBtnRelativa.setChecked(True) 
+        self.radioBtnRelativa.toggled.connect(self.toggleValRef)
+        tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
 
-            self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
-            tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
+        self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
+        tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
 
-            self.radioBtnExterna = QRadioButton("Calibración externa")
-            self.radioBtnExterna.toggled.connect(self.toggleImportButton)
-            tipoCalLayoutVer.addWidget(self.radioBtnExterna)
+        self.radioBtnExterna = QRadioButton("Calibración externa")
+        self.radioBtnExterna.toggled.connect(self.toggleImportButton)
+        tipoCalLayoutVer.addWidget(self.radioBtnExterna)
             
-            tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
-            tipoCalLayoutHori.addStretch()
+        tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
+        tipoCalLayoutHori.addStretch()
             
-            self.lblDispEnt = QLabel("Dispositivo de entrada: ")
-            confHardLayout.addWidget(self.lblDispEnt)
-            self.lblConfHard = QLabel("")
-            confHardLayout.addWidget(self.lblConfHard)
-            self.btnConfHard = QPushButton("Configurar Dispositivo")
-            confHardLayout.addWidget(self.btnConfHard)
-            self.btnConfHard.clicked.connect(self.configuracionDispositivo)
+        self.lblDispEnt = QLabel("Dispositivo de entrada: ")
+        confHardLayout.addWidget(self.lblDispEnt)
+        self.lblConfHard = QLabel("")
+        confHardLayout.addWidget(self.lblConfHard)
+        self.btnConfHard = QPushButton("Configurar Dispositivo")
+        confHardLayout.addWidget(self.btnConfHard)
+        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
             
-            self.lblValRef = QLabel("Valor de Referencia:")
-            valorRefLayout.addWidget(self.lblValRef)
-            self.txtValorRef = QLineEdit("")
-            valorRefLayout.addWidget(self.txtValorRef)
+        self.lblValRef = QLabel("Valor de Referencia:")
+        valorRefLayout.addWidget(self.lblValRef)
+        self.txtValorRef = QLineEdit("")
+        valorRefLayout.addWidget(self.txtValorRef)
             
-            self.btnImportSig = QPushButton("Importar Señal")
-            self.btnImportSig.setEnabled(False)
-            self.btnImportSig.setToolTip("Importar desde archivo .wav")
-            self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
+        self.btnImportSig = QPushButton("Importar Señal")
+        self.btnImportSig.setEnabled(False)
+        self.btnImportSig.setToolTip("Importar desde archivo .wav")
+        self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
             
-            # Crear QChart para la ventana de calibración
-            self.chart2 = QChart()
-            self.chart2.setTheme(QChart.ChartThemeDark)
+        # Crear QChart para la ventana de calibración
+        self.chart2 = QChart()
+        self.chart2.setTheme(QChart.ChartThemeDark)
             
-            # Crear QChartView para mostrar el gráfico
-            self.winGraph2 = QChartView(self.chart2)
-            self.winGraph2.setRenderHint(QPainter.Antialiasing)
+        # Crear QChartView para mostrar el gráfico
+        self.winGraph2 = QChartView(self.chart2)
+        self.winGraph2.setRenderHint(QPainter.Antialiasing)
             
-            # Crear series para el gráfico de calibración
-            self.plot_line_cal = QLineSeries()
+        # Crear series para el gráfico de calibración
+        self.plot_line_cal = QLineSeries()
             
-            # Configurar ejes para el gráfico de calibración
-            self.axisX2 = QValueAxis()
-            self.axisX2.setTitleText("Tiempo")
-            self.axisX2.setRange(0, 1024)
+        # Configurar ejes para el gráfico de calibración
+        self.axisX2 = QValueAxis()
+        self.axisX2.setTitleText("Tiempo")
+        self.axisX2.setRange(0, 1024)
             
-            self.axisY2 = QValueAxis()
-            self.axisY2.setTitleText("Amplitud Normalizada")
-            self.axisY2.setRange(-1.2, 1.2)
+        self.axisY2 = QValueAxis()
+        self.axisY2.setTitleText("Amplitud Normalizada")
+        self.axisY2.setRange(-1.2, 1.2)
             
-            self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
-            self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
-            self.chart2.legend().hide()
+        self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
+        self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
+        self.chart2.legend().hide()
 
-            # Definir las líneas del gráfico (para compatibilidad)
-            self.ptdomTiempo2 = self.plot_line_cal
-            self.ptdomEspect2 = self.plot_line_cal
+        # Definir las líneas del gráfico (para compatibilidad)
+        self.ptdomTiempo2 = self.plot_line_cal
+        self.ptdomEspect2 = self.plot_line_cal
             
-            self.btnCalibrar = QPushButton("Calibrar")
-            self.btnRepetir = QPushButton("Repetir")
-            self.btnGenerador = QPushButton("Generador de señales")
-            self.btnCancel = QPushButton("Cancelar")
-            botonesLayout.addWidget(self.btnCalibrar)
-            botonesLayout.addWidget(self.btnRepetir)
-            botonesLayout.addWidget(self.btnGenerador)
-            botonesLayout.addWidget(self.btnCancel)
+        self.btnCalibrar = QPushButton("Calibrar")
+        self.btnRepetir = QPushButton("Repetir")
+        self.btnGenerador = QPushButton("Generador de señales")
+        self.btnGenerador.clicked.connect(self.generadorWin)
+        self.btnCancel = QPushButton("Cancelar")
+        self.btnCancel.clicked.connect(self.closeCalibracion)
+        botonesLayout.addWidget(self.btnCalibrar)
+        botonesLayout.addWidget(self.btnRepetir)
+        botonesLayout.addWidget(self.btnGenerador)
+        botonesLayout.addWidget(self.btnCancel)
             
-            # Agregar el grupo al layout principal
-            mainLayout.addLayout(tipoCalLayoutHori)
-            mainLayout.addLayout(confHardLayout)
-            mainLayout.addLayout(valorRefLayout)
-            #mainLayout.addLayout(importLayout)
-            mainLayout.addWidget(self.btnImportSig)
-            mainLayout.addWidget(self.winGraph2)
-            mainLayout.addLayout(botonesLayout)
+        # Agregar el grupo al layout principal
+        mainLayout.addLayout(tipoCalLayoutHori)
+        mainLayout.addLayout(confHardLayout)
+        mainLayout.addLayout(valorRefLayout)
+        #mainLayout.addLayout(importLayout)
+        mainLayout.addWidget(self.btnImportSig)
+        mainLayout.addWidget(self.winGraph2)
+        mainLayout.addLayout(botonesLayout)
+                    
+        # Actualizar el nombre del dispositivo actual en el label
+        self.actualizarNombreDispositivo()
             
-            # Actualizar el nombre del dispositivo actual en el label
-            self.actualizarNombreDispositivo()
-            
-            for boton in [self.btnCalibrar, self.btnRepetir, self.btnGenerador, self.btnCancel, self.btnConfHard, self.btnImportSig]:
-                boton.setProperty("class", "ventanasSec")
+        for boton in [self.btnCalibrar, self.btnRepetir, self.btnGenerador, self.btnCancel, self.btnConfHard, self.btnImportSig]:
+            boton.setProperty("class", "ventanasSec")
 
-            for radio in [self.radioBtnAutomatica, self.radioBtnExterna, self.radioBtnRelativa]:
-                radio.setProperty("class", "ventanasSec")
+        for radio in [self.radioBtnAutomatica, self.radioBtnExterna, self.radioBtnRelativa]:
+            radio.setProperty("class", "ventanasSec")
             
-            for lbl in [self.lblDispEnt, self.lblValRef, self.lblTipoCal]:
-                lbl.setProperty("class", "ventanasSecLabelDestacado")    
+        for lbl in [self.lblDispEnt, self.lblValRef, self.lblTipoCal]:
+            lbl.setProperty("class", "ventanasSecLabelDestacado")    
                 
-            self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
-            self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
+        self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
+        self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
             
-            self.calWin.show()
-    
+        self.calWin.show()
+
+    def closeCalibracion(self):
+        self.calWin.close()
+        self.calWin = None
+ 
+    def generadorWin(self):
+        self.genWin = QMainWindow()
+        self.genWin.setWindowTitle("Generador de señales")
+        self.genWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
+        
+        # Widget central y layout principal
+        centralWidget = QWidget()
+        self.genWin.setCentralWidget(centralWidget)
+        mainLayout = QVBoxLayout(centralWidget)
+        
+        configLayout = QHBoxLayout()
+        
+        self.lbltipoSig = QLabel("Tipo de señal:")
+        self.tipo_combo = QComboBox()
+        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular"])
+        configLayout.addWidget(self.lbltipoSig)
+        configLayout.addWidget(self.tipo_combo)
+        
+        self.lblFrecSig = QLabel("Frecuencia (Hz):")
+        self.freq_input = QLineEdit("440")
+        configLayout.addWidget(self.lblFrecSig)
+        configLayout.addWidget(self.freq_input)
+        
+        self.lblAmpSig = QLabel("Amplitud:")
+        self.amp_input = QLineEdit("1")
+        configLayout.addWidget(self.lblAmpSig)
+        configLayout.addWidget(self.amp_input)
+
+        self.lblDurSig = QLabel("Duración (s):")
+        self.dur_input = QLineEdit("1")
+        configLayout.addWidget(self.lblDurSig)
+        configLayout.addWidget(self.dur_input)
+
+        self.btn_generar = QPushButton("Generar y Graficar")
+        self.btn_generar.clicked.connect(self.generar_senal)
+        configLayout.addWidget(self.btn_generar)
+        
+        self.seriesGenSig = QLineSeries()
+        self.chartGenSig = QChart()
+        self.chartGenSig.addSeries(self.seriesGenSig)
+        self.chartGenSig.createDefaultAxes()
+        self.chartGenSig.setTitle("Señal Generada")
+
+        self.chartGenSig_view = QChartView(self.chartGenSig)
+        self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
+        
+        mainLayout.addLayout(configLayout)
+        mainLayout.addWidget(self.chartGenSig_view)
+            
+        self.genWin.show()
+        
+    def generar_senal(self):
+        tipo = self.tipo_combo.currentText()
+        f = float(self.freq_input.text())
+        A = float(self.amp_input.text())
+        T = float(self.dur_input.text())
+        Fs = 44100
+        t = np.linspace(0, T, int(Fs*T))
+
+        if tipo == "Senoidal":
+            y = A * np.sin(2 * np.pi * f * t)
+        elif tipo == "Cuadrada":
+            y = A * np.sign(np.sin(2 * np.pi * f * t))
+        elif tipo == "Triangular":
+            y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
+
+
+        self.chartGenSig.removeSeries(self.seriesGenSig)
+        self.seriesGenSig.clear()
+        
+        for i in range(len(t)):
+            self.seriesGenSig.append(QPointF(t[i], y[i]))
+        
+        self.chartGenSig.addSeries(self.seriesGenSig)
+        self.chartGenSig.createDefaultAxes()
+            
     def toggleChart2Visibility(self, checked):
         if hasattr(self, 'winGraph2'):
             self.winGraph2.setVisible(checked)
