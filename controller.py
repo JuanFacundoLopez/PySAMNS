@@ -470,7 +470,7 @@ class controlador():
             return
 
         # Reseteo los niveles antes de empezar
-        NZ = np.zeros(self.chunk_size) # Crear el vector de audio
+        # NZ = np.zeros(self.chunk_size) # Crear el vector de audio
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
         frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
@@ -498,6 +498,10 @@ class controlador():
             try:
                 current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
                 if len(current_data) > 0:
+                    # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
+                    # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
+                    normalized_data = current_data.astype(np.float32) / 32767.0
+                    self.wf_data = normalized_data
                     grabacion(self) #Ver de cambiarlo por otra función de grabación más básica
                 time.sleep(0.01)
             except Exception as e:

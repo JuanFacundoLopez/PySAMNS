@@ -1,0 +1,219 @@
+/* Estilo general */
+* {
+    font-family: Arial;
+}
+
+/* QLineEdit */
+QLineEdit {
+    padding: 4px 6px;
+    border-radius: 4px; /* Borde apenas redondeado */
+    border: 2px solid #cccccc;
+    background-color: #ffffff;
+    font-size: 10px;
+    font-weight: bold;
+    color: #333333;
+    font-family: Arial;
+}
+QLineEdit:hover {
+    background-color: #f5f5f5;
+    border-color: #999999;
+}
+QLineEdit:focus {
+    background-color: #f0f0f0;
+    border-color: #666666;
+}
+
+/* QLabel */
+QLabel {
+    font-size: 10px;
+    color: #333333;
+    font-family: Arial;
+}
+
+QLabel[class="ventanasSecLabelDestacado"] {
+    font-size: 10px;
+    font-weight: bold;
+    text-decoration: underline;
+    color: #000000;
+}
+
+/* QPushButton */
+QPushButton {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #cccccc;
+    background-color: #f0f0f0;
+    font-weight: bold;
+    font-size: 12px;
+    font-family: Arial;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+    border-color: #999999;
+}
+QPushButton:pressed {
+    background-color: #d0d0d0;
+    border-color: #666666;
+}
+QPushButton:checked {
+    background-color: #478ECB;
+    color: white;
+    border-color: #475ECB;
+}
+QPushButton[class="ventanasSec"] {
+    padding: 8px 8px;
+    border-radius: 8px;
+    border: 2px solid #cccccc;
+    background-color: #f0f0f0;
+    font-weight: bold;
+    font-size: 10px;
+    font-family: Arial;
+}
+QPushButton[class="ventanasSec"]:hover {
+    background-color: #e0e0e0;
+    border-color: #999999;
+}
+QPushButton[class="ventanasSec"]:pressed {
+    background-color: #d0d0d0;
+    border-color: #666666;
+}
+
+/* QComboBox - Estilo corregido */
+QComboBox[class="ventanasSec"] {
+    min-width: 120px;  /* Cambiado de width: 20px que era muy pequeño */
+    height: 15px;      /* Altura fija para mejor apariencia */
+    border: 2px solid #cccccc;
+    background-color: #f0f0f0;
+    padding: 4px 8px;  /* Padding horizontal mejorado */
+    border-radius: 8px;
+    font-size: 12px;   /* Tamaño de fuente consistente */
+}
+
+/* Área del botón desplegable */
+QComboBox[class="ventanasSec"]::drop-down {
+    border: 0px;
+    width: 25px;       /* Ancho del área del botón */
+    background: transparent;
+}
+
+/* Icono de la flecha */
+QComboBox[class="ventanasSec"]::down-arrow {
+    image: url(./icons/icons8-flecha-ampliar-50.ico);
+    width: 12px;       /* Tamaño aumentado */
+    height: 12px;
+    margin-right: 5px; /* Margen reducido */
+}
+
+/* Estado cuando está abierto */
+QComboBox[class="ventanasSec"]:on {
+    border: 2px solid #478ECB;  /* Grosor consistente */
+    background-color: #ffffff;   /* Fondo más claro cuando está activo */
+}
+
+/* Estado hover */
+QComboBox[class="ventanasSec"]:hover {
+    border: 2px solid #478ECB;
+    background-color: #fafafa;
+}
+
+/* Lista desplegable */
+QComboBox[class="ventanasSec"] QAbstractItemView {
+    border: 1px solid #cccccc;  /* Corregido: faltaban los dos puntos */
+    background-color: #ffffff;
+    selection-background-color: #478ECB;
+    font-size: 12px;            /* Tamaño consistente con el combobox */
+    padding: 2px;
+    outline: 0px;
+    border-radius: 4px;         /* Bordes redondeados para la lista */
+}
+
+/* Elementos de la lista */
+QComboBox[class="ventanasSec"] QAbstractItemView::item {
+    padding: 6px 12px;          /* Padding mejorado */
+    min-height: 20px;           /* Altura mínima para mejor clicking */
+    border: none;
+}
+
+/* Hover en elementos de la lista */
+QComboBox[class="ventanasSec"] QAbstractItemView::item:hover {
+    background-color: #e6f2ff;  /* Color más suave para hover */
+    color: #333333;
+}
+
+/* Elemento seleccionado */
+QComboBox[class="ventanasSec"] QAbstractItemView::item:selected {
+    background-color: #478ECB;
+    color: #ffffff;
+}
+
+/* Estado deshabilitado */
+QComboBox[class="ventanasSec"]:disabled {
+    background-color: #e0e0e0;
+    color: #888888;
+    border: 2px solid #d0d0d0;
+}
+
+/* Texto del combobox */
+QComboBox[class="ventanasSec"] QLineEdit {
+    border: none;
+    background: transparent;
+    padding: 0px;
+}
+
+/* QCheckBox */
+QCheckBox {
+    spacing: 6px;
+    font-size: 10px;
+    color: #333333;
+    font-family: Arial;
+}
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+}
+QCheckBox:checked {
+    color: #000000;
+    font-weight: bold;
+}
+QCheckBox[class="ventanasSec"] {
+    spacing: 6px;
+    font-size: 10px;
+    color: #333333;
+    font-weight: bold;
+    font-family: Arial;
+}
+QCheckBox[class="ventanasSec"]:hover {
+    color: #000000;
+}
+QCheckBox[class="ventanasSec"]:checked {
+    color: #478ECB;
+}
+
+/* QRadioButton */
+QRadioButton {
+    spacing: 6px;
+    font-size: 10px;
+    color: #333333;
+    font-family: Arial;
+}
+QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+}
+QRadioButton:checked {
+    font-weight: bold;
+    color: #000000;
+}
+QRadioButton[class="ventanasSec"] {
+    spacing: 6px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #333333;
+    font-family: Arial;
+}
+QRadioButton[class="ventanasSec"]:hover {
+    color: #000000;
+}
+QRadioButton[class="ventanasSec"]:checked {
+    color: #478ECB;
+}
