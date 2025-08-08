@@ -46,6 +46,7 @@ class controlador():
         nyq = self.rate/2
         normal_cutoff = 100 / nyq #Cutoff = 100
         (self.b, self.a) = butter(1, normal_cutoff, btype='low', analog=False)
+        #self.wf_data = np.array(0)*2
 
         
     def setGainZero(self):                          # Seteo los valores a cero (inicialización)
@@ -415,6 +416,9 @@ class controlador():
 
     def calAutomatica(self):                        # Funcion de calibracion
         # Reseteo los niveles antes de empezar
+        # Emitir un valor de audio con un valor de 0.1 en un 1 segundo y así sucesivamente 
+        # hasta que yo capture una distorción armónica de 1% y ese valor se convierte a nivel y lo 
+        # tomas de referencia -> ese es tu valor de referencia
         self.setGainZero()
         self.cModel.setNivelesZ(mode='r')
         self.cModel.setNivelesC(mode='r')
@@ -429,6 +433,10 @@ class controlador():
                 # Adquiero los datos de audio del modelo
                 current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
                 if len(current_data) > 0:
+                    # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
+                    # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
+                    normalized_data = current_data.astype(np.float32) / 32767.0
+                    self.wf_data = normalized_data
                     # Proceso los datos para calcular niveles (simulando el bucle principal)
                     grabacion(self) # Esta funcion calcula y guarda los niveles
                 time.sleep(0.01) # Pequeña pausa para no saturar el CPU
@@ -462,20 +470,35 @@ class controlador():
             return
 
         # Reseteo los niveles antes de empezar
+        NZ = np.zeros(self.chunk_size) # Crear el vector de audio
+        # Parámetros de la señal
+        frecuencia = 1000  # 1 kHz
+        frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
+        duracion = 3  # 3 segundos
+        amplitud = 1  # Amplitud normalizada
+
+        # Generar el arreglo de tiempos
+        t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
+
+        # Generar la onda senoidal usando scipy.signal o numpy
+        onda_senoidal = amplitud * np.sin(2 * np.pi * frecuencia * t)  # scipy.signal no es estrictamente necesario aquí
+        # Emitir la onda senoidal 
+        # Y recien ahí se empieza a grabar
         self.setGainZero()
         self.cModel.setNivelesZ(mode='r')
         self.cModel.setNivelesC(mode='r')
         self.cModel.setNivelesA(mode='r')
-
+        self.cModel.setSignalData(onda_senoidal)
         self.cModel.stream.start_stream()
         
         start_time = time.time()
+
         # Bucle para procesar audio durante 3 segundos
         while time.time() - start_time < 3.0:
             try:
                 current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
                 if len(current_data) > 0:
-                    grabacion(self)
+                    grabacion(self) #Ver de cambiarlo por otra función de grabación más básica
                 time.sleep(0.01)
             except Exception as e:
                 print(f"Error durante el bucle de calibración relativa: {e}")
@@ -484,11 +507,13 @@ class controlador():
         self.cModel.stream.stop_stream()
         
         NZ = self.cModel.getNivelesZ('P')
+        #Tomar un promedio de NZ
+        promNZ = np.mean(NZ)
         
         if len(NZ) > 0:
-            cal = ref_level - NZ[-1]
+            cal = promNZ - ref_level
             print(ref_level)
-            print(NZ[-1])
+            print(promNZ)
             print(cal)
             self.cModel.setCalibracionAutomatica(cal)
             QMessageBox.information(self.cVista, "Calibración Exitosa", f"Calibración relativa completada. El factor de ajuste es: {cal:.2f} dB")
