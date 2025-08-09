@@ -1,11 +1,8 @@
 .idea
-<<<<<<< HEAD
 __pycache__
 .venv
 venv
 funciones/__pycache__
-=======
 env 
 __pycache__/
 *.pyc
->>>>>>> Front
