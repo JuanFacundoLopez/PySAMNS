@@ -14,6 +14,7 @@ import numpy as np
 # sys.path.append('./funciones')
 
 from funciones.grabacionSAMNS import grabacion
+from funciones.calibracionSAMNS import compute_thd
 from scipy.signal import butter
 
 # from matplotlib import pyplot as plt 
@@ -414,53 +415,139 @@ class controlador():
         time_diff_str = f"{time_diff:.2f}"
         self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
-    def calAutomatica(self):                        # Funcion de calibracion
-        # Reseteo los niveles antes de empezar
-        # Emitir un valor de audio con un valor de 0.1 en un 1 segundo y así sucesivamente 
-        # hasta que yo capture una distorción armónica de 1% y ese valor se convierte a nivel y lo 
-        # tomas de referencia -> ese es tu valor de referencia
+    def calAutomatica(self):                        # Calibración automática (fondo de escala)
+        """
+        Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
+        captura de micrófono. La referencia (0 dBFS) se fija en la última
+        amplitud cuya THD < 1%.
+        """
+        # Verificar dispositivos
+        try:
+            input_device_index = self.cModel.getDispositivoActual()
+            output_device_index = self.cModel.getDispositivoSalidaActual()
+            if output_device_index is None:
+                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                return
+        except Exception as e:
+            QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            return
+
+        # Reset de niveles
         self.setGainZero()
         self.cModel.setNivelesZ(mode='r')
         self.cModel.setNivelesC(mode='r')
         self.cModel.setNivelesA(mode='r')
 
-        self.cModel.stream.start_stream()
-        
-        start_time = time.time()
-        # Bucle para procesar audio durante 3 segundos
-        while time.time() - start_time < 3.0:
-            try:
-                # Adquiero los datos de audio del modelo
-                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
-                if len(current_data) > 0:
-                    # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
-                    # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
-                    normalized_data = current_data.astype(np.float32) / 32767.0
-                    self.wf_data = normalized_data
-                    # Proceso los datos para calcular niveles (simulando el bucle principal)
-                    grabacion(self) # Esta funcion calcula y guarda los niveles
-                time.sleep(0.01) # Pequeña pausa para no saturar el CPU
-            except Exception as e:
-                print(f"Error durante el bucle de calibracion: {e}")
-                break
+        frecuencia = 1000
+        fs = self.RATE
+        duracion = 1.0  # segundos por paso
+        frames_per_buffer = 1024
+        paso_amp = 0.1
+        amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
 
-        self.cModel.stream.stop_stream()
-        
-        NZ = self.cModel.getNivelesZ('P')
-        
-        # Verifico si se obtuvieron datos antes de usarlos
-        if len(NZ) > 0:
-            cal = NZ[-1] - 93.97 # ultimo valor de la adquisicion Pico retado 20*log10(0.00002)
-            self.cModel.setCalibracionAutomatica(cal)
-            # Actualizar la vista con el resultado
-            self.cVista.txtValorRef.setText(f"{cal:.2f}")
-            print(cal)
-        else:
-            # Informar al usuario si no se pudieron medir niveles
-            error_message = "No se pudieron medir niveles. Verifique la fuente de audio."
+        # Abrir stream de salida
+        try:
+            output_stream = self.cModel.pyaudio_instance.open(
+                format=pyaudio.paFloat32,
+                channels=1,
+                rate=fs,
+                output=True,
+                output_device_index=output_device_index,
+                frames_per_buffer=frames_per_buffer
+            )
+        except Exception as e:
+            QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
+            return
+
+        # Iniciar captura
+        try:
+            self.cModel.stream.start_stream()
+        except Exception as e:
+            output_stream.close()
+            QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
+            return
+
+        ultima_amplitud_baja_thd = None
+        ultimo_thd = None
+
+        try:
+            for amp in amplitudes:
+                # Generar tono del paso
+                num_frames = int(fs * duracion)
+                t = np.arange(num_frames) / fs
+                tono = (amp * np.sin(2 * np.pi * frecuencia * t)).astype(np.float32)
+
+                # Buffer para los datos capturados de este paso
+                capturados = []
+
+                # Reproducir en chunks y capturar en paralelo
+                for i in range(0, num_frames, frames_per_buffer):
+                    chunk = tono[i:i + frames_per_buffer]
+                    if len(chunk) == 0:
+                        continue
+                    output_stream.write(chunk.tobytes())
+
+                    # Leer del input
+                    current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                    if len(current_data) > 0:
+                        capturados.append(current_data.astype(np.float32) / 32767.0)
+
+                if len(capturados) == 0:
+                    continue
+
+                capturados = np.concatenate(capturados)
+                # Tomar la segunda mitad para evitar transitorios
+                if len(capturados) > fs // 2:
+                    segmento = capturados[-(fs // 2):]
+                else:
+                    segmento = capturados
+
+                thd_pct = compute_thd(segmento, fs, frecuencia, max_harmonics=10)
+                ultimo_thd = thd_pct
+                print(f"Paso amp={amp:.2f} -> THD={thd_pct:.2f}%")
+
+                # Registrar niveles para la vista (opcional)
+                self.wf_data = segmento
+                grabacion(self)
+
+                if thd_pct < 1.0:
+                    ultima_amplitud_baja_thd = amp
+                    continue
+                else:
+                    # Se superó 1% de THD -> detener barrido
+                    break
+
+        except Exception as e:
+            print(f"Error durante calibración automática: {e}")
+        finally:
+            try:
+                output_stream.stop_stream()
+            except Exception:
+                pass
+            output_stream.close()
+            try:
+                self.cModel.stream.stop_stream()
+            except Exception:
+                pass
+
+        if ultima_amplitud_baja_thd is None:
+            error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
             self.cVista.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             print(error_message)
+            return
+
+        # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
+        cal_db = -20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
+        self.cModel.setCalibracionAutomatica(cal_db)
+
+        # Actualizar UI
+        self.cVista.txtValorRef.setText(f"{cal_db:.2f}")
+        QMessageBox.information(
+            self.cVista,
+            "Calibración automática",
+            f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
+        )
 
     def calRelativa(self):
         try:
