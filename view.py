@@ -1170,14 +1170,11 @@ class vista(QMainWindow):
                 pen = pg.mkPen(color=color, width=2)
                 if hasattr(self, 'ptdomEspect'):
                     self.ptdomEspect.setPen(pen)
-            elif tipoGrafico == "Barras":
-                # Para gráfico de barras, el estilo se maneja en update_plot
-                # Aquí solo guardamos el color para usar en las barras
-                if hasattr(self, 'colorEspectro'):
-                    self.colorEspectro = color
-                # Limpiar el gráfico para que se actualice en el próximo update_plot
+            elif tipoGrafico in ["Barras-octavas", "Barras-tercios"]:
+                # Limpiar el gráfico y guardar el color
                 if hasattr(self, 'waveform1'):
                     self.waveform1.clear()
+                self.colorEspectro = color
             
         except Exception as e:
             print(f"Error al actualizar estilo de gráfico de espectro: {e}")
@@ -1292,7 +1289,12 @@ class vista(QMainWindow):
                     color = self.colorEspectro.name()
                 if tipoGrafico == "Barras" and device_num == 1 and len(fft_freqs) > 0:
                     # Calcular tercios de octava desde el modelo
-                    bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
+                    if tipoGrafico == "Barras-octavas":
+                        bandas, niveles = self.vController.cModel.calcular_octavas(fft_freqs, fft_magnitude)
+                    elif tipoGrafico == "Barras-tercios":
+                        bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
+                    else:
+                        bandas, niveles = [], []
                     
                     if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
@@ -2086,7 +2088,7 @@ class vista(QMainWindow):
             
             tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
             self.cmbTipoGraficoEspectro = QComboBox()
-            self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras"])
+            self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras-octavas", "Barras-tercios"])
             # Seleccionar el valor guardado
             if self.var_tipoGraficoEspectro:
                 idx = self.cmbTipoGraficoEspectro.findText(self.var_tipoGraficoEspectro)

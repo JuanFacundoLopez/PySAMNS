@@ -366,6 +366,38 @@ class modelo:
                 niveles.append(0.0)
         return np.array(bandas), np.array(niveles)
 
+    def calcular_octavas(fft_freqs, fft_magnitude):
+        """
+        Calcula los niveles en bandas de octava a partir de la FFT.
+        Usa la amplitud (no dB) y toma el promedio de todos los valores dentro del rango de cada banda.
+        
+        Devuelve:
+            bandas: frecuencias centrales de cada banda
+            niveles: nivel promedio de amplitud de cada banda
+        """
+        # Frecuencias centrales típicas de bandas de octava (20 Hz a 20 kHz)
+        fcs = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+        
+        bandas = []
+        niveles = []
+        
+        for i, fc in enumerate(fcs):
+            # En bandas de octava, el ancho se define como fc / √2 a fc * √2
+            f_low = fc / np.sqrt(2)
+            f_high = fc * np.sqrt(2)
+            
+            # Buscar los índices dentro de ese rango
+            indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
+            
+            if len(indices) > 0:
+                nivel_promedio = np.mean(fft_magnitude[indices])
+                bandas.append(fc)
+                niveles.append(nivel_promedio)
+            else:
+                bandas.append(fc)
+                niveles.append(0.0)
+        
+        return np.array(bandas), np.array(niveles)
 
     def get_audio_data(self):
         try:
