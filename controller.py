@@ -469,61 +469,116 @@ class controlador():
             QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
+        # Obtener dispositivos de entrada y salida seleccionados
+        try:
+            # Obtener el dispositivo de entrada actual
+            input_device_index = self.cModel.getDispositivoActual()
+            # Obtener el dispositivo de salida seleccionado
+            output_device_index = self.cModel.getDispositivoSalidaActual()
+            
+            if output_device_index is None:
+                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                return
+        except Exception as e:
+            QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            return
+
         # Reseteo los niveles antes de empezar
-        # NZ = np.zeros(self.chunk_size) # Crear el vector de audio
-        # Parámetros de la señal
-        frecuencia = 1000  # 1 kHz
-        frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
-        duracion = 3  # 3 segundos
-        amplitud = 1  # Amplitud normalizada
-
-        # Generar el arreglo de tiempos
-        t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
-
-        # Generar la onda senoidal usando scipy.signal o numpy
-        onda_senoidal = amplitud * np.sin(2 * np.pi * frecuencia * t)  # scipy.signal no es estrictamente necesario aquí
-        # Emitir la onda senoidal 
-        # Y recien ahí se empieza a grabar
         self.setGainZero()
         self.cModel.setNivelesZ(mode='r')
         self.cModel.setNivelesC(mode='r')
         self.cModel.setNivelesA(mode='r')
-        self.cModel.setSignalData(onda_senoidal)
-        self.cModel.stream.start_stream()
-        
-        start_time = time.time()
 
-        # Bucle para procesar audio durante 3 segundos
-        while time.time() - start_time < 3.0:
-            try:
-                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
-                if len(current_data) > 0:
-                    # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
-                    # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
-                    normalized_data = current_data.astype(np.float32) / 32767.0
-                    self.wf_data = normalized_data
-                    grabacion(self) #Ver de cambiarlo por otra función de grabación más básica
-                time.sleep(0.01)
-            except Exception as e:
-                print(f"Error durante el bucle de calibración relativa: {e}")
-                break
+        # Parámetros de la señal
+        frecuencia = 1000  # 1 kHz
+        frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
+        duracion = 3  # 3 segundos
+        amplitud = 0.5  # Amplitud normalizada (reducida para evitar distorsión)
 
-        self.cModel.stream.stop_stream()
+        # Generar el arreglo de tiempos
+        t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
+
+        # Generar la onda senoidal
+        onda_senoidal = amplitud * np.sin(2 * np.pi * frecuencia * t)
+
+        try:
+            # Iniciar la captura de audio
+            self.cModel.stream.start_stream()
+            
+            # Crear un stream de salida para reproducir la onda
+            output_stream = self.cModel.pyaudio_instance.open(
+                format=pyaudio.paFloat32,
+                channels=1,
+                rate=frecuencia_muestreo,
+                output=True,
+                output_device_index=output_device_index,
+                frames_per_buffer=1024
+            )
+            
+            # Convertir la onda a bytes para reproducción
+            onda_bytes = (onda_senoidal.astype(np.float32)).tobytes()
+            
+            # Reproducir la onda
+            print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
+            output_stream.write(onda_bytes)
+            
+            # Iniciar tiempo para la grabación
+            start_time = time.time()
+            self.start_time = start_time  # Actualizar el tiempo de inicio para el cronómetro
+            
+            # Bucle para procesar audio durante la reproducción
+            while time.time() - start_time < duracion + 0.5:  # Añadir 0.5s extra para asegurar captura completa
+                try:
+                    current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                    if len(current_data) > 0:
+                        # Convertir los datos de audio int16 a float32 normalizados
+                        normalized_data = current_data.astype(np.float32) / 32767.0
+                        self.wf_data = normalized_data
+                        grabacion(self)  # Procesar los datos para calcular niveles
+                    time.sleep(0.01)  # Pequeña pausa para no saturar el CPU
+                except Exception as e:
+                    print(f"Error durante el bucle de calibración relativa: {e}")
+                    break
+            
+            # Cerrar el stream de salida
+            output_stream.stop_stream()
+            output_stream.close()
+            
+            # Detener la captura de audio
+            self.cModel.stream.stop_stream()
+            
+        except Exception as e:
+            QMessageBox.warning(self.cVista, "Error de Audio", f"Error al reproducir o capturar audio: {str(e)}")
+            return
         
+        # Obtener los niveles capturados
         NZ = self.cModel.getNivelesZ('P')
-        #Tomar un promedio de NZ
-        promNZ = np.mean(NZ)
         
+        # Calcular el promedio de los niveles capturados
         if len(NZ) > 0:
+            # Filtrar valores extremos (opcional)
+            NZ_filtered = NZ[NZ > -100]  # Eliminar valores muy bajos que podrían ser ruido
+            if len(NZ_filtered) > 0:
+                promNZ = np.mean(NZ_filtered)
+            else:
+                promNZ = np.mean(NZ)
+            
+            # Calcular el factor de calibración
             cal = promNZ - ref_level
-            print(ref_level)
-            print(promNZ)
-            print(cal)
+            print(f"Nivel de referencia: {ref_level} dB")
+            print(f"Nivel promedio medido: {promNZ} dB")
+            print(f"Factor de calibración: {cal} dB")
+            
+            # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
-            QMessageBox.information(self.cVista, "Calibración Exitosa", f"Calibración relativa completada. El factor de ajuste es: {cal:.2f} dB")
-            print(f"Factor de calibración relativo: {cal}")
+            
+            # Mostrar mensaje de éxito
+            QMessageBox.information(self.cVista, "Calibración Exitosa", 
+                                   f"Calibración relativa completada.\n\n" \
+                                   f"Nivel de referencia: {ref_level:.2f} dB\n" \
+                                   f"Nivel medido: {promNZ:.2f} dB\n" \
+                                   f"Factor de ajuste: {cal:.2f} dB")
         else:
-            error_message = "No se pudieron medir niveles. Verifique la fuente de audio."
-            self.cVista.txtValorRef.setText("Error")
+            error_message = "No se pudieron medir niveles. Verifique la fuente de audio y los dispositivos seleccionados."
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             print(error_message)
