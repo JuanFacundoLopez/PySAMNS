@@ -160,7 +160,7 @@ class modelo:
         yf = np.abs(yf[0:int(self.chunk/2)])
         self.setSignalFrec(yf) #Guardo en modelo
         
-    def setNivelesZ(self, recorderPicoZ, recorderInstZ, recorderFastZ, recorderSlowZ, mode='a'):
+    def setNivelesZ(self, recorderPicoZ=0, recorderInstZ=0, recorderFastZ=0, recorderSlowZ=0, mode='a'):
         if mode == 'a': # voy concatenando los vectores
             self.recorderPicoZ = np.append(self.recorderPicoZ, recorderPicoZ)
             self.recorderInstZ = np.append(self.recorderInstZ, recorderInstZ)
@@ -172,7 +172,7 @@ class modelo:
             self.recorderInstZ = np.empty(0)
             self.recorderFastZ = np.empty(0)
             self.recorderSlowZ = np.empty(0)
-    def setNivelesC(self, recorderPicoC, recorderInstC, recorderFastC, recorderSlowC, mode='a'):
+    def setNivelesC(self, recorderPicoC=0, recorderInstC=0, recorderFastC=0, recorderSlowC=0, mode='a'):
         if mode == 'a':
             self.recorderPicoC = np.append(self.recorderPicoC, recorderPicoC)
             self.recorderInstC = np.append(self.recorderInstC, recorderInstC)
