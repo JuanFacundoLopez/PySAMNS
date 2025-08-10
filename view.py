@@ -1690,7 +1690,9 @@ class vista(QMainWindow):
 
         mainLayout.addLayout(configLayout)
         self.lbl_error_gen_sig = QLabel("")
+        self.lbl_error_gen_sig.setAlignment(Qt.AlignCenter)
         mainLayout.addWidget(self.lbl_error_gen_sig)
+        self.lbl_error_gen_sig.setVisible(False)
         mainLayout.addWidget(self.chartGenSig_view)
 
         for boton in [self.btn_generar]:
@@ -1716,17 +1718,21 @@ class vista(QMainWindow):
             T = float(self.dur_input.text())
             if f <= 0 or f > 500:
                 self.lbl_error_gen_sig.setText("La frecuencia debe ser > 0 y <= 500 Hz.")
+                self.lbl_error_gen_sig.setVisible(True)
                 return False
             if A <= 0 or A > 100:
                 self.lbl_error_gen_sig.setText("La amplitud debe ser > 0 y <= 100.")
+                self.lbl_error_gen_sig.setVisible(True)
                 return False
             if T <= 0 or T > 15:
                 self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
+                self.lbl_error_gen_sig.setVisible(True)
                 return False
-            self.lbl_error_gen_sig.setText("")
+            self.lbl_error_gen_sig.setVisible(False)
             return True
         except ValueError:
             self.lbl_error_gen_sig.setText("Ingrese solo números en todos los campos.")
+            self.lbl_error_gen_sig.setVisible(True)
             return False
 
     def generar_senal(self):

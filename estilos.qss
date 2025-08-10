@@ -33,6 +33,10 @@ QLabel[class="errorLbl"] {
     font-size: 10px;
     color: #ff0000; /* Rojo para errores */
     font-family: Arial;
+    border: 2px solid #ff0000; /* Borde rojo */
+    border-radius: 6px;         /* Esquinas redondeadas */
+    padding: 4px 8px;           /* Espaciado interno */
+    background: #fff6f6;        /* Fondo suave opcional */
 }
 QLabel[class="ventanasSecLabelDestacado"] {
     font-size: 10px;
