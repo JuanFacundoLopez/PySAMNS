@@ -612,7 +612,13 @@ class vista(QMainWindow):
         # Actualizar el gráfico
         self.waveform1.replot()
 
-        self.show()
+        self.show() 
+
+    def iniciarCalibracion(self):
+        if self.radioBtnAutomatica.isChecked():
+            self.vController.calAutomatica()
+        elif self.radioBtnRelativa.isChecked():
+            self.vController.calRelativa()
 
     def importSignal(self):
         self.vController.importSignal() # conexion con el controlador
@@ -1617,6 +1623,8 @@ class vista(QMainWindow):
                 
         self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
         self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
+
+        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
             
         self.calWin.show()
 
