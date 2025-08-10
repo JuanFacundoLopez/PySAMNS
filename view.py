@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout,
 from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
 from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog, QGraphicsOpacityEffect
 
-from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
+from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor, QDoubleValidator
 from PyQt5.QtCore import QRect, QPointF
 # from PyQt5 import QtWidgets
 from pyqtgraph.Qt import QtGui, QtCore
@@ -1643,7 +1643,7 @@ class vista(QMainWindow):
         configLayout.addWidget(self.tipo_combo)
         
         self.lblFrecSig = QLabel("Frecuencia (Hz):")
-        self.freq_input = QLineEdit("440")
+        self.freq_input = QLineEdit("5")
         configLayout.addWidget(self.lblFrecSig)
         configLayout.addWidget(self.freq_input)
         
@@ -1653,7 +1653,7 @@ class vista(QMainWindow):
         configLayout.addWidget(self.amp_input)
 
         self.lblDurSig = QLabel("Duración (s):")
-        self.dur_input = QLineEdit("1")
+        self.dur_input = QLineEdit("0.5")
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
@@ -1665,17 +1665,65 @@ class vista(QMainWindow):
         self.chartGenSig = QChart()
         self.chartGenSig.addSeries(self.seriesGenSig)
         self.chartGenSig.createDefaultAxes()
+        # Establecer el rango del eje X para que sea más largo que 1 (por ejemplo, hasta 10)
+        axisX = self.chartGenSig.axisX(self.seriesGenSig)
+        if axisX is not None:
+            axisX.setRange(0, 10)
         self.chartGenSig.setTitle("Señal Generada")
 
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
         
+
+        self.dur_input.textChanged.connect(self.verificar_valores_generador)
+        self.freq_input.textChanged.connect(self.verificar_valores_generador)
+        self.amp_input.textChanged.connect(self.verificar_valores_generador)
+        
+
         mainLayout.addLayout(configLayout)
+        self.lbl_error_gen_sig = QLabel("")
+        mainLayout.addWidget(self.lbl_error_gen_sig)
         mainLayout.addWidget(self.chartGenSig_view)
+
+        for boton in [self.btn_generar]:
+            boton.setProperty("class", "ventanasSec")
+
+        for txt in [self.freq_input, self.amp_input, self.dur_input]:
+            txt.setProperty("class", "ventanasSec")
+            
+        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig]:
+            lbl.setProperty("class", "ventanasSecLabelDestacado")  
+
+        self.lbl_error_gen_sig.setProperty("class", "errorLbl") 
+
+        for combo in [self.tipo_combo]:
+                combo.setProperty("class", "ventanasSec") 
             
         self.genWin.show()
-        
+
+    def verificar_valores_generador(self):
+        try:
+            f = float(self.freq_input.text())
+            A = float(self.amp_input.text())
+            T = float(self.dur_input.text())
+            if f <= 0 or f > 500:
+                self.lbl_error_gen_sig.setText("La frecuencia debe ser > 0 y <= 500 Hz.")
+                return False
+            if A <= 0 or A > 100:
+                self.lbl_error_gen_sig.setText("La amplitud debe ser > 0 y <= 100.")
+                return False
+            if T <= 0 or T > 15:
+                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
+                return False
+            self.lbl_error_gen_sig.setText("")
+            return True
+        except ValueError:
+            self.lbl_error_gen_sig.setText("Ingrese solo números en todos los campos.")
+            return False
+
     def generar_senal(self):
+        if not self.verificar_valores_generador():
+            return
         tipo = self.tipo_combo.currentText()
         f = float(self.freq_input.text())
         A = float(self.amp_input.text())

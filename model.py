@@ -1,4 +1,4 @@
-from chunk import Chunk
+# from chunk import Chunk
 from funciones import consDisp
 import numpy as np
 import pyaudio

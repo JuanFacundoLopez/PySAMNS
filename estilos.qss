@@ -29,7 +29,11 @@ QLabel {
     color: #333333;
     font-family: Arial;
 }
-
+QLabel[class="errorLbl"] {
+    font-size: 10px;
+    color: #ff0000; /* Rojo para errores */
+    font-family: Arial;
+}
 QLabel[class="ventanasSecLabelDestacado"] {
     font-size: 10px;
     font-weight: bold;
