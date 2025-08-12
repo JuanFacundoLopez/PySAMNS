@@ -91,12 +91,27 @@ class controlador():
     def importSignal(self):                         # Funcion de importar señal
         # QFileDialog.getOpenFileName() sirve para abrir 
         # una ventana de windows para buscar el archivo que quiero
-        SignalfileName = QFileDialog.getOpenFileName()
+        SignalfileName = QFileDialog.getOpenFileName( 
+                None,
+                "Seleccionar archivo de audio", 
+                "", 
+                "Archivos de audio (*.wav);;Todos los archivos (*)"
+            )
         
         # Read wav file
-        Fs,x = wavread(SignalfileName[0])
-        maxX=int(max(x))
-        signaldata=x/maxX
+        Fs, x = wavread(SignalfileName[0])
+        print("Fs:", Fs)
+        print("Shape de x:", x.shape)
+        print("Primeros datos:", x[:10])
+        print("maxX:", maxX)
+        print("signaldata:", signaldata[:10])
+        if x.ndim > 1:
+            x = x.mean(axis=1)  # Convertir a mono si es estéreo
+        maxX = np.max(np.abs(x))
+        if maxX == 0:
+            signaldata = x  # Evitar división por cero
+        else:
+            signaldata = x / maxX
 
         if Fs > 44000: # validacion de la entrada de datos
             self.cModel.setFs(Fs) # Guardo en base de datos/modelo
@@ -105,6 +120,7 @@ class controlador():
             print("Fs es invalido " + str(Fs))
         if len(signaldata) > 2:# validacion de la entrada de datos
             self.cModel.setSignalData(signaldata)  # Guardo en base de datos/modelo      
+            print("Datos guardados en el modelo:", self.cModel.getSignalData()[:10])
             print("signaldata fue correctamente cargado")
         else:
             print("signaldata es invalido")
