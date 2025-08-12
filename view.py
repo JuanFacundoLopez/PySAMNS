@@ -1,16 +1,13 @@
 # Importo librerias
 
-#import Librerias graficas
-# from tkinter import Y
-# from PyQt5.QtWidgets import * 
-
 import pyqtgraph as pg
+from programarWin import ProgramarWin
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
 from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog
 
-from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor, QDoubleValidator
+from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt5.QtCore import QRect, QPointF
 # from PyQt5 import QtWidgets
 from pyqtgraph.Qt import QtGui, QtCore
@@ -19,6 +16,8 @@ from pyqtgraph.Qt import QtGui, QtCore
 from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis, QBarSeries, QBarSet, QBarCategoryAxis
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen
+from utils import norm
+
 
 # from pyqtgraph.Point import Point
 
@@ -54,9 +53,6 @@ class TimeAxisItem(pg.AxisItem):
         return strings
 
 class vista(QMainWindow):
-
-    def norm(self, x, y, ancho, alto):
-        return QtCore.QRect(int(self.anchoX * x), int(self.altoY * y), int(self.anchoX * ancho), int(self.altoY * alto))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -170,9 +166,14 @@ class vista(QMainWindow):
         self.var_tipoLineaTiempo = ""
         self.var_tipoGraficoEspectro = ""
         self.var_tipoLineaNivel = ""
-        self.var_colorTiempo=""
-        self.var_colorEspectro=""
-        self.var_colorNivel=""
+        self.var_colorTiempo = ""
+        self.var_colorEspectro = ""
+        self.var_colorNivel = ""
+        
+        # Centralización de colores por defecto
+        self.default_color_tiempo = "#006400"      # Verde oscuro
+        self.default_color_espectro = "#1E90FF"    # Azul claro
+        self.default_color_nivel = "#8A2BE2"       # Violeta
         
         # Configuración del gráfico
         # Crear eje de tiempo personalizado para mostrar segundos
@@ -221,8 +222,8 @@ class vista(QMainWindow):
         # Botones y cronómetro
         buttonLayout = QHBoxLayout()
         self.btn = QPushButton("Importar señal")
-        self.btn.setToolTip("Importar señal de audio de un archivo .Nuse")
-        self.btn.clicked.connect(self.importSignal)
+        self.btn.setToolTip("Importar señal de audio de un archivo .Wav")
+        self.btn.clicked.connect(self.vController.importSignal)
         self.btngbr = QPushButton("Grabar")
         self.btngbr.setToolTip("Iniciar Grabacion de audio")
         self.btngbr.setCheckable(True)
@@ -577,6 +578,17 @@ class vista(QMainWindow):
        
         self.menuConfiguracion.setToolTip("Configuraciones de gráfico y dispositivos")
         
+        self.menuProgramacion = QMenu("Programación", self)
+        progAct = QAction("Programar", self)
+        progAct.triggered.connect(self.abrirprogramarWin)
+        self.menuProgramacion.addAction(progAct)
+        guardadosAct = QAction("Guardados", self)
+        guardadosAct.triggered.connect(self.abrirPickerWin)
+        self.menuProgramacion.addAction(guardadosAct)
+        clockAct = QAction("Reloj", self)
+        clockAct.triggered.connect(self.abrirClockWin)
+        self.menuProgramacion.addAction(clockAct)
+        
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
         
@@ -589,6 +601,7 @@ class vista(QMainWindow):
         self.menuBar.addMenu(self.menuArchivo)
         self.menuBar.addMenu(self.menuCalibracion)
         self.menuBar.addMenu(self.menuConfiguracion)
+        self.menuBar.addMenu(self.menuProgramacion)
         self.menuBar.addMenu(self.menuAyuda)
         self.menuBar.addMenu(self.menuAcerca_de)
 
@@ -612,16 +625,19 @@ class vista(QMainWindow):
         # Actualizar el gráfico
         self.waveform1.replot()
 
-        self.show() 
+        self.show()
 
-    def iniciarCalibracion(self):
-        if self.radioBtnAutomatica.isChecked():
-            self.vController.calAutomatica()
-        elif self.radioBtnRelativa.isChecked():
-            self.vController.calRelativa()
-
-    def importSignal(self):
-        self.vController.importSignal() # conexion con el controlador
+    def abrirprogramarWin(self):
+        self.programar_win = ProgramarWin()
+        self.programar_win.show()
+        
+    def abrirPickerWin(self):
+        self.picker_win = PickerWindow()
+        self.picker_win.show()
+        
+    def abrirClockWin(self):
+        self.clock_win = ClockWindow()
+        self.clock_win.show()
 
     def grabar(self):
         self.vController.dalePlay() # conexion con el controlador
@@ -758,22 +774,22 @@ class vista(QMainWindow):
     def calibracionAutomatica(self):
         self.calAutWin = QMainWindow()
         self.calAutWin.setWindowTitle("Calibracion Automatica") 
-        self.calAutWin.setGeometry(self.norm(0.2, 0.3, 0.4, 0.4))
+        self.calAutWin.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.3, 0.4, 0.4))
 
         #Descripcion de la calibracion
         self.descripcionMenu = QLabel("Se precisa de una fuente externa o bien se puede usar el generador de señales. Se realizará una captura de sonido durante 3 segundos y usted debera indicar el nivel medido por su instrumento patrón", self.calAutWin)
         self.descripcionMenu.setWordWrap(True)
-        self.descripcionMenu.setGeometry(self.norm(0.02, 0.02, 0.6, 0.4))
+        self.descripcionMenu.setGeometry(norm(self.anchoX, self.altoY, 0.02, 0.02, 0.6, 0.4))
         self.descripcionMenu.setStyleSheet("font: 13pt")
 
         # Cuadro de texto de la medicion
         self.txDecMed = QLabel("80.0 [dB]", self.calAutWin)
-        self.txDecMed.setGeometry(self.norm(0.65, 0.1, 0.3, 0.15))
+        self.txDecMed.setGeometry(norm(self.anchoX, self.altoY,0.65, 0.1, 0.3, 0.15))
         self.txDecMed.setStyleSheet("font: bold 12pt")
 
         # cuador de texto del seteo
         self.txDecIn = QTextEdit("75.0 [dB]", self.calAutWin)
-        self.txDecIn.setGeometry(self.norm(0.65, 0.3, 0.3, 0.15))
+        self.txDecIn.setGeometry(norm(self.anchoX, self.altoY,0.65, 0.3, 0.3, 0.15))
         self.txDecIn.setStyleSheet("font: bold 12pt")
 
         # Botones de aceptar cancelar y generador
@@ -786,22 +802,22 @@ class vista(QMainWindow):
         self.btnGener = QPushButton("Generador", self.calAutWin)
         self.btnGener.clicked.connect(self.fnGenerador)
 
-        self.btnAcept.setGeometry(self.norm(0.02, 0.8, 0.25, 0.1))
-        self.btnCance.setGeometry(self.norm(0.3, 0.8, 0.25, 0.1))
-        self.btnGener.setGeometry(self.norm(0.58, 0.8, 0.25, 0.1))
+        self.btnAcept.setGeometry(norm(self.anchoX, self.altoY,0.02, 0.8, 0.25, 0.1))
+        self.btnCance.setGeometry(norm(self.anchoX, self.altoY,0.3, 0.8, 0.25, 0.1))
+        self.btnGener.setGeometry(norm(self.anchoX, self.altoY,0.58, 0.8, 0.25, 0.1))
 
         self.calAutWin.show()
 
     def calibracionManual(self):
         self.calManWin = QMainWindow()
         self.calManWin.setWindowTitle("Calibracion Manual") 
-        self.calManWin.setGeometry(self.norm(0.2, 0.2, 0.6, 0.6))
+        self.calManWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
         self.calManWin.show() 
 
     def calibracionFondoEscala(self):
         self.calFEWin = QMainWindow()
         self.calFEWin.setWindowTitle("Calibracion a Fondo de escala") 
-        self.calFEWin.setGeometry(self.norm(0.2, 0.2, 0.6, 0.6))
+        self.calFEWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
         self.calFEWin.show() 
 
     # funciones
@@ -1009,42 +1025,33 @@ class vista(QMainWindow):
             escalaY = self.cbEscalaYTiempo.isChecked()
             self.var_logModeYTiempo = escalaY
             self.waveform1.setLogMode(x=escalaX, y=escalaY)
-            
             # Límites
             x_min = float(self.txtXMinTiempo.text())
             x_max = float(self.txtXMaxTiempo.text())
             y_min = float(self.txtYMinTiempo.text())
             y_max = float(self.txtYMaxTiempo.text())
-            
             # Guardar límites en variables de configuración
             self.var_xMinTiempo = x_min
             self.var_xMaxTiempo = x_max
             self.var_yMinTiempo = y_min
             self.var_yMaxTiempo = y_max
-            
             self.waveform1.setXRange(x_min, x_max, padding=0)
             self.waveform1.setYRange(y_min, y_max, padding=0)
-            
             # Etiquetas
             etiqueta_x = self.txtEtiquetaXTiempo.text()
             etiqueta_y = self.txtEtiquetaYTiempo.text()
-            
             # Guardar etiquetas en variables de configuración
             self.var_etiquetaXTiempo = etiqueta_x
             self.var_etiquetaYTiempo = etiqueta_y
-            
             self.waveform1.setLabel('bottom', etiqueta_x)
             self.waveform1.setLabel('left', etiqueta_y)
-            
             # Color y tipo de línea
             if hasattr(self, 'colorTiempo'):
-                color = self.colorTiempo.name()
+                color = self.get_color_str(self.colorTiempo)
             else:
-                color = "#8A0101"  # Color por defecto
-            
+                color = self.default_color_tiempo  # Color por defecto centralizado
             tipoLinea = self.obtenerTipoLinea("tiempo")
             self.actualizarEstiloLinea(color, tipoLinea)
-            
         except Exception as e:
             print(f"Error al aplicar configuración de tiempo: {e}")
 
@@ -1055,49 +1062,39 @@ class vista(QMainWindow):
             if hasattr(self, 'current_bar_item'):
                 self.waveform1.removeItem(self.current_bar_item)
                 delattr(self, 'current_bar_item')
-            
             # Escalas
             escalaX = self.cbEscalaXEspectro.isChecked()
             self.var_logModeXEspectro = escalaX
             escalaY = self.cbEscalaYEspectro.isChecked()
             self.var_logModeYEspectro = escalaY
             self.waveform1.setLogMode(x=escalaX, y=escalaY)
-            
             # Límites
             x_min = float(self.txtXMinEspectro.text())
             x_max = float(self.txtXMaxEspectro.text())
             y_min = float(self.txtYMinEspectro.text())
             y_max = float(self.txtYMaxEspectro.text())
-            
             # Guardar límites en variables de configuración
             self.var_xMinEspectro = x_min
             self.var_xMaxEspectro = x_max
             self.var_yMinEspectro = y_min
             self.var_yMaxEspectro = y_max
-            
             self.waveform1.setXRange(x_min, x_max, padding=0)
             self.waveform1.setYRange(y_min, y_max, padding=0)
-            
             # Etiquetas
             etiqueta_x = self.txtEtiquetaXEspectro.text()
             etiqueta_y = self.txtEtiquetaYEspectro.text()
-            
             # Guardar etiquetas en variables de configuración
             self.var_etiquetaXEspectro = etiqueta_x
             self.var_etiquetaYEspectro = etiqueta_y
-            
             self.waveform1.setLabel('bottom', etiqueta_x)
             self.waveform1.setLabel('left', etiqueta_y)
-            
             # Color y tipo de gráfico
             if hasattr(self, 'colorEspectro'):
-                color = self.colorEspectro.name()
+                color = self.get_color_str(self.colorEspectro)
             else:
-                color = "#8A3F01"  # Color por defecto
-            
+                color = self.default_color_espectro  # Color por defecto centralizado
             tipoGrafico = self.obtenerTipoGraficoEspectro()
             self.actualizarEstiloGraficoEspectro(color, tipoGrafico)
-            
         except Exception as e:
             print(f"Error al aplicar configuración de espectro: {e}")
 
@@ -1108,42 +1105,33 @@ class vista(QMainWindow):
             escalaY = self.cbEscalaYNivel.isChecked()
             self.var_logModeYNivel = escalaY
             self.waveform1.setLogMode(x=False, y=escalaY)
-            
             # Límites
             x_min = float(self.txtXMinNivel.text())
             x_max = float(self.txtXMaxNivel.text())
             y_min = float(self.txtYMinNivel.text())
             y_max = float(self.txtYMaxNivel.text())
-            
             # Guardar límites en variables de configuración
             self.var_xMinNivel = x_min
             self.var_xMaxNivel = x_max
             self.var_yMinNivel = y_min
             self.var_yMaxNivel = y_max
-            
             self.waveform1.setXRange(x_min, x_max, padding=0)
             self.waveform1.setYRange(y_min, y_max, padding=0)
-            
             # Etiquetas
             etiqueta_x = self.txtEtiquetaXNivel.text()
             etiqueta_y = self.txtEtiquetaYNivel.text()
-            
             # Guardar etiquetas en variables de configuración
             self.var_etiquetaXNivel = etiqueta_x
             self.var_etiquetaYNivel = etiqueta_y
-            
             self.waveform1.setLabel('bottom', etiqueta_x)
             self.waveform1.setLabel('left', etiqueta_y)
-            
             # Color y tipo de línea
             if hasattr(self, 'colorNivel'):
-                color = self.colorNivel.name()
+                color = self.get_color_str(self.colorNivel)
             else:
-                color = "#000000"  # Color por defecto
-            
+                color = self.default_color_nivel  # Color por defecto centralizado
             tipoLinea = self.obtenerTipoLinea("nivel")
             self.actualizarEstiloLinea(color, tipoLinea)
-            
         except Exception as e:
             print(f"Error al aplicar configuración de nivel: {e}")
 
@@ -1210,6 +1198,12 @@ class vista(QMainWindow):
         """Obtiene el tipo de gráfico seleccionado para el espectro"""
         return self.cmbTipoGraficoEspectro.currentText()
 
+    def get_color_str(self, color):
+        """Devuelve el color como string hexadecimal, ya sea que sea QColor o string"""
+        if hasattr(color, 'name'):
+            return color.name()
+        return color
+
 # CODIGO YAMILI
 
     def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_magnitude):
@@ -1253,9 +1247,9 @@ class vista(QMainWindow):
                     self.waveform1.removeItem(self.current_bar_item)
                     delattr(self, 'current_bar_item')
                 # Obtener color y tipo de línea configurados
-                color = "#8A0101"  # Color por defecto
+                color = self.default_color_tiempo  # Color por defecto centralizado
                 if hasattr(self, 'colorTiempo'):
-                    color = self.colorTiempo.name()
+                    color = self.get_color_str(self.colorTiempo)
                 tipoLinea = "Sólida"
                 if hasattr(self, 'cmbTipoLineaTiempo'):
                     tipoLinea = self.cmbTipoLineaTiempo.currentText()
@@ -1290,10 +1284,10 @@ class vista(QMainWindow):
                 tipoGrafico = "Línea"
                 if hasattr(self, 'cmbTipoGraficoEspectro'):
                     tipoGrafico = self.cmbTipoGraficoEspectro.currentText()
-                color = '#8A3F01'
+                color = self.default_color_espectro  # Color por defecto centralizado
                 if hasattr(self, 'colorEspectro'):
-                    color = self.colorEspectro.name()
-                if tipoGrafico == "Barras" and device_num == 1 and len(fft_freqs) > 0:
+                    color = self.get_color_str(self.colorEspectro)
+                if tipoGrafico in ["Barras-octavas", "Barras-tercios"] and device_num == 1 and len(fft_freqs) > 0:
                     # Calcular tercios de octava desde el modelo
                     if tipoGrafico == "Barras-octavas":
                         bandas, niveles = self.vController.cModel.calcular_octavas(fft_freqs, fft_magnitude)
@@ -1301,7 +1295,8 @@ class vista(QMainWindow):
                         bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
                     else:
                         bandas, niveles = [], []
-                    
+                    print("bandas:", bandas)
+                    print("niveles:", niveles)
                     if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
                         
@@ -1512,7 +1507,7 @@ class vista(QMainWindow):
     def calibracionWin(self):
         self.calWin = QMainWindow()
         self.calWin.setWindowTitle("Calibracion")
-        self.calWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
+        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.2, 0.4))
             
         # Widget central y layout principal
         centralWidget = QWidget()
@@ -1623,8 +1618,6 @@ class vista(QMainWindow):
                 
         self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
         self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
-
-        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
             
         self.calWin.show()
 
@@ -1635,7 +1628,7 @@ class vista(QMainWindow):
     def generadorWin(self):
         self.genWin = QMainWindow()
         self.genWin.setWindowTitle("Generador de señales")
-        self.genWin.setGeometry(self.norm(0.4, 0.3, 0.2, 0.4))
+        self.genWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.2, 0.4))
         
         # Widget central y layout principal
         centralWidget = QWidget()
@@ -1761,7 +1754,7 @@ class vista(QMainWindow):
         
         self.chartGenSig.addSeries(self.seriesGenSig)
         self.chartGenSig.createDefaultAxes()
-            
+        
     def toggleChart2Visibility(self, checked):
         if hasattr(self, 'winGraph2'):
             self.winGraph2.setVisible(checked)
@@ -1849,7 +1842,7 @@ class vista(QMainWindow):
     def configuracion(self):
             self.confWin = QMainWindow()
             self.confWin.setWindowTitle("Configuracion de Gráficos")
-            self.confWin.setGeometry(self.norm(0.2, 0.2, 0.6, 0.6))
+            self.confWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
             
             # Crear widget central para la ventana de configuración
             centralWidget = QWidget()
@@ -2075,7 +2068,8 @@ class vista(QMainWindow):
             
             self.colorFrameTiempo = QFrame()
             self.colorFrameTiempo.setFixedSize(30, 20)
-            self.colorFrameTiempo.setStyleSheet("background-color: #8A0101; border: 1px solid black;")
+            color_tiempo = self.get_color_str(self.colorTiempo) if hasattr(self, 'colorTiempo') else self.default_color_tiempo
+            self.colorFrameTiempo.setStyleSheet(f"background-color: {color_tiempo}; border: 1px solid black;")
             
             self.btnColorTiempo = QPushButton("Seleccionar Color")
             self.btnColorTiempo.clicked.connect(lambda: self.seleccionarColor(self.colorFrameTiempo, "tiempo"))
@@ -2094,7 +2088,8 @@ class vista(QMainWindow):
             
             self.colorFrameEspectro = QFrame()
             self.colorFrameEspectro.setFixedSize(30, 20)
-            self.colorFrameEspectro.setStyleSheet("background-color: #8A3F01; border: 1px solid black;")
+            color_espectro = self.get_color_str(self.colorEspectro) if hasattr(self, 'colorEspectro') else self.default_color_espectro
+            self.colorFrameEspectro.setStyleSheet(f"background-color: {color_espectro}; border: 1px solid black;")
             
             self.btnColorEspectro = QPushButton("Seleccionar Color")
             self.btnColorEspectro.clicked.connect(lambda: self.seleccionarColor(self.colorFrameEspectro, "espectro"))
@@ -2113,7 +2108,8 @@ class vista(QMainWindow):
             
             self.colorFrameNivel = QFrame()
             self.colorFrameNivel.setFixedSize(30, 20)
-            self.colorFrameNivel.setStyleSheet("background-color: #000000; border: 1px solid black;")
+            color_nivel = self.get_color_str(self.colorNivel) if hasattr(self, 'colorNivel') else self.default_color_nivel
+            self.colorFrameNivel.setStyleSheet(f"background-color: {color_nivel}; border: 1px solid black;")
             
             self.btnColorNivel = QPushButton("Seleccionar Color")
             self.btnColorNivel.clicked.connect(lambda: self.seleccionarColor(self.colorFrameNivel, "nivel"))
@@ -2275,7 +2271,7 @@ class vista(QMainWindow):
     def configuracionDispositivo(self):
         self.confDispWin = QMainWindow()
         self.confDispWin.setWindowTitle("Configuración de Dispositivo")
-        self.confDispWin.setGeometry(self.norm(0.4, 0.4, 0.2, 0.2))
+        self.confDispWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.4, 0.2, 0.2))
 
         # Widget central y layout principal
         centralWidget = QWidget()

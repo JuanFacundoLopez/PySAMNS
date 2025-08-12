@@ -1,4 +1,4 @@
-# from chunk import Chunk
+from chunk import Chunk
 from funciones import consDisp
 import numpy as np
 import pyaudio
@@ -366,7 +366,7 @@ class modelo:
                 niveles.append(0.0)
         return np.array(bandas), np.array(niveles)
 
-    def calcular_octavas(fft_freqs, fft_magnitude):
+    def calcular_octavas(self, fft_freqs, fft_magnitude):
         """
         Calcula los niveles en bandas de octava a partir de la FFT.
         Usa la amplitud (no dB) y toma el promedio de todos los valores dentro del rango de cada banda.
