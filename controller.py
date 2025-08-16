@@ -554,7 +554,7 @@ class controlador():
             return
 
         # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
-        cal_db = -20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
+        cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
         self.cModel.setCalibracionAutomatica(cal_db)
 
         # Actualizar UI
@@ -596,7 +596,7 @@ class controlador():
         frecuencia = 1000  # 1 kHz
         frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
         duracion = 3  # 3 segundos
-        amplitud = 0.5  # Amplitud normalizada (reducida para evitar distorsión)
+        amplitud = 0.8  # Amplitud normalizada (reducida para evitar distorsión)
 
         # Generar el arreglo de tiempos
         t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
