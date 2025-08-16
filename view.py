@@ -1753,7 +1753,14 @@ class vista(QMainWindow):
         elif tipo == "Triangular":
             y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
 
+        #Normalizar la señal
+        y = y / np.max(np.abs(y)) * 0.8 # para evitar saturación
 
+        #Guardar los datos de la señal
+        self.signal_data = y.astype(np.float32)
+        self.sample_rate = Fs
+
+        # Graficar la señal
         self.chartGenSig.removeSeries(self.seriesGenSig)
         self.seriesGenSig.clear()
         
@@ -1762,6 +1769,33 @@ class vista(QMainWindow):
         
         self.chartGenSig.addSeries(self.seriesGenSig)
         self.chartGenSig.createDefaultAxes()
+
+        self.play_signal()
+    
+    def play_signal(self):
+        """Play the generated signal through the selected output device"""
+        if not hasattr(self, 'signal_data') or self.signal_data is None:
+            print("No hay señal generada para reproducir")
+            return
+            
+        try:
+            import sounddevice as sd
+            
+            # Get the selected output device index from the model
+            output_device = self.vController.cModel.getDispositivoSalidaActual()
+            
+            if output_device is None:
+                QMessageBox.warning(self, "Error", "No se ha seleccionado un dispositivo de salida.")
+                return
+                
+            print(f"Reproduciendo señal en el dispositivo {output_device}...")
+            
+            # Play the signal
+            sd.play(self.signal_data, self.sample_rate, device=output_device)
+            
+        except Exception as e:
+            print(f"Error al reproducir la señal: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo reproducir la señal: {str(e)}")
         
     def toggleChart2Visibility(self, checked):
         if hasattr(self, 'winGraph2'):
