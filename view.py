@@ -826,6 +826,12 @@ class vista(QMainWindow):
         self.btnAcept.setText("Aceptar")
         self.vController.calAutomatica()
 
+    def iniciarCalibracion(self):
+        if self.radioBtnAutomatica.isChecked():
+            self.vController.calAutomatica()
+        elif self.radioBtnRelativa.isChecked():
+            self.vController.calRelativa()
+
     def fnCancelar(self):
         pass
 
@@ -1618,6 +1624,8 @@ class vista(QMainWindow):
                 
         self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
         self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
+
+        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
             
         self.calWin.show()
 
