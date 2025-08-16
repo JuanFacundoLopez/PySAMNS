@@ -755,17 +755,17 @@ class vista(QMainWindow):
     def closeEvent(self, event):
         """Se ejecuta cuando se cierra la ventana principal"""
         # Cerrar todas las ventanas secundarias
-        if hasattr(self, 'calWin') and self.calWin.isVisible():
+        if hasattr(self, 'calWin') and self.calWin and self.calWin.isVisible():
             self.calWin.close()
-        if hasattr(self, 'confWin') and self.confWin.isVisible():
+        if hasattr(self, 'confWin') and self.confWin and self.confWin.isVisible():
             self.confWin.close()
-        if hasattr(self, 'confDispWin') and self.confDispWin.isVisible():
+        if hasattr(self, 'confDispWin') and self.confDispWin and self.confDispWin.isVisible():
             self.confDispWin.close()
-        if hasattr(self, 'calAutWin') and self.calAutWin.isVisible():
+        if hasattr(self, 'calAutWin') and self.calAutWin and self.calAutWin.isVisible():
             self.calAutWin.close()
-        if hasattr(self, 'calManWin') and self.calManWin.isVisible():
+        if hasattr(self, 'calManWin') and self.calManWin and self.calManWin.isVisible():
             self.calManWin.close()
-        if hasattr(self, 'calFEWin') and self.calFEWin.isVisible():
+        if hasattr(self, 'calFEWin') and self.calFEWin and self.calFEWin.isVisible():
             self.calFEWin.close()
         
         # Aceptar el evento de cierre
@@ -827,10 +827,16 @@ class vista(QMainWindow):
         self.vController.calAutomatica()
 
     def iniciarCalibracion(self):
-        if self.radioBtnAutomatica.isChecked():
-            self.vController.calAutomatica()
-        elif self.radioBtnRelativa.isChecked():
+        """Router para llamar al método de calibración correcto según la selección."""
+        if self.radioBtnRelativa.isChecked():
+            # Llama al método de calibración relativa existente en el controlador
             self.vController.calRelativa()
+        elif self.radioBtnAutomatica.isChecked():
+            # Llama al método de calibración automática existente en el controlador
+            self.vController.calAutomatica()
+        elif self.radioBtnExterna.isChecked():
+            # Llama al nuevo método de calibración externa en el controlador
+            self.vController.iniciar_calibracion_externa()
 
     def fnCancelar(self):
         pass
@@ -1513,125 +1519,126 @@ class vista(QMainWindow):
     def calibracionWin(self):
         self.calWin = QMainWindow()
         self.calWin.setWindowTitle("Calibracion")
-        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.2, 0.4))
-            
+        self.calWin.setGeometry(norm(self.anchoX, self.altoY, 0.4, 0.3, 0.4, 0.5)) # Increased height
+
         # Widget central y layout principal
         centralWidget = QWidget()
         self.calWin.setCentralWidget(centralWidget)
         mainLayout = QVBoxLayout(centralWidget)
-            
-        tipoCalLayoutHori = QHBoxLayout()
-        tipoCalLayoutVer = QVBoxLayout()
+
+        # --- Grupo de Configuración de Dispositivo ---
         confHardLayout = QHBoxLayout()
-        valorRefLayout = QHBoxLayout()
-        botonesLayout = QHBoxLayout()
-            
-        self.lblTipoCal = QLabel("Tipo de Calibracion:")
-        tipoCalLayoutHori.addWidget(self.lblTipoCal)
-            
-        self.radioBtnRelativa = QRadioButton("Calibración relativa")
-        self.radioBtnRelativa.setChecked(True) 
-        self.radioBtnRelativa.toggled.connect(self.toggleValRef)
-        tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
-
-        self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
-        tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
-
-        self.radioBtnExterna = QRadioButton("Calibración externa")
-        self.radioBtnExterna.toggled.connect(self.toggleImportButton)
-        tipoCalLayoutVer.addWidget(self.radioBtnExterna)
-            
-        tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
-        tipoCalLayoutHori.addStretch()
-            
+        confHardGroup = QGroupBox("Configuración de Dispositivos")
+        confHardGroup.setLayout(confHardLayout)
         self.lblDispEnt = QLabel("Dispositivo de entrada: ")
-        confHardLayout.addWidget(self.lblDispEnt)
-        self.lblConfHard = QLabel("")
-        confHardLayout.addWidget(self.lblConfHard)
-        self.btnConfHard = QPushButton("Configurar Dispositivo")
-        confHardLayout.addWidget(self.btnConfHard)
+        self.lblConfHard = QLabel("No seleccionado")
+        self.btnConfHard = QPushButton("Configurar")
         self.btnConfHard.clicked.connect(self.configuracionDispositivo)
-            
-        self.lblValRef = QLabel("Valor de Referencia:")
-        valorRefLayout.addWidget(self.lblValRef)
-        self.txtValorRef = QLineEdit("")
-        valorRefLayout.addWidget(self.txtValorRef)
-            
-        self.btnImportSig = QPushButton("Importar Señal")
-        self.btnImportSig.setEnabled(False)
-        self.btnImportSig.setToolTip("Importar desde archivo .wav")
+        confHardLayout.addWidget(self.lblDispEnt)
+        confHardLayout.addWidget(self.lblConfHard)
+        confHardLayout.addWidget(self.btnConfHard)
+
+        # --- Grupo de Tipo de Calibración ---
+        tipoCalLayout = QVBoxLayout()
+        tipoCalGroup = QGroupBox("Tipo de Calibración")
+        tipoCalGroup.setLayout(tipoCalLayout)
+        self.radioBtnRelativa = QRadioButton("Calibración Relativa (con Generador Interno)")
+        self.radioBtnAutomatica = QRadioButton("Calibración Automática (Fondo de Escala)")
+        self.radioBtnExterna = QRadioButton("Calibración Externa (con Archivo .wav)")
+        tipoCalLayout.addWidget(self.radioBtnRelativa)
+        tipoCalLayout.addWidget(self.radioBtnAutomatica)
+        tipoCalLayout.addWidget(self.radioBtnExterna)
+
+        # --- Contenedor para los widgets de cada modo ---
+        self.calRelativaGroup = QGroupBox("Parámetros de Calibración Relativa")
+        layoutRelativa = QGridLayout(self.calRelativaGroup)
+        self.lblValRefRelativa = QLabel("Nivel de Referencia (dBSPL):")
+        self.txtValorRefRelativa = QLineEdit("94.0")
+        layoutRelativa.addWidget(self.lblValRefRelativa, 0, 0)
+        layoutRelativa.addWidget(self.txtValorRefRelativa, 0, 1)
+
+        self.calExternaGroup = QGroupBox("Parámetros de Calibración Externa")
+        layoutExterna = QGridLayout(self.calExternaGroup)
+        self.btnImportSig = QPushButton("Importar Archivo de Referencia (.wav)")
         self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
-            
-        # Crear QChart para la ventana de calibración
-        self.chart2 = QChart()
-        self.chart2.setTheme(QChart.ChartThemeDark)
-            
-        # Crear QChartView para mostrar el gráfico
-        self.winGraph2 = QChartView(self.chart2)
-        self.winGraph2.setRenderHint(QPainter.Antialiasing)
-            
-        # Crear series para el gráfico de calibración
-        self.plot_line_cal = QLineSeries()
-            
-        # Configurar ejes para el gráfico de calibración
-        self.axisX2 = QValueAxis()
-        self.axisX2.setTitleText("Tiempo")
-        self.axisX2.setRange(0, 1024)
-            
-        self.axisY2 = QValueAxis()
-        self.axisY2.setTitleText("Amplitud Normalizada")
-        self.axisY2.setRange(-1.2, 1.2)
-            
-        self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
-        self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
-        self.chart2.legend().hide()
+        self.lblRutaArchivoCal = QLabel("Ningún archivo seleccionado.")
+        self.lblRutaArchivoCal.setWordWrap(True)
+        self.lblValRefExterna = QLabel("Nivel de Referencia (dBSPL):")
+        self.txtValorRefExterna = QLineEdit("94.0")
+        self.btnReproducirCal = QPushButton("Reproducir Señal de Referencia")
+        self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
+        layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
+        layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
+        layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
+        layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
+        layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
 
-        # Definir las líneas del gráfico (para compatibilidad)
-        self.ptdomTiempo2 = self.plot_line_cal
-        self.ptdomEspect2 = self.plot_line_cal
-            
+        # --- Grupo de Resultados (común para Relativa y Externa) ---
+        self.resultadosGroup = QGroupBox("Resultados")
+        resultadosLayout = QGridLayout(self.resultadosGroup)
+        self.lblNivelMedidoFS_label = QLabel("Nivel Medido (dBFS):")
+        self.lblNivelMedidoFS = QLabel("---")
+        self.lblFactorAjuste_label = QLabel("Factor de Ajuste (dB):")
+        self.lblFactorAjuste = QLabel("---")
+        resultadosLayout.addWidget(self.lblNivelMedidoFS_label, 0, 0)
+        resultadosLayout.addWidget(self.lblNivelMedidoFS, 0, 1)
+        resultadosLayout.addWidget(self.lblFactorAjuste_label, 1, 0)
+        resultadosLayout.addWidget(self.lblFactorAjuste, 1, 1)
+
+        # --- Botones de Acción ---
+        botonesLayout = QHBoxLayout()
         self.btnCalibrar = QPushButton("Calibrar")
-        self.btnRepetir = QPushButton("Repetir")
-        self.btnGenerador = QPushButton("Generador de señales")
-        self.btnGenerador.clicked.connect(self.generadorWin)
-        self.btnCancel = QPushButton("Cancelar")
-        self.btnCancel.clicked.connect(self.closeCalibracion)
-        botonesLayout.addWidget(self.btnCalibrar)
-        botonesLayout.addWidget(self.btnRepetir)
-        botonesLayout.addWidget(self.btnGenerador)
-        botonesLayout.addWidget(self.btnCancel)
-            
-        # Agregar el grupo al layout principal
-        mainLayout.addLayout(tipoCalLayoutHori)
-        mainLayout.addLayout(confHardLayout)
-        mainLayout.addLayout(valorRefLayout)
-        #mainLayout.addLayout(importLayout)
-        mainLayout.addWidget(self.btnImportSig)
-        mainLayout.addWidget(self.winGraph2)
-        mainLayout.addLayout(botonesLayout)
-                    
-        # Actualizar el nombre del dispositivo actual en el label
-        self.actualizarNombreDispositivo()
-            
-        for boton in [self.btnCalibrar, self.btnRepetir, self.btnGenerador, self.btnCancel, self.btnConfHard, self.btnImportSig]:
-            boton.setProperty("class", "ventanasSec")
-
-        for radio in [self.radioBtnAutomatica, self.radioBtnExterna, self.radioBtnRelativa]:
-            radio.setProperty("class", "ventanasSec")
-            
-        for lbl in [self.lblDispEnt, self.lblValRef, self.lblTipoCal]:
-            lbl.setProperty("class", "ventanasSecLabelDestacado")    
-                
-        self.winGraph2.setVisible(self.radioBtnExterna.isChecked())
-        self.radioBtnExterna.toggled.connect(self.toggleChart2Visibility)
-
         self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
-            
+        self.btnCancel = QPushButton("Cerrar")
+        self.btnCancel.clicked.connect(self.closeCalibracion)
+        botonesLayout.addStretch()
+        botonesLayout.addWidget(self.btnCalibrar)
+        botonesLayout.addWidget(self.btnCancel)
+
+        # --- Ensamblaje del Layout Principal ---
+        mainLayout.addWidget(confHardGroup)
+        mainLayout.addWidget(tipoCalGroup)
+        mainLayout.addWidget(self.calRelativaGroup)
+        mainLayout.addWidget(self.calExternaGroup)
+        mainLayout.addWidget(self.resultadosGroup)
+        mainLayout.addStretch()
+        mainLayout.addLayout(botonesLayout)
+
+        # --- Conexiones y Estado Inicial ---
+        self.radioBtnRelativa.toggled.connect(self.actualizar_vista_calibracion)
+        self.radioBtnAutomatica.toggled.connect(self.actualizar_vista_calibracion)
+        self.radioBtnExterna.toggled.connect(self.actualizar_vista_calibracion)
+        self.radioBtnRelativa.setChecked(True)
+        self.actualizar_vista_calibracion() # Llamada inicial para configurar la vista
+        self.actualizarNombreDispositivo()
         self.calWin.show()
 
+    def actualizar_vista_calibracion(self):
+        """Muestra u oculta los widgets según el modo de calibración seleccionado."""
+        # Ocultar todo primero
+        self.calRelativaGroup.setVisible(False)
+        self.calExternaGroup.setVisible(False)
+        self.resultadosGroup.setVisible(False)
+
+        # Mostrar los widgets correspondientes al modo seleccionado
+        if self.radioBtnRelativa.isChecked():
+            self.calRelativaGroup.setVisible(True)
+            self.resultadosGroup.setVisible(True)
+            self.btnCalibrar.setText("Medir y Calibrar (Relativa)")
+
+        elif self.radioBtnAutomatica.isChecked():
+            # No hay widgets específicos para este modo, solo cambia el botón
+            self.btnCalibrar.setText("Iniciar Calibración Automática")
+
+        elif self.radioBtnExterna.isChecked():
+            self.calExternaGroup.setVisible(True)
+            self.resultadosGroup.setVisible(True)
+            self.btnCalibrar.setText("Medir y Calibrar (Externa)")
+
     def closeCalibracion(self):
-        self.calWin.close()
-        self.calWin = None
+        if hasattr(self, 'calWin') and self.calWin:
+            self.calWin.close()
+            self.calWin = None
  
     def generadorWin(self):
         self.genWin = QMainWindow()
@@ -1797,20 +1804,6 @@ class vista(QMainWindow):
             print(f"Error al reproducir la señal: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo reproducir la señal: {str(e)}")
         
-    def toggleChart2Visibility(self, checked):
-        if hasattr(self, 'winGraph2'):
-            self.winGraph2.setVisible(checked)
-        
-    def toggleImportButton(self, checked):
-        """Habilita o deshabilita el botón Importar Señal según el estado del radio button externa"""
-        if hasattr(self, 'btnImportSig'):
-            self.btnImportSig.setEnabled(checked)
-    
-    def toggleValRef(self, checked):
-        """Habilita o deshabilita el campo de texto del valor de la referencia segun el radio button relativa"""
-        if hasattr(self, 'txtValorRef'):
-            self.txtValorRef.setEnabled(checked)
-    
     def importarSenalCalibracion(self):
         """Importa un archivo .wav y lo grafica en chart2"""
         try:
@@ -1825,57 +1818,33 @@ class vista(QMainWindow):
             )
             
             if fileName:
-                # Leer archivo .wav
-                Fs, x = wavread(fileName)
+                # Actualizar label con la ruta del archivo
+                if hasattr(self, 'lblRutaArchivoCal'):
+                    self.lblRutaArchivoCal.setText(os.path.basename(fileName))
                 
-                # Manejar archivos estéreo (convertir a mono si es necesario)
-                if len(x.shape) > 1:
-                    # Si es estéreo, promediar los canales
-                    x = np.mean(x, axis=1)
-                
-                # Normalizar los datos
-                maxX = np.max(np.abs(x))
-                if maxX > 0:
-                    signaldata = x / maxX
-                else:
-                    signaldata = x
-                
-                # Crear array de tiempo
-                tiempo = np.arange(len(signaldata)) / Fs
-                
-                # Limpiar el gráfico anterior
-                if hasattr(self, 'plot_line_cal'):
-                    self.chart2.removeSeries(self.plot_line_cal)
-                
-                # Crear nueva serie para el gráfico
-                self.plot_line_cal = QLineSeries()
-                # Configurar color amarillo para la línea de calibración
-                pen = QPen(QColor(71, 142, 203))  # Color amarillo (R=255, G=255, B=0)
-                pen.setWidth(2)  # Grosor de la línea
-                self.plot_line_cal.setPen(pen)
-                
-                # Agregar puntos al gráfico (limitando a 10000 puntos para rendimiento)
-                step = max(1, len(signaldata) // 10000)
-                for i in range(0, len(signaldata), step):
-                    self.plot_line_cal.append(tiempo[i], signaldata[i])
-                
-                # Agregar la serie al gráfico
-                self.chart2.addSeries(self.plot_line_cal)
-                
-                # Configurar ejes
-                self.axisX2.setRange(0, tiempo[-1] if len(tiempo) > 0 else 1)
-                self.axisY2.setRange(-1.2, 1.2)
-                
-                # Actualizar etiquetas de ejes
-                self.axisX2.setTitleText("Tiempo (s)")
-                self.axisY2.setTitleText("Amplitud Normalizada")
-                
-                # Mostrar información del archivo
-                #print(f"Archivo cargado: {fileName}")
-                #print(f"Frecuencia de muestreo: {Fs} Hz")
-                #print(f"Duración: {tiempo[-1]:.2f} segundos")
-                #print(f"Número de muestras: {len(signaldata)}")
-                
+                # Guardar la ruta en el controlador para que la lógica la use
+                self.vController.establecer_ruta_archivo_calibracion(fileName)
+
+        except Exception as e:
+            QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
+            print(f"Error en importarSenalCalibracion: {e}")
+    
+    def importarSenalCalibracion(self):
+        """Abre un diálogo para seleccionar un archivo .wav y guarda su ruta."""
+        try:
+            fileName, _ = QFileDialog.getOpenFileName(
+                self.calWin,
+                "Seleccionar Archivo de Audio de Referencia",
+                "",
+                "Archivos de audio (*.wav)"
+            )
+
+            if fileName:
+                # Enviar la ruta completa al controlador para que el modelo la guarde
+                self.vController.establecer_ruta_archivo_calibracion(fileName)
+                # Opcional: mostrar el nombre del archivo en algún label si existe
+                QMessageBox.information(self.calWin, "Archivo Seleccionado", f"Archivo de referencia:\n{os.path.basename(fileName)}")
+
         except Exception as e:
             QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
             print(f"Error en importarSenalCalibracion: {e}")

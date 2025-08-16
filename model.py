@@ -43,6 +43,10 @@ class modelo:
 
         self.Fs = 44100
 
+        # Atributos para calibración relativa
+        self.ruta_archivo_calibracion = None
+        self.offset_calibracion_spl = 0.0
+
         # --------------------Codigo Yamili-------------------------
         self.rate = rate
         self.chunk = chunk
@@ -206,6 +210,21 @@ class modelo:
     def setCalibracionAutomatica(self, k):
         self.cal=k
 
+    def set_ruta_archivo_calibracion(self, ruta):
+        self.ruta_archivo_calibracion = ruta
+
+    def get_ruta_archivo_calibracion(self):
+        return self.ruta_archivo_calibracion
+
+    def set_calibracion_offset_spl(self, offset):
+        self.offset_calibracion_spl = offset
+
+    def get_calibracion_offset_spl(self):
+        return self.offset_calibracion_spl
+
+    def aplicar_calibracion_spl(self, valor_dbfs):
+        return valor_dbfs + self.offset_calibracion_spl
+
 # Getters
     def getFs(self):
         return self.Fs    
@@ -260,39 +279,55 @@ class modelo:
         """Establece el dispositivo de salida"""
         self.device_index_salida = device_index_salida
     def getNivelesA(self, NP='A'):
+        pico = self.aplicar_calibracion_spl(self.recorderPicoA)
+        inst = self.aplicar_calibracion_spl(self.recorderInstA)
+        fast = self.aplicar_calibracion_spl(self.recorderFastA)
+        slow = self.aplicar_calibracion_spl(self.recorderSlowA)
+        
         if NP == 'P':
-            return self.recorderPicoA
+            return pico
         if NP == 'I':
-            return self.recorderInstA
+            return inst
         if NP == 'F':
-            return self.recorderFastA
+            return fast
         if NP == 'S':
-            return self.recorderSlowA
+            return slow
         if NP == 'A':
-            return (self.recorderPicoA, self.recorderInstA, self.recorderFastA, self.recorderSlowA)
+            return (pico, inst, fast, slow)
+            
     def getNivelesC(self, NP='A'):
-        if NP == 'P':
-            return self.recorderPicoC
-        if NP == 'I':
-            return self.recorderInstC
-        if NP == 'F':
-            return self.recorderFastC
-        if NP == 'S':
-            return self.recorderSlowC
-        if NP == 'A':
-            return (self.recorderPicoC, self.recorderInstC, self.recorderFastC, self.recorderSlowC)
-    def getNivelesZ(self, NP='A'):
+        pico = self.aplicar_calibracion_spl(self.recorderPicoC)
+        inst = self.aplicar_calibracion_spl(self.recorderInstC)
+        fast = self.aplicar_calibracion_spl(self.recorderFastC)
+        slow = self.aplicar_calibracion_spl(self.recorderSlowC)
 
         if NP == 'P':
-            return self.recorderPicoZ
+            return pico
         if NP == 'I':
-            return self.recorderInstZ
+            return inst
         if NP == 'F':
-            return self.recorderFastZ
+            return fast
         if NP == 'S':
-            return self.recorderSlowZ
+            return slow
         if NP == 'A':
-            return (self.recorderPicoZ, self.recorderInstZ, self.recorderFastZ, self.recorderSlowZ)
+            return (pico, inst, fast, slow)
+
+    def getNivelesZ(self, NP='A'):
+        pico = self.aplicar_calibracion_spl(self.recorderPicoZ)
+        inst = self.aplicar_calibracion_spl(self.recorderInstZ)
+        fast = self.aplicar_calibracion_spl(self.recorderFastZ)
+        slow = self.aplicar_calibracion_spl(self.recorderSlowZ)
+
+        if NP == 'P':
+            return pico
+        if NP == 'I':
+            return inst
+        if NP == 'F':
+            return fast
+        if NP == 'S':
+            return slow
+        if NP == 'A':
+            return (pico, inst, fast, slow)
     def getCalibracionAutomatica(self):
 
         return self.cal
