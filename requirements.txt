@@ -10,3 +10,4 @@ PyQtChart-Qt5==5.15.2
 pyqtgraph==0.13.7
 scipy==1.16.1
 sounddevice==0.5.2
+soundfile==0.12.1

@@ -4,6 +4,8 @@ from view import vista
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
 import struct
+import sounddevice as sd
+import soundfile as sf
 # from pyaudio import PyAudio, paInt16
 import pyaudio
 # from scipy.fftpack import fft
@@ -256,9 +258,9 @@ class controlador():
                 if len(all_data) > 0:
                     min_db = min(all_data)
                     max_db = max(all_data)
-                    # Agregar margen de 5 dB arriba y abajo
-                    y_min = max(-150, min_db - 5)
-                    y_max = min(0, max_db + 5)
+                    # Agregar margen de 5 dB arriba y abajo para el nuevo rango
+                    y_min = min_db - 5
+                    y_max = max_db + 5
                     self.cVista.waveform1.setYRange(y_min, y_max, padding=0)
                 
                 # Vista de filtro Z
@@ -565,6 +567,102 @@ class controlador():
             f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
         )
 
+    def establecer_ruta_archivo_calibracion(self, ruta):
+        """Guarda la ruta del archivo de calibración en el modelo."""
+        self.cModel.set_ruta_archivo_calibracion(ruta)
+        print(f"Ruta de archivo de calibración establecida en: {ruta}")
+
+    def reproducir_audio_calibracion(self):
+        """Lee y reproduce el archivo de audio de referencia."""
+        try:
+            ruta = self.cModel.get_ruta_archivo_calibracion()
+            if not ruta:
+                QMessageBox.warning(self.cVista, "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
+                return
+
+            # Leer el archivo de audio
+            data, samplerate = sf.read(ruta, dtype='float32')
+            
+            # Obtener dispositivo de salida
+            output_device_index = self.cModel.getDispositivoSalidaActual()
+            if output_device_index is None:
+                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                return
+
+            # Reproducir el audio
+            sd.play(data, samplerate, device=output_device_index)
+            QMessageBox.information(self.cVista, "Reproducción", f"Reproduciendo {ruta}...")
+
+        except Exception as e:
+            QMessageBox.critical(self.cVista, "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
+            print(f"Error en reproducir_audio_calibracion: {e}")
+
+    def iniciar_calibracion_externa(self):
+        """
+        Orquesta el proceso de calibración externa: mide el nivel de la señal de entrada 
+        mientras se reproduce el tono de referencia y calcula el offset.
+        """
+        try:
+            # 1. Obtener el nivel de referencia dBSPL del usuario
+            ref_spl_text = self.cVista.txtValorRefExterna.text()
+            if not ref_spl_text:
+                QMessageBox.warning(self.cVista, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
+                return
+            ref_spl = float(ref_spl_text)
+
+            # 2. Iniciar una grabación corta para medir el nivel dBFS
+            QMessageBox.information(self.cVista, "Medición en Curso", 
+                                    "Se medirá el nivel de entrada durante 3 segundos.\n" 
+                                    "Asegúrese de que su tono de referencia esté sonando y presione OK.")
+            
+            self.cModel.stream.start_stream()
+            
+            # Acumular datos durante unos segundos
+            grabacion_data = []
+            tiempo_inicio = time.time()
+            while time.time() - tiempo_inicio < 3: # Grabar por 3 segundos
+                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                if len(current_data) > 0:
+                    grabacion_data.append(current_data)
+                time.sleep(0.01) # Pequeña pausa
+
+            self.cModel.stream.stop_stream()
+
+            if not grabacion_data:
+                QMessageBox.critical(self.cVista, "Error de Medición", "No se pudieron capturar datos de audio.")
+                return
+
+            # Concatenar y procesar los datos grabados
+            audio_completo = np.concatenate(grabacion_data)
+            
+            # 3. Calcular el nivel en dBFS
+            # Usamos la función del modelo que calcula dB sobre datos normalizados
+            medido_dbfs = self.cModel.calculate_db(audio_completo)
+            
+            # 4. Actualizar la interfaz con el valor medido
+            self.cVista.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
+
+            # 5. Calcular el offset
+            offset = ref_spl - medido_dbfs
+            
+            # 6. Guardar el offset en el modelo
+            self.cModel.set_calibracion_offset_spl(offset)
+            
+            # 7. Actualizar la interfaz con el offset
+            self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
+
+            QMessageBox.information(self.cVista, "Calibración Completa", 
+                                   f"Calibración finalizada con éxito.\n\n"
+                                   f"Nivel de Referencia: {ref_spl:.2f} dBSPL\n"
+                                   f"Nivel Medido: {medido_dbfs:.2f} dBFS\n"
+                                   f"Factor de Ajuste: {offset:.2f} dB")
+
+        except ValueError:
+            QMessageBox.warning(self.cVista, "Entrada Inválida", "El valor de referencia debe ser un número.")
+        except Exception as e:
+            QMessageBox.critical(self.cVista, "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
+            print(f"Error en iniciar_calibracion_relativa: {e}")
+
     def calRelativa(self):
         try:
             ref_level = float(self.cVista.txtValorRef.text())
@@ -667,7 +765,7 @@ class controlador():
                 promNZ = np.mean(NZ)
             
             # Calcular el factor de calibración
-            cal = promNZ - ref_level
+            cal = ref_level - promNZ
             print(f"Nivel de referencia: {ref_level} dB")
             print(f"Nivel promedio medido: {promNZ} dB")
             print(f"Factor de calibración: {cal} dB")
