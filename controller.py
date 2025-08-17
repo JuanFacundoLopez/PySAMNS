@@ -765,7 +765,7 @@ class controlador():
                 promNZ = np.mean(NZ)
             
             # Calcular el factor de calibración
-            cal = promNZ - ref_level
+            cal = ref_level - promNZ
             print(f"Nivel de referencia: {ref_level} dB")
             print(f"Nivel promedio medido: {promNZ} dB")
             print(f"Factor de calibración: {cal} dB")

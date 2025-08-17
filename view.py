@@ -1519,44 +1519,48 @@ class vista(QMainWindow):
     def calibracionWin(self):
         self.calWin = QMainWindow()
         self.calWin.setWindowTitle("Calibracion")
-        self.calWin.setGeometry(norm(self.anchoX, self.altoY, 0.4, 0.3, 0.4, 0.5)) # Increased height
+        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.4, 0.5))
 
         # Widget central y layout principal
         centralWidget = QWidget()
         self.calWin.setCentralWidget(centralWidget)
         mainLayout = QVBoxLayout(centralWidget)
 
-        # --- Grupo de Configuración de Dispositivo ---
+        # Layouts
+        tipoCalLayoutHori = QHBoxLayout()
+        tipoCalLayoutVer = QVBoxLayout()
         confHardLayout = QHBoxLayout()
-        confHardGroup = QGroupBox("Configuración de Dispositivos")
-        confHardGroup.setLayout(confHardLayout)
+        self.valorRefLayout = QHBoxLayout() # Make it a class attribute for visibility control
+        botonesLayout = QHBoxLayout()
+
+        # --- Tipo de Calibracion ---
+        self.lblTipoCal = QLabel("Tipo de Calibracion:")
+        tipoCalLayoutHori.addWidget(self.lblTipoCal)
+        self.radioBtnRelativa = QRadioButton("Calibración relativa")
+        self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
+        self.radioBtnExterna = QRadioButton("Calibración externa")
+        tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
+        tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
+        tipoCalLayoutVer.addWidget(self.radioBtnExterna)
+        tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
+        tipoCalLayoutHori.addStretch()
+
+        # --- Dispositivo ---
         self.lblDispEnt = QLabel("Dispositivo de entrada: ")
-        self.lblConfHard = QLabel("No seleccionado")
-        self.btnConfHard = QPushButton("Configurar")
-        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
         confHardLayout.addWidget(self.lblDispEnt)
+        self.lblConfHard = QLabel("")
         confHardLayout.addWidget(self.lblConfHard)
+        self.btnConfHard = QPushButton("Configurar Dispositivo")
         confHardLayout.addWidget(self.btnConfHard)
+        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
 
-        # --- Grupo de Tipo de Calibración ---
-        tipoCalLayout = QVBoxLayout()
-        tipoCalGroup = QGroupBox("Tipo de Calibración")
-        tipoCalGroup.setLayout(tipoCalLayout)
-        self.radioBtnRelativa = QRadioButton("Calibración Relativa (con Generador Interno)")
-        self.radioBtnAutomatica = QRadioButton("Calibración Automática (Fondo de Escala)")
-        self.radioBtnExterna = QRadioButton("Calibración Externa (con Archivo .wav)")
-        tipoCalLayout.addWidget(self.radioBtnRelativa)
-        tipoCalLayout.addWidget(self.radioBtnAutomatica)
-        tipoCalLayout.addWidget(self.radioBtnExterna)
+        # --- Calibracion Relativa ---
+        self.lblValRef = QLabel("Valor de Referencia:")
+        self.valorRefLayout.addWidget(self.lblValRef)
+        self.txtValorRef = QLineEdit("")
+        self.valorRefLayout.addWidget(self.txtValorRef)
 
-        # --- Contenedor para los widgets de cada modo ---
-        self.calRelativaGroup = QGroupBox("Parámetros de Calibración Relativa")
-        layoutRelativa = QGridLayout(self.calRelativaGroup)
-        self.lblValRefRelativa = QLabel("Nivel de Referencia (dBSPL):")
-        self.txtValorRefRelativa = QLineEdit("94.0")
-        layoutRelativa.addWidget(self.lblValRefRelativa, 0, 0)
-        layoutRelativa.addWidget(self.txtValorRefRelativa, 0, 1)
-
+        # --- Calibracion Externa ---
         self.calExternaGroup = QGroupBox("Parámetros de Calibración Externa")
         layoutExterna = QGridLayout(self.calExternaGroup)
         self.btnImportSig = QPushButton("Importar Archivo de Referencia (.wav)")
@@ -1566,74 +1570,57 @@ class vista(QMainWindow):
         self.lblValRefExterna = QLabel("Nivel de Referencia (dBSPL):")
         self.txtValorRefExterna = QLineEdit("94.0")
         self.btnReproducirCal = QPushButton("Reproducir Señal de Referencia")
-        self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
+        # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
         layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
         layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
         layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
 
-        # --- Grupo de Resultados (común para Relativa y Externa) ---
-        self.resultadosGroup = QGroupBox("Resultados")
-        resultadosLayout = QGridLayout(self.resultadosGroup)
-        self.lblNivelMedidoFS_label = QLabel("Nivel Medido (dBFS):")
-        self.lblNivelMedidoFS = QLabel("---")
-        self.lblFactorAjuste_label = QLabel("Factor de Ajuste (dB):")
-        self.lblFactorAjuste = QLabel("---")
-        resultadosLayout.addWidget(self.lblNivelMedidoFS_label, 0, 0)
-        resultadosLayout.addWidget(self.lblNivelMedidoFS, 0, 1)
-        resultadosLayout.addWidget(self.lblFactorAjuste_label, 1, 0)
-        resultadosLayout.addWidget(self.lblFactorAjuste, 1, 1)
+        # --- Grafico ---
+        self.chart2 = QChart()
+        self.chart2.setTheme(QChart.ChartThemeDark)
+        self.winGraph2 = QChartView(self.chart2)
+        self.winGraph2.setRenderHint(QPainter.Antialiasing)
+        # ... (chart setup as before)
 
-        # --- Botones de Acción ---
-        botonesLayout = QHBoxLayout()
+        # --- Botones ---
         self.btnCalibrar = QPushButton("Calibrar")
-        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
-        self.btnCancel = QPushButton("Cerrar")
+        self.btnRepetir = QPushButton("Repetir")
+        self.btnGenerador = QPushButton("Generador de señales")
+        self.btnGenerador.clicked.connect(self.generadorWin)
+        self.btnCancel = QPushButton("Cancelar")
         self.btnCancel.clicked.connect(self.closeCalibracion)
-        botonesLayout.addStretch()
         botonesLayout.addWidget(self.btnCalibrar)
+        botonesLayout.addWidget(self.btnRepetir)
+        botonesLayout.addWidget(self.btnGenerador)
         botonesLayout.addWidget(self.btnCancel)
 
-        # --- Ensamblaje del Layout Principal ---
-        mainLayout.addWidget(confHardGroup)
-        mainLayout.addWidget(tipoCalGroup)
-        mainLayout.addWidget(self.calRelativaGroup)
+        # --- Layout Principal ---
+        mainLayout.addLayout(tipoCalLayoutHori)
+        mainLayout.addLayout(confHardLayout)
+        mainLayout.addLayout(self.valorRefLayout)
         mainLayout.addWidget(self.calExternaGroup)
-        mainLayout.addWidget(self.resultadosGroup)
-        mainLayout.addStretch()
+        mainLayout.addWidget(self.winGraph2)
         mainLayout.addLayout(botonesLayout)
 
         # --- Conexiones y Estado Inicial ---
         self.radioBtnRelativa.toggled.connect(self.actualizar_vista_calibracion)
-        self.radioBtnAutomatica.toggled.connect(self.actualizar_vista_calibracion)
         self.radioBtnExterna.toggled.connect(self.actualizar_vista_calibracion)
+        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
         self.radioBtnRelativa.setChecked(True)
-        self.actualizar_vista_calibracion() # Llamada inicial para configurar la vista
+        self.actualizar_vista_calibracion() # Set initial state
         self.actualizarNombreDispositivo()
         self.calWin.show()
 
     def actualizar_vista_calibracion(self):
-        """Muestra u oculta los widgets según el modo de calibración seleccionado."""
-        # Ocultar todo primero
-        self.calRelativaGroup.setVisible(False)
-        self.calExternaGroup.setVisible(False)
-        self.resultadosGroup.setVisible(False)
+        relativa_checked = self.radioBtnRelativa.isChecked()
+        externa_checked = self.radioBtnExterna.isChecked()
 
-        # Mostrar los widgets correspondientes al modo seleccionado
-        if self.radioBtnRelativa.isChecked():
-            self.calRelativaGroup.setVisible(True)
-            self.resultadosGroup.setVisible(True)
-            self.btnCalibrar.setText("Medir y Calibrar (Relativa)")
-
-        elif self.radioBtnAutomatica.isChecked():
-            # No hay widgets específicos para este modo, solo cambia el botón
-            self.btnCalibrar.setText("Iniciar Calibración Automática")
-
-        elif self.radioBtnExterna.isChecked():
-            self.calExternaGroup.setVisible(True)
-            self.resultadosGroup.setVisible(True)
-            self.btnCalibrar.setText("Medir y Calibrar (Externa)")
+        self.lblValRef.setVisible(relativa_checked)
+        self.txtValorRef.setVisible(relativa_checked)
+        self.calExternaGroup.setVisible(externa_checked)
+        self.winGraph2.setVisible(externa_checked)
 
     def closeCalibracion(self):
         if hasattr(self, 'calWin') and self.calWin:
