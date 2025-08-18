@@ -11,6 +11,7 @@ from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt5.QtCore import QRect, QPointF
 # from PyQt5 import QtWidgets
 from pyqtgraph.Qt import QtGui, QtCore
+from pyqtgraph import AxisItem, BarGraphItem
 
 # Imports para QChart (solo para la ventana de calibración)
 from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis, QBarSeries, QBarSet, QBarCategoryAxis
@@ -581,13 +582,13 @@ class vista(QMainWindow):
         self.menuProgramacion = QMenu("Programación", self)
         progAct = QAction("Programar", self)
         progAct.triggered.connect(self.abrirprogramarWin)
-        self.menuProgramacion.addAction(progAct)
-        guardadosAct = QAction("Guardados", self)
-        guardadosAct.triggered.connect(self.abrirPickerWin)
-        self.menuProgramacion.addAction(guardadosAct)
-        clockAct = QAction("Reloj", self)
-        clockAct.triggered.connect(self.abrirClockWin)
-        self.menuProgramacion.addAction(clockAct)
+        #self.menuProgramacion.addAction(progAct)
+        #guardadosAct = QAction("Guardados", self)
+        #guardadosAct.triggered.connect(self.abrirPickerWin)
+        #self.menuProgramacion.addAction(guardadosAct)
+        #clockAct = QAction("Reloj", self)
+        #clockAct.triggered.connect(self.abrirClockWin)
+        #self.menuProgramacion.addAction(clockAct)
         
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
@@ -630,14 +631,6 @@ class vista(QMainWindow):
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
-        
-    def abrirPickerWin(self):
-        self.picker_win = PickerWindow()
-        self.picker_win.show()
-        
-    def abrirClockWin(self):
-        self.clock_win = ClockWindow()
-        self.clock_win.show()
 
     def grabar(self):
         self.vController.dalePlay() # conexion con el controlador
@@ -1321,6 +1314,7 @@ class vista(QMainWindow):
                         # Para tercios de octava, cada banda es 2^(1/3) veces la anterior
                         log_bandas = np.log10(bandas)
                         
+                        
                         # Calcular anchos de barras
                         if len(bandas) > 1:
                             # Para múltiples bandas, calcular el ancho basado en la diferencia entre bandas
@@ -1346,9 +1340,17 @@ class vista(QMainWindow):
                             pen=pg.mkPen(color='black', width=1)
                         )
                         self.waveform1.addItem(bar_item)
-                        
-                        # Configurar rangos de ejes
-                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
+
+                        # Etiquetas del eje X
+                        etiquetas = [(np.log10(fc), f"{int(fc)} Hz") for fc in bandas]
+                        bottom_axis = self.waveform1.getAxis('bottom')
+                        bottom_axis.setTicks([etiquetas])
+
+                        # Espacio para que se vean las etiquetas
+                        self.waveform1.layout.setRowFixedHeight(2, 40)
+
+                        # Rango del eje X
+                        self.waveform1.setXRange(np.min(log_bandas) - 0.05, np.max(log_bandas) + 0.05, padding=0)
                         
                         # Rango Y dinámico basado en los niveles
                         y_min = np.min(niveles) if len(niveles) > 0 else 0
@@ -1519,7 +1521,7 @@ class vista(QMainWindow):
     def calibracionWin(self):
         self.calWin = QMainWindow()
         self.calWin.setWindowTitle("Calibracion")
-        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.4, 0.5))
+        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.35, 0.35, 0.3, 0.3))
 
         # Widget central y layout principal
         centralWidget = QWidget()
@@ -1529,7 +1531,9 @@ class vista(QMainWindow):
         # Layouts
         tipoCalLayoutHori = QHBoxLayout()
         tipoCalLayoutVer = QVBoxLayout()
-        confHardLayout = QHBoxLayout()
+        confLayoutVer = QVBoxLayout()
+        confLayoutVer.addStretch()
+        gridHardLayout = QGridLayout()
         self.valorRefLayout = QHBoxLayout() # Make it a class attribute for visibility control
         botonesLayout = QHBoxLayout()
 
@@ -1547,12 +1551,20 @@ class vista(QMainWindow):
 
         # --- Dispositivo ---
         self.lblDispEnt = QLabel("Dispositivo de entrada: ")
-        confHardLayout.addWidget(self.lblDispEnt)
-        self.lblConfHard = QLabel("")
-        confHardLayout.addWidget(self.lblConfHard)
+        gridHardLayout.addWidget(self.lblDispEnt,0,0)
+        self.lblConfDispEnt = QLabel("")
+        gridHardLayout.addWidget(self.lblConfDispEnt,0,1)
+        self.lblDispSal = QLabel("Dispositivo de salida: ")
+        gridHardLayout.addWidget(self.lblDispSal,1,0)
+        self.lblConfDispSal = QLabel("")
+        gridHardLayout.addWidget(self.lblConfDispSal,1,1)
+        
+        
         self.btnConfHard = QPushButton("Configurar Dispositivo")
-        confHardLayout.addWidget(self.btnConfHard)
+        confLayoutVer.addWidget(self.btnConfHard, alignment=Qt.AlignHCenter)
+        confLayoutVer.addStretch()
         self.btnConfHard.clicked.connect(self.configuracionDispositivo)
+        gridHardLayout.addLayout(confLayoutVer, 0, 2, 2, 1)
 
         # --- Calibracion Relativa ---
         self.lblValRef = QLabel("Valor de Referencia:")
@@ -1598,7 +1610,7 @@ class vista(QMainWindow):
 
         # --- Layout Principal ---
         mainLayout.addLayout(tipoCalLayoutHori)
-        mainLayout.addLayout(confHardLayout)
+        mainLayout.addLayout(gridHardLayout)
         mainLayout.addLayout(self.valorRefLayout)
         mainLayout.addWidget(self.calExternaGroup)
         mainLayout.addWidget(self.winGraph2)
@@ -1610,7 +1622,7 @@ class vista(QMainWindow):
         self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
         self.radioBtnRelativa.setChecked(True)
         self.actualizar_vista_calibracion() # Set initial state
-        self.actualizarNombreDispositivo()
+        self.actualizarNombreDispositivos()
         self.calWin.show()
 
     def actualizar_vista_calibracion(self):
@@ -1641,7 +1653,7 @@ class vista(QMainWindow):
         
         self.lbltipoSig = QLabel("Tipo de señal:")
         self.tipo_combo = QComboBox()
-        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular"])
+        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular", "Ruido Blanco", "Ruido Rosa"])
         configLayout.addWidget(self.lbltipoSig)
         configLayout.addWidget(self.tipo_combo)
         
@@ -1660,9 +1672,18 @@ class vista(QMainWindow):
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
-        self.btn_generar = QPushButton("Generar y Graficar")
+        self.btn_generar = QPushButton("Reproducir")
+        icon_play_path = "img/boton-de-play.png" 
+        self.btn_generar.setIcon(QIcon(icon_play_path))
         self.btn_generar.clicked.connect(self.generar_senal)
         configLayout.addWidget(self.btn_generar)
+        
+        self.btn_pausa = QPushButton("Pausar")
+        icon_pausa_path = "img/boton-de-pausa.png" 
+        self.btn_pausa.setIcon(QIcon(icon_pausa_path))
+        self.btn_pausa.setVisible(False)
+        self.btn_pausa.clicked.connect(self.pausar_reproduccion)
+        configLayout.addWidget(self.btn_pausa)
         
         self.seriesGenSig = QLineSeries()
         self.chartGenSig = QChart()
@@ -1673,6 +1694,7 @@ class vista(QMainWindow):
         if axisX is not None:
             axisX.setRange(0, 10)
         self.chartGenSig.setTitle("Señal Generada")
+        self.chartGenSig.legend().hide()
 
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
@@ -1690,7 +1712,7 @@ class vista(QMainWindow):
         self.lbl_error_gen_sig.setVisible(False)
         mainLayout.addWidget(self.chartGenSig_view)
 
-        for boton in [self.btn_generar]:
+        for boton in [self.btn_generar, self.btn_pausa]:
             boton.setProperty("class", "ventanasSec")
 
         for txt in [self.freq_input, self.amp_input, self.dur_input]:
@@ -1730,6 +1752,18 @@ class vista(QMainWindow):
             self.lbl_error_gen_sig.setVisible(True)
             return False
 
+    def pausar_reproduccion(self):
+        """Pausa la reproduccion de la señal generada por el dispositivo de salida"""
+        self.btn_generar.setVisible(True)
+        self.btn_pausa.setVisible(False)
+        try:
+            import sounddevice as sd
+            sd.stop()  # Detiene cualquier señal en reproducción
+            print("Reproducción pausada")
+        except Exception as e:
+            print(f"Error al pausar la señal: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo pausar la señal: {str(e)}")
+            
     def generar_senal(self):
         if not self.verificar_valores_generador():
             return
@@ -1746,6 +1780,18 @@ class vista(QMainWindow):
             y = A * np.sign(np.sin(2 * np.pi * f * t))
         elif tipo == "Triangular":
             y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
+        elif tipo == "Ruido Blanco":
+            y = A * np.random.normal(0, 1, len(t))
+        elif tipo == "Ruido Rosa":
+            # Método basado en filtrado 1/f
+            # FFT-based approach para generar ruido rosa
+            N = len(t)
+            uneven = N % 2
+            X = np.random.randn(N // 2 + 1 + uneven) + 1j * np.random.randn(N // 2 + 1 + uneven)
+            S = np.sqrt(np.arange(len(X)) + 1)  # +1 para evitar división por cero
+            y = (np.fft.irfft(X / S)).real
+            y = y[:N]
+            y *= A
 
         #Normalizar la señal
         y = y / np.max(np.abs(y)) * 0.8 # para evitar saturación
@@ -1768,6 +1814,8 @@ class vista(QMainWindow):
     
     def play_signal(self):
         """Play the generated signal through the selected output device"""
+        self.btn_generar.setVisible(False)
+        self.btn_pausa.setVisible(True)
         if not hasattr(self, 'signal_data') or self.signal_data is None:
             print("No hay señal generada para reproducir")
             return
@@ -2202,37 +2250,61 @@ class vista(QMainWindow):
             # Mostrar la ventana de configuración
             self.confWin.show()
 
-    def actualizarNombreDispositivo(self):
-        """Actualiza el label con el nombre del dispositivo actual"""
+    def actualizarNombreDispositivos(self):
+        """Actualiza los labels con los nombres de los dispositivos de entrada y salida actuales"""
         try:
-            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
-            if not hasattr(self, 'lblConfHard'):
-                print("Label lblConfHard no existe - ventana de calibración no abierta")
+            # Verificar si los labels existen
+            if not hasattr(self, 'lblConfDispEnt') or not hasattr(self, 'lblConfDispSal'):
+                print("Labels de configuración no existen - ventana de calibración no abierta")
                 return
-                
-            dispositivo_actual = self.vController.cModel.getDispositivoActual()
-            if dispositivo_actual is not None:
-                # Obtener los nombres e índices de dispositivos
-                nombres = self.vController.cModel.getDispositivosEntrada('nombre')
-                indices = self.vController.cModel.getDispositivosEntrada('indice')
-                
-                # Buscar el nombre del dispositivo actual
+
+            # --------------------
+            # Dispositivo de entrada
+            # --------------------
+            disp_ent = self.vController.cModel.getDispositivoActual()
+            if disp_ent is not None:
+                nombres_ent = self.vController.cModel.getDispositivosEntrada('nombre')
+                indices_ent = self.vController.cModel.getDispositivosEntrada('indice')
+
                 try:
-                    idx_actual = indices.index(dispositivo_actual)
-                    nombre_dispositivo = nombres[idx_actual]
-                    self.lblConfHard.setText(nombre_dispositivo)
-                    print(f"Dispositivo actualizado: {nombre_dispositivo}")
+                    idx_ent = indices_ent.index(disp_ent)
+                    nombre_ent = nombres_ent[idx_ent]
+                    self.lblConfDispEnt.setText(nombre_ent)
+                    print(f"Dispositivo de entrada actualizado: {nombre_ent}")
                 except ValueError:
-                    # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
-                    self.lblConfHard.setText("Desconocido")
-                    print("Dispositivo no encontrado en la lista")
+                    self.lblConfDispEnt.setText("Desconocido")
+                    print("Dispositivo de entrada no encontrado en la lista")
             else:
-                self.lblConfHard.setText("No disponible")
-                print("No hay dispositivo actual")
+                self.lblConfDispEnt.setText("No disponible")
+                print("No hay dispositivo de entrada actual")
+
+            # --------------------
+            # Dispositivo de salida
+            # --------------------
+            disp_sal = self.vController.cModel.getDispositivoSalidaActual()
+            if disp_sal is not None:
+                nombres_sal = self.vController.cModel.getDispositivosSalida('nombre')
+                indices_sal = self.vController.cModel.getDispositivosSalida('indice')
+
+                try:
+                    idx_sal = indices_sal.index(disp_sal)
+                    nombre_sal = nombres_sal[idx_sal]
+                    self.lblConfDispSal.setText(nombre_sal)
+                    print(f"Dispositivo de salida actualizado: {nombre_sal}")
+                except ValueError:
+                    self.lblConfDispSal.setText("Desconocido")
+                    print("Dispositivo de salida no encontrado en la lista")
+            else:
+                self.lblConfDispSal.setText("No disponible")
+                print("No hay dispositivo de salida actual")
+
         except Exception as e:
-            print(f"Error al actualizar nombre del dispositivo: {e}")
-            if hasattr(self, 'lblConfHard'):
-                self.lblConfHard.setText("Error")
+            print(f"Error al actualizar nombres de dispositivos: {e}")
+            if hasattr(self, 'lblConfDispEnt'):
+                self.lblConfDispEnt.setText("Error")
+            if hasattr(self, 'lblConfDispSal'):
+                self.lblConfDispSal.setText("Error")
+
     
     def actualizarNombreDispositivoSalida(self):
         """Actualiza el label con el nombre del dispositivo de salida actual"""
@@ -2413,8 +2485,8 @@ class vista(QMainWindow):
                 
                 if nuevo_dispositivo_entrada == device_index_entrada:
                     print("✅ Cambio de dispositivo de entrada exitoso")
-                    # Actualizar el label con el nuevo nombre del dispositivo
-                    self.actualizarNombreDispositivo()
+                    
+                    
                 else:
                     print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
             else:
@@ -2439,7 +2511,9 @@ class vista(QMainWindow):
                     print("⚠️ El cambio de dispositivo de salida no se aplicó correctamente")
             else:
                 print("No se requiere cambio de dispositivo de salida")
-            
+                
+            # Actualizar el label con el nuevo nombre del dispositivo
+            self.actualizarNombreDispositivos()
             # Cerrar ventana
             self.confDispWin.close()
             

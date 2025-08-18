@@ -15,6 +15,11 @@ class modelo:
         self.dispEnIndice = dispEnIndice
         self.dispSal = dispSal
         self.dispSalIndice = dispSalIndice
+        
+        #para ponere valorea a las frecuencias
+        self.modo_espectro = "lineal"  # Puede ser: "lineal", "octava", "tercio"
+        self.ultimas_bandas = None
+        self.ultimos_niveles = None
 
         #Valores de niveles con filtro Z
         self.recorderPicoZ = np.empty(0)
@@ -399,7 +404,10 @@ class modelo:
                 # Si no hay datos en esta banda, asignar 0
                 bandas.append(fc)
                 niveles.append(0.0)
-        return np.array(bandas), np.array(niveles)
+        self.modo_espectro = "tercio"
+        self.ultimas_bandas = np.array(bandas)
+        self.ultimos_niveles = np.array(niveles)
+        return self.ultimas_bandas, self.ultimos_niveles
 
     def calcular_octavas(self, fft_freqs, fft_magnitude):
         """
@@ -432,7 +440,13 @@ class modelo:
                 bandas.append(fc)
                 niveles.append(0.0)
         
-        return np.array(bandas), np.array(niveles)
+        self.modo_espectro = "octava"
+        self.ultimas_bandas = np.array(bandas)
+        self.ultimos_niveles = np.array(niveles)
+        return self.ultimas_bandas, self.ultimos_niveles
+
+    def get_bandas_y_niveles(self):
+        return self.ultimas_bandas, self.ultimos_niveles
 
     def get_audio_data(self):
         try:
