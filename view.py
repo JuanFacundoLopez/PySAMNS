@@ -3,9 +3,9 @@
 import pyqtgraph as pg
 from programarWin import ProgramarWin
 
-from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
-from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
+                             QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
+                             QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog, QSpinBox)
 
 from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt5.QtCore import QRect, QPointF
@@ -821,15 +821,22 @@ class vista(QMainWindow):
 
     def iniciarCalibracion(self):
         """Router para llamar al método de calibración correcto según la selección."""
+        exito = False
         if self.radioBtnRelativa.isChecked():
             # Llama al método de calibración relativa existente en el controlador
-            self.vController.calRelativa()
+            exito=self.vController.calRelativa()
         elif self.radioBtnAutomatica.isChecked():
             # Llama al método de calibración automática existente en el controlador
-            self.vController.calAutomatica()
+            exito=self.vController.calAutomatica()
         elif self.radioBtnExterna.isChecked():
             # Llama al nuevo método de calibración externa en el controlador
-            self.vController.iniciar_calibracion_externa()
+            exito=self.vController.iniciar_calibracion_externa()
+        
+        if exito and not self.calibracion_realizada:
+            self.btnCalibrar.setText("Repetir Calibracion")
+            self.calibracion_realizada = True    
+        
+        
 
     def fnCancelar(self):
         pass
@@ -1597,14 +1604,15 @@ class vista(QMainWindow):
         # ... (chart setup as before)
 
         # --- Botones ---
+        self.btnAceptar = QPushButton("Aceptar")
         self.btnCalibrar = QPushButton("Calibrar")
-        self.btnRepetir = QPushButton("Repetir")
+        self.calibracion_realizada = False
         self.btnGenerador = QPushButton("Generador de señales")
         self.btnGenerador.clicked.connect(self.generadorWin)
         self.btnCancel = QPushButton("Cancelar")
         self.btnCancel.clicked.connect(self.closeCalibracion)
+        botonesLayout.addWidget(self.btnAceptar)
         botonesLayout.addWidget(self.btnCalibrar)
-        botonesLayout.addWidget(self.btnRepetir)
         botonesLayout.addWidget(self.btnGenerador)
         botonesLayout.addWidget(self.btnCancel)
 
@@ -1672,6 +1680,15 @@ class vista(QMainWindow):
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
+        self.lblDutyCicleSig = QLabel("Duty cicle (%):")
+        self.duty_input = QSpinBox()
+        self.duty_input.setRange(0, 99)
+        self.duty_input.setValue(1)  # Valor por defecto
+        configLayout.addWidget(self.lblDutyCicleSig)
+        configLayout.addWidget(self.duty_input)
+        self.lblDutyCicleSig.setVisible(False)
+        self.duty_input.setVisible(False)
+        
         self.btn_generar = QPushButton("Reproducir")
         icon_play_path = "img/boton-de-play.png" 
         self.btn_generar.setIcon(QIcon(icon_play_path))
@@ -1699,10 +1716,12 @@ class vista(QMainWindow):
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
         
+        self.tipo_combo.currentIndexChanged.connect(self.mostra_duty_cicle)
         self.tipo_combo.currentIndexChanged.connect(self.generar_senal)
         self.dur_input.textChanged.connect(self.generar_senal)
         self.freq_input.textChanged.connect(self.generar_senal)
         self.amp_input.textChanged.connect(self.generar_senal)
+        self.duty_input.valueChanged.connect(self.generar_senal)
         
 
         mainLayout.addLayout(configLayout)
@@ -1715,10 +1734,10 @@ class vista(QMainWindow):
         for boton in [self.btn_generar, self.btn_pausa]:
             boton.setProperty("class", "ventanasSec")
 
-        for txt in [self.freq_input, self.amp_input, self.dur_input]:
+        for txt in [self.freq_input, self.amp_input, self.dur_input, self.duty_input]:
             txt.setProperty("class", "ventanasSec")
             
-        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig]:
+        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig, self.lblDutyCicleSig]:
             lbl.setProperty("class", "ventanasSecLabelDestacado")  
 
         self.lbl_error_gen_sig.setProperty("class", "errorLbl") 
@@ -1728,11 +1747,20 @@ class vista(QMainWindow):
             
         self.genWin.show()
 
+    def mostra_duty_cicle(self):
+        if self.tipo_combo.currentText() == "Cuadrada":
+            self.lblDutyCicleSig.setVisible(True)
+            self.duty_input.setVisible(True)
+        else:
+            self.lblDutyCicleSig.setVisible(False)
+            self.duty_input.setVisible(False)
+    
     def verificar_valores_generador(self):
         try:
             f = float(self.freq_input.text())
             A = float(self.amp_input.text())
             T = float(self.dur_input.text())
+            d = self.duty_input.value()
             if f <= 0 or f > 500:
                 self.lbl_error_gen_sig.setText("La frecuencia debe ser > 0 y <= 500 Hz.")
                 self.lbl_error_gen_sig.setVisible(True)
@@ -1743,6 +1771,10 @@ class vista(QMainWindow):
                 return False
             if T <= 0 or T > 15:
                 self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
+                self.lbl_error_gen_sig.setVisible(True)
+                return False
+            if self.tipo_combo.currentText() == "Cuadrada" and (d < 0 or d > 100):
+                self.lbl_error_gen_sig.setText("El duty cycle debe ser entre 0 y 100%.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
             self.lbl_error_gen_sig.setVisible(False)
@@ -1777,7 +1809,9 @@ class vista(QMainWindow):
         if tipo == "Senoidal":
             y = A * np.sin(2 * np.pi * f * t)
         elif tipo == "Cuadrada":
-            y = A * np.sign(np.sin(2 * np.pi * f * t))
+            duty = self.duty_input.value() / 100.0  # 0..1
+            fase = (f * t) % 1.0                   # 0..1 por ciclo
+            y = A * np.where(fase < duty, 1.0, -1.0)
         elif tipo == "Triangular":
             y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
         elif tipo == "Ruido Blanco":
@@ -1794,7 +1828,7 @@ class vista(QMainWindow):
             y *= A
 
         #Normalizar la señal
-        y = y / np.max(np.abs(y)) * 0.8 # para evitar saturación
+        y = y / np.max(np.abs(y)) * 1 # para evitar saturación
 
         #Guardar los datos de la señal
         self.signal_data = y.astype(np.float32)

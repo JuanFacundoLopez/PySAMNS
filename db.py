@@ -33,3 +33,10 @@ def leer_registros():
     registros = cursor.fetchall()
     conn.close()
     return registros
+
+def borrar_registro(id_registro):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM registros WHERE id = ?", (id_registro,))
+    conn.commit()
+    conn.close()

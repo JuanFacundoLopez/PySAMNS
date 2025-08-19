@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout, QHBoxLayout,
                             QWidget, QSpinBox, QLabel, QPushButton, QApplication, QDateEdit, QMessageBox,
                             QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt5.QtCore import QTime, pyqtSignal, QDate
+from PyQt5.QtGui import QIcon
 from utils import norm
 from db import crear_tabla, guardar_registro, leer_registros
 
@@ -50,7 +51,9 @@ class ProgramarWin(QMainWindow):
         layout.addWidget(self.end_picker)
 
         # Botón para guardar la programación 
-        self.save_btn = QPushButton("Guardar registro")
+        mas_img_path = "img/mas.png"
+        self.save_btn = QPushButton("")
+        self.save_btn.setIcon(QIcon(mas_img_path))
         self.save_btn.clicked.connect(self.guardar_registro)
         layout.addWidget(self.save_btn)
 
