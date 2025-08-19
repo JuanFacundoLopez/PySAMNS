@@ -582,7 +582,7 @@ class vista(QMainWindow):
         self.menuProgramacion = QMenu("Programación", self)
         progAct = QAction("Programar", self)
         progAct.triggered.connect(self.abrirprogramarWin)
-        #self.menuProgramacion.addAction(progAct)
+        self.menuProgramacion.addAction(progAct)
         #guardadosAct = QAction("Guardados", self)
         #guardadosAct.triggered.connect(self.abrirPickerWin)
         #self.menuProgramacion.addAction(guardadosAct)
@@ -1675,7 +1675,7 @@ class vista(QMainWindow):
         self.btn_generar = QPushButton("Reproducir")
         icon_play_path = "img/boton-de-play.png" 
         self.btn_generar.setIcon(QIcon(icon_play_path))
-        self.btn_generar.clicked.connect(self.generar_senal)
+        self.btn_generar.clicked.connect(self.play_signal)
         configLayout.addWidget(self.btn_generar)
         
         self.btn_pausa = QPushButton("Pausar")
@@ -1699,10 +1699,10 @@ class vista(QMainWindow):
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
         
-
-        self.dur_input.textChanged.connect(self.verificar_valores_generador)
-        self.freq_input.textChanged.connect(self.verificar_valores_generador)
-        self.amp_input.textChanged.connect(self.verificar_valores_generador)
+        self.tipo_combo.currentIndexChanged.connect(self.generar_senal)
+        self.dur_input.textChanged.connect(self.generar_senal)
+        self.freq_input.textChanged.connect(self.generar_senal)
+        self.amp_input.textChanged.connect(self.generar_senal)
         
 
         mainLayout.addLayout(configLayout)
@@ -1809,8 +1809,6 @@ class vista(QMainWindow):
         
         self.chartGenSig.addSeries(self.seriesGenSig)
         self.chartGenSig.createDefaultAxes()
-
-        self.play_signal()
     
     def play_signal(self):
         """Play the generated signal through the selected output device"""
