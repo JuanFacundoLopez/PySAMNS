@@ -742,13 +742,13 @@ class controlador():
             
             # Calcular el nivel RMS en dBFS
             rms = np.sqrt(np.mean(captured_audio**2))
-            rms_db = 20 * np.log10(max(1e-10, rms))  # Evitar log(0)
+            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
             
             # Calcular el factor de calibración
             cal = ref_level - rms_db
             
             print(f"Nivel de referencia: {ref_level} dB")
-            print(f"Nivel RMS medido: {rms_db:.2f} dBFS")
+            print(f"Nivel RMS medido: {rms_db:.2f} dB")
             print(f"Factor de calibración: {cal:.2f} dB")
             
             # Guardar el factor de calibración
@@ -763,7 +763,7 @@ class controlador():
                 "Calibración Exitosa",
                 f"Calibración relativa completada.\n\n"
                 f"Nivel de referencia: {ref_level:.2f} dB\n"
-                f"Nivel medido: {rms_db:.2f} dBFS\n"
+                f"Nivel medido: {rms_db:.2f} dB\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
             
