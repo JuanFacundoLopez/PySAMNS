@@ -12,18 +12,19 @@ def crear_tabla():
             fecha_inicio TEXT NOT NULL,
             hora_inicio TEXT NOT NULL,
             fecha_fin TEXT NOT NULL,
-            hora_fin TEXT NOT NULL
+            hora_fin TEXT NOT NULL,
+            duracion TEXT NOT NULL
         )
     """)
     conn.commit()
     conn.close()
 
-def guardar_registro(fechaIni, inicio,fechaFin, fin):
+def guardar_registro(fechaIni, inicio,fechaFin, fin, duracion):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO registros (fecha_inicio, hora_inicio,fecha_fin, hora_fin) VALUES (?, ?, ?,?)",
-        (fechaIni, inicio,fechaFin, fin)
+        "INSERT INTO registros (fecha_inicio, hora_inicio,fecha_fin, hora_fin, duracion) VALUES (?, ?, ?,?, ?)",
+        (fechaIni, inicio,fechaFin, fin, duracion)
     )
     conn.commit()
     conn.close()
@@ -31,7 +32,7 @@ def guardar_registro(fechaIni, inicio,fechaFin, fin):
 def leer_registros():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT fecha_inicio, hora_inicio,fecha_fin, hora_fin FROM registros")
+    cursor.execute("SELECT fecha_inicio, hora_inicio,fecha_fin, hora_fin, duracion FROM registros")
     registros = cursor.fetchall()
     conn.close()
     return registros
@@ -43,7 +44,7 @@ def leer_proximas_grabaciones():
     fecha_actual = ahora.strftime("%Y-%m-%d")
     hora_actual = ahora.strftime("%H:%M:%S")
     cursor.execute("""
-        SELECT fecha_inicio, hora_inicio, fecha_fin, hora_fin 
+        SELECT id, fecha_inicio, hora_inicio, fecha_fin, hora_fin, duracion
         FROM registros 
         WHERE (fecha_inicio > ?)
            OR (fecha_inicio = ? AND hora_inicio > ?)
