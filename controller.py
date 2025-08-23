@@ -677,9 +677,7 @@ class controlador():
 
         # Obtener dispositivos de entrada y salida seleccionados
         try:
-            # Obtener el dispositivo de entrada actual
             input_device_index = self.cModel.getDispositivoActual()
-            # Obtener el dispositivo de salida seleccionado
             output_device_index = self.cModel.getDispositivoSalidaActual()
             
             if output_device_index is None:
@@ -689,17 +687,12 @@ class controlador():
             QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
             return False
 
-        # Reseteo los niveles antes de empezar
-        self.setGainZero()
-        self.cModel.setNivelesZ(mode='r')
-        self.cModel.setNivelesC(mode='r')
-        self.cModel.setNivelesA(mode='r')
-
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
         frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
         duracion = 3  # 3 segundos
         amplitud = 0.8  # Amplitud normalizada (reducida para evitar distorsión)
+        frames_per_buffer = 1024
 
         # Generar el arreglo de tiempos
         t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
@@ -718,41 +711,35 @@ class controlador():
                 rate=frecuencia_muestreo,
                 output=True,
                 output_device_index=output_device_index,
-                frames_per_buffer=1024
+                frames_per_buffer=frames_per_buffer
             )
-            
-            # Convertir la onda a bytes para reproducción
-            onda_bytes = (onda_senoidal.astype(np.float32)).tobytes()
             
             # Reproducir la onda
             print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
-            output_stream.write(onda_bytes)
+            output_stream.write(onda_senoidal.astype(np.float32).tobytes())
             
-            # Iniciar tiempo para la grabación
+            # Capturar audio durante la reproducción
+            captured_audio = []
             start_time = time.time()
-            self.start_time = start_time  # Actualizar el tiempo de inicio para el cronómetro
             
-            # Bucle para procesar audio durante la reproducción
-            while time.time() - start_time < duracion + 0.5:  # Añadir 0.5s extra para asegurar captura completa
+            while time.time() - start_time < duracion + 0.5:  # Añadir 0.5s extra
                 try:
                     current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
                     if len(current_data) > 0:
-                        # Convertir los datos de audio int16 a float32 normalizados
+                        # Convertir a float32 y normalizar (-1.0 a 1.0)
                         normalized_data = current_data.astype(np.float32) / 32767.0
-                        self.wf_data = normalized_data
-                        grabacion(self)  # Procesar los datos para calcular niveles
+                        captured_audio.extend(normalized_data)
                     time.sleep(0.01)  # Pequeña pausa para no saturar el CPU
                 except Exception as e:
-                    print(f"Error durante el bucle de calibración relativa: {e}")
+                    print(f"Error durante la captura de audio: {e}")
                     break
             
-            # Cerrar el stream de salida
+            # Cerrar streams
             output_stream.stop_stream()
             output_stream.close()
-            
-            # Detener la captura de audio
             self.cModel.stream.stop_stream()
             
+<<<<<<< HEAD
         except Exception as e:
             QMessageBox.warning(self.cVista, "Error de Audio", f"Error al reproducir o capturar audio: {str(e)}")
             return False
@@ -768,17 +755,33 @@ class controlador():
                 promNZ = np.mean(NZ_filtered)
             else:
                 promNZ = np.mean(NZ)
+=======
+            if not captured_audio:
+                raise ValueError("No se capturó audio. Verifique la conexión del micrófono.")
+                
+            # Convertir a array de numpy
+            captured_audio = np.array(captured_audio)
+            
+            # Calcular el nivel RMS en dBFS
+            rms = np.sqrt(np.mean(captured_audio**2))
+            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+>>>>>>> origin/main
             
             # Calcular el factor de calibración
-            cal = ref_level - promNZ
+            cal = ref_level - rms_db
+            
             print(f"Nivel de referencia: {ref_level} dB")
-            print(f"Nivel promedio medido: {promNZ} dB")
-            print(f"Factor de calibración: {cal} dB")
+            print(f"Nivel RMS medido: {rms_db:.2f} dB")
+            print(f"Factor de calibración: {cal:.2f} dB")
             
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
             
+            # Actualizar la UI
+            self.cVista.txtValorRef.setText(f"{cal:.2f}")
+            
             # Mostrar mensaje de éxito
+<<<<<<< HEAD
             QMessageBox.information(self.cVista, "Calibración Exitosa", 
                                    f"Calibración relativa completada.\n\n" \
                                    f"Nivel de referencia: {ref_level:.2f} dB\n" \
@@ -790,3 +793,18 @@ class controlador():
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             print(error_message)
             return False
+=======
+            QMessageBox.information(
+                self.cVista,
+                "Calibración Exitosa",
+                f"Calibración relativa completada.\n\n"
+                f"Nivel de referencia: {ref_level:.2f} dB\n"
+                f"Nivel medido: {rms_db:.2f} dB\n"
+                f"Factor de ajuste: {cal:.2f} dB"
+            )
+            
+        except Exception as e:
+            error_msg = f"Error durante la calibración: {str(e)}"
+            print(error_msg)
+            QMessageBox.critical(self.cVista, "Error de Calibración", error_msg)
+>>>>>>> origin/main
