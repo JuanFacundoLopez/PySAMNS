@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import QTime, pyqtSignal, QDate
 from PyQt5.QtGui import QIcon
 from utils import norm
-from db import crear_tabla, guardar_registro, leer_registros
+from db import  guardar_registro, leer_proximas_grabaciones
 
 
 
@@ -23,8 +23,12 @@ class ProgramarWin(QMainWindow):
             QApplication.instance().setStyleSheet(f.read())
             
         central_widget = QWidget()
+        layoutVInicio = QVBoxLayout()
+        layoutVFin = QVBoxLayout()
+        layoutVDuracion = QVBoxLayout()
+        layoutHorizontal = QHBoxLayout()
         layout = QVBoxLayout(central_widget)
-
+        
         lbl_info = QLabel(
             "Se programará la grabación automática de audio\n"
             "para el día y rango de tiempo seleccionados"
@@ -33,23 +37,37 @@ class ProgramarWin(QMainWindow):
         lbl_info.setWordWrap(True)
         layout.addWidget(lbl_info)
 
-        # Selector de fecha
-        self.date_picker = QDateEdit()
-        self.date_picker.setCalendarPopup(True)
-        self.date_picker.setDate(QDate.currentDate())
-        layout.addWidget(QLabel("Selecciona el día:"))
-        layout.addWidget(self.date_picker)
+        # Selector de fecha Inicio
+        self.date_start_picker = QDateEdit()
+        self.date_start_picker.setCalendarPopup(True)
+        self.date_start_picker.setDate(QDate.currentDate())
+        layoutVInicio.addWidget(QLabel("Selecciona el día de Inicio:"))
+        layoutVInicio.addWidget(self.date_start_picker)
 
         # Picker de tiempo de inicio
-        layout.addWidget(QLabel("Hora de inicio:"))
+        layoutVInicio.addWidget(QLabel("Hora de inicio:"))
         self.start_picker = CustomTimePicker()
-        layout.addWidget(self.start_picker)
+        layoutVInicio.addWidget(self.start_picker)
+
+        "selector de duracion"
+        self.duracion_label = QLabel("Duración de la grabación:")
+        
+        
+        
+        # Selector de fecha Fin
+        self.date_end_picker = QDateEdit()
+        self.date_end_picker.setCalendarPopup(True)
+        self.date_end_picker.setDate(QDate.currentDate())
+        layoutVFin.addWidget(QLabel("Selecciona el día de Fin:"))
+        layoutVFin.addWidget(self.date_end_picker)
 
         # Picker de tiempo de fin
-        layout.addWidget(QLabel("Hora de fin:"))
+        layoutVFin.addWidget(QLabel("Hora de fin:"))
         self.end_picker = CustomTimePicker()
-        layout.addWidget(self.end_picker)
+        layoutVFin.addWidget(self.end_picker)
 
+        
+        
         # Botón para guardar la programación 
         mas_img_path = "img/mas.png"
         self.save_btn = QPushButton("")
@@ -59,10 +77,10 @@ class ProgramarWin(QMainWindow):
 
         # Tabla de registros
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Fecha", "Hora inicio", "Hora fin"])
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Fecha inicio", "Hora inicio", "Fecha fin", "Hora fin"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        layout.addWidget(QLabel("Registros guardados:"))
+        layout.addWidget(QLabel("Proximas grabaciones:"))
         layout.addWidget(self.table)
 
 
@@ -74,8 +92,9 @@ class ProgramarWin(QMainWindow):
         datos = self.get_programacion()
         # Obtener fecha y hora actual
         ahora = QDate.currentDate().toString("yyyy-MM-dd") + " " + QTime.currentTime().toString("HH:mm:ss")
-        inicio = datos["fecha"] + " " + datos["inicio"]
-
+        inicio = datos["fecha_inicio"] + " " + datos["inicio"]
+        fin = datos["fecha_fin"] + " " + datos["fin"]
+        
         # Validar que inicio sea mayor al actual
         from datetime import datetime
         formato = "%Y-%m-%d %H:%M:%S"
@@ -83,25 +102,31 @@ class ProgramarWin(QMainWindow):
             QMessageBox.warning(self, "Error", "La fecha y hora de inicio deben ser posteriores al momento actual.")
             return
 
-        guardar_registro(datos["fecha"], datos["inicio"], datos["fin"])
+        if datetime.strptime(fin, formato) <= datetime.strptime(inicio, formato):
+            QMessageBox.warning(self, "Error", "La fecha y hora de fin deben ser posteriores a la fecha y hora de inicio.")
+            return
+        
+        guardar_registro(datos["fecha_inicio"], datos["inicio"],datos["fecha_fin"], datos["fin"])
         QMessageBox.information(self, "Éxito", "Registro guardado correctamente.")
         self.cargar_registros()
 
 
     def get_programacion(self):
         return {
-            "fecha": self.date_picker.date().toString("yyyy-MM-dd"),
+            "fecha_inicio": self.date_start_picker.date().toString("yyyy-MM-dd"),
             "inicio": self.start_picker.get_time().toString("HH:mm:ss"),
+            "fecha_fin": self.date_end_picker.date().toString("yyyy-MM-dd"),
             "fin": self.end_picker.get_time().toString("HH:mm:ss")
         }
     
     def cargar_registros(self):
-        registros = leer_registros()
+        registros = leer_proximas_grabaciones()
         self.table.setRowCount(len(registros))
-        for row, (fecha, inicio, fin) in enumerate(registros):
-            self.table.setItem(row, 0, QTableWidgetItem(fecha))
+        for row, (fechaIni, inicio,fechaFin, fin) in enumerate(registros):
+            self.table.setItem(row, 0, QTableWidgetItem(fechaIni))
             self.table.setItem(row, 1, QTableWidgetItem(inicio))
-            self.table.setItem(row, 2, QTableWidgetItem(fin))
+            self.table.setItem(row, 2, QTableWidgetItem(fechaFin))
+            self.table.setItem(row, 3, QTableWidgetItem(fin))
 
 
 
@@ -118,7 +143,7 @@ class CustomTimePicker(QWidget):
         
         
         # Layout horizontal para los controles de tiempo
-        time_layout = QHBoxLayout()
+        time_layout = QVBoxLayout()
         
         # SpinBox para horas
         self.hour_spin = QSpinBox()
