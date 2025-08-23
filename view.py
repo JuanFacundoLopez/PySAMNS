@@ -1,31 +1,25 @@
 # Importo librerias
 
 import pyqtgraph as pg
-from programarWin import ProgramarWin
+from ventanas.programarWin import ProgramarWin
+from ventanas.calibracionWin import CalibracionWin
+from ventanas.configDispWin import ConfigDispWin
+from ventanas.configuracionWin import ConfiguracionWin
 
-from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton
-from PyQt5.QtWidgets import QLabel, QLineEdit, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout
-from PyQt5.QtWidgets import QMenu, QTextEdit, QMessageBox, QColorDialog, QFrame, QComboBox, QFileDialog
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
+                             QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
+                             QMenu, QMessageBox, QColorDialog, QFileDialog)
 
-from PyQt5.QtGui import QPixmap, QIcon, QPainter, QColor
-from PyQt5.QtCore import QRect, QPointF
-# from PyQt5 import QtWidgets
-from pyqtgraph.Qt import QtGui, QtCore
-
-# Imports para QChart (solo para la ventana de calibración)
-from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis, QBarSeries, QBarSet, QBarCategoryAxis
+from PyQt5.QtGui import QPixmap, QIcon
+from pyqtgraph.Qt import  QtCore
+from pyqtgraph import AxisItem, BarGraphItem
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPen
 from utils import norm
-
-
-# from pyqtgraph.Point import Point
+import numpy as np
 
 #import utilidades del sistema
 import sys
 import os
-
-import numpy as np
 
 # --- Eje logarítmico personalizado para frecuencia ---
 class LogAxis(pg.AxisItem):
@@ -85,8 +79,7 @@ class vista(QMainWindow):
         super().__init__()
         self.vController = Controller
         
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            self.app.setStyleSheet(f.read())
+        
     
         # Obtenemos información de la pantalla
         self.screen = self.app.primaryScreen()
@@ -225,48 +218,24 @@ class vista(QMainWindow):
         self.btn.setToolTip("Importar señal de audio de un archivo .Wav")
         self.btn.clicked.connect(self.vController.importSignal)
         self.btngbr = QPushButton("Grabar")
-        self.btngbr.setToolTip("Iniciar Grabacion de audio")
+        self.btngbr.setToolTip("Iniciar o Pausa la Grabacion de audio")
         self.btngbr.setCheckable(True)
         self.btngbr.clicked.connect(self.grabar)
         
-        # Agregar icono de play al botón
-        # Intentar cargar icono personalizado desde archivo PNG
         icon_play_path = "img/boton-de-play.png" 
         self.btngbr.setIcon(QIcon(icon_play_path))
         icon_import_path = "img/importar.png"
         self.btn.setIcon(QIcon(icon_import_path))
         
-        # Estilo para los botones con padding y bordes redondeados
-        button_style = """
-        QPushButton {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: 2px solid #cccccc;
-            background-color: #f0f0f0;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        QPushButton:hover {
-            background-color: #e0e0e0;
-            border-color: #999999;
-        }
-        QPushButton:pressed {
-            background-color: #d0d0d0;
-            border-color: #666666;
-        }
-        QPushButton:checked {
-            background-color: #4CAF50;
-            color: white;
-            border-color: #45a049;
-        }
-        """
+       
         
         # Aplicar estilo a ambos botones
-        self.btn.setStyleSheet(button_style)
-        self.btngbr.setStyleSheet(button_style)
+        self.btn.setProperty("class", "grabacion")
+        self.btngbr.setProperty("class", "grabacion")
+        
+        
         self.cronometroGrabacion = QLabel("0:00 s")
         self.cronometroGrabacion.setStyleSheet("font: bold 20pt")
-        
         buttonLayout.addWidget(self.btn)
         buttonLayout.addWidget(self.btngbr)
         buttonLayout.addWidget(self.cronometroGrabacion)
@@ -582,12 +551,6 @@ class vista(QMainWindow):
         progAct = QAction("Programar", self)
         progAct.triggered.connect(self.abrirprogramarWin)
         self.menuProgramacion.addAction(progAct)
-        guardadosAct = QAction("Guardados", self)
-        guardadosAct.triggered.connect(self.abrirPickerWin)
-        self.menuProgramacion.addAction(guardadosAct)
-        clockAct = QAction("Reloj", self)
-        clockAct.triggered.connect(self.abrirClockWin)
-        self.menuProgramacion.addAction(clockAct)
         
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
@@ -625,23 +588,43 @@ class vista(QMainWindow):
         # Actualizar el gráfico
         self.waveform1.replot()
 
+        with open("estilos.qss", "r", encoding='utf-8') as f:
+            self.app.setStyleSheet(f.read())
+            
         self.show()
 
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
-        
-    def abrirPickerWin(self):
-        self.picker_win = PickerWindow()
-        self.picker_win.show()
-        
-    def abrirClockWin(self):
-        self.clock_win = ClockWindow()
-        self.clock_win.show()
 
+    def configuracionDispositivo(self):
+        self.calWin = CalibracionWin(self.vController)
+        self.configDispWin = ConfigDispWin(self.vController,self.calWin )
+        self.configDispWin.show()
+        
+    def calibracionWin(self):
+        self.calWin = CalibracionWin(self.vController)
+        self.calWin.show()
+        
+    # CODIGO configuracion del graficos
+    def configuracion(self):
+        self.confWin = ConfiguracionWin(self)
+        self.confWin.show()
+
+    
     def grabar(self):
+        self.editar_botonGrabar() 
         self.vController.dalePlay() # conexion con el controlador
 
+    def editar_botonGrabar(self):
+        """Edita el botón de grabar para que se vea como un botón de pausa"""
+        if self.btngbr.isChecked():
+            self.btngbr.setText("Pausar")
+            self.btngbr.setIcon(QIcon("img/boton-de-pausa.png"))
+        else:
+            self.btngbr.setText("Grabar")
+            self.btngbr.setIcon(QIcon("img/boton-de-play.png"))
+    
     def ventanaTiempo(self):
         self.btnNivel.setChecked(False)
         self.btnFrecuencia.setChecked(False)
@@ -751,98 +734,6 @@ class vista(QMainWindow):
         """Inicia el bucle principal de la aplicación"""
         self.show()
         return self.app.exec_()
-    
-    def closeEvent(self, event):
-        """Se ejecuta cuando se cierra la ventana principal"""
-        # Cerrar todas las ventanas secundarias
-        if hasattr(self, 'calWin') and self.calWin and self.calWin.isVisible():
-            self.calWin.close()
-        if hasattr(self, 'confWin') and self.confWin and self.confWin.isVisible():
-            self.confWin.close()
-        if hasattr(self, 'confDispWin') and self.confDispWin and self.confDispWin.isVisible():
-            self.confDispWin.close()
-        if hasattr(self, 'calAutWin') and self.calAutWin and self.calAutWin.isVisible():
-            self.calAutWin.close()
-        if hasattr(self, 'calManWin') and self.calManWin and self.calManWin.isVisible():
-            self.calManWin.close()
-        if hasattr(self, 'calFEWin') and self.calFEWin and self.calFEWin.isVisible():
-            self.calFEWin.close()
-        
-        # Aceptar el evento de cierre
-        event.accept()
-        
-    def calibracionAutomatica(self):
-        self.calAutWin = QMainWindow()
-        self.calAutWin.setWindowTitle("Calibracion Automatica") 
-        self.calAutWin.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.3, 0.4, 0.4))
-
-        #Descripcion de la calibracion
-        self.descripcionMenu = QLabel("Se precisa de una fuente externa o bien se puede usar el generador de señales. Se realizará una captura de sonido durante 3 segundos y usted debera indicar el nivel medido por su instrumento patrón", self.calAutWin)
-        self.descripcionMenu.setWordWrap(True)
-        self.descripcionMenu.setGeometry(norm(self.anchoX, self.altoY, 0.02, 0.02, 0.6, 0.4))
-        self.descripcionMenu.setStyleSheet("font: 13pt")
-
-        # Cuadro de texto de la medicion
-        self.txDecMed = QLabel("80.0 [dB]", self.calAutWin)
-        self.txDecMed.setGeometry(norm(self.anchoX, self.altoY,0.65, 0.1, 0.3, 0.15))
-        self.txDecMed.setStyleSheet("font: bold 12pt")
-
-        # cuador de texto del seteo
-        self.txDecIn = QTextEdit("75.0 [dB]", self.calAutWin)
-        self.txDecIn.setGeometry(norm(self.anchoX, self.altoY,0.65, 0.3, 0.3, 0.15))
-        self.txDecIn.setStyleSheet("font: bold 12pt")
-
-        # Botones de aceptar cancelar y generador
-        self.btnAcept = QPushButton("Calibrar", self.calAutWin)
-        self.btnAcept.clicked.connect(self.fnCalibrar)
-        
-        self.btnCance = QPushButton("Cancelar", self.calAutWin)
-        self.btnCance.clicked.connect(self.fnCancelar)
-        
-        self.btnGener = QPushButton("Generador", self.calAutWin)
-        self.btnGener.clicked.connect(self.fnGenerador)
-
-        self.btnAcept.setGeometry(norm(self.anchoX, self.altoY,0.02, 0.8, 0.25, 0.1))
-        self.btnCance.setGeometry(norm(self.anchoX, self.altoY,0.3, 0.8, 0.25, 0.1))
-        self.btnGener.setGeometry(norm(self.anchoX, self.altoY,0.58, 0.8, 0.25, 0.1))
-
-        self.calAutWin.show()
-
-    def calibracionManual(self):
-        self.calManWin = QMainWindow()
-        self.calManWin.setWindowTitle("Calibracion Manual") 
-        self.calManWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
-        self.calManWin.show() 
-
-    def calibracionFondoEscala(self):
-        self.calFEWin = QMainWindow()
-        self.calFEWin.setWindowTitle("Calibracion a Fondo de escala") 
-        self.calFEWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
-        self.calFEWin.show() 
-
-    # funciones
-
-    def fnCalibrar(self):
-        self.btnAcept.setText("Aceptar")
-        self.vController.calAutomatica()
-
-    def iniciarCalibracion(self):
-        """Router para llamar al método de calibración correcto según la selección."""
-        if self.radioBtnRelativa.isChecked():
-            # Llama al método de calibración relativa existente en el controlador
-            self.vController.calRelativa()
-        elif self.radioBtnAutomatica.isChecked():
-            # Llama al método de calibración automática existente en el controlador
-            self.vController.calAutomatica()
-        elif self.radioBtnExterna.isChecked():
-            # Llama al nuevo método de calibración externa en el controlador
-            self.vController.iniciar_calibracion_externa()
-
-    def fnCancelar(self):
-        pass
-
-    def fnGenerador(self):
-        pass
 
     def abrirSitioCintra(self):
         """Abre el sitio web de CINTRA en el navegador predeterminado"""
@@ -852,211 +743,18 @@ class vista(QMainWindow):
         except Exception as e:
             print(f"Error al abrir el sitio web de CINTRA: {e}")
 
-    def actualizarEscala(self):
-        """Actualiza la escala del gráfico según los checkboxes seleccionados"""
-        try:
-            # Obtener el estado de los checkboxes
-            escalaX = self.cbEscalaX.isChecked()
-            escalaY = self.cbEscalaY.isChecked()
-            
-            # Aplicar la escala al gráfico
-            self.waveform1.setLogMode(x=escalaX, y=escalaY)
-            
-            # Actualizar el gráfico
-            self.waveform1.replot()
-            
-        except Exception as e:
-            print(f"Error al actualizar escala: {e}")
-
-    def aplicarLimitesX(self):
-        """Aplica los límites del eje X al gráfico"""
-        try:
-            # Obtener los valores de los campos de texto
-            x_min = float(self.txtXMin.text())
-            x_max = float(self.txtXMax.text())
-            
-            # Validar que el mínimo sea menor que el máximo
-            if x_min >= x_max:
-                QMessageBox.warning(self, "Error", "El valor mínimo debe ser menor que el máximo")
-                return
-            
-            # Aplicar los límites al gráfico
-            self.waveform1.setXRange(x_min, x_max, padding=0)
-            
-            # Actualizar el gráfico
-            self.waveform1.replot()
-            
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Por favor ingrese valores numéricos válidos")
-        except Exception as e:
-            print(f"Error al aplicar límites X: {e}")
-
-    def aplicarLimitesY(self):
-        """Aplica los límites del eje Y al gráfico"""
-        try:
-            # Obtener los valores de los campos de texto
-            y_min = float(self.txtYMin.text())
-            y_max = float(self.txtYMax.text())
-            
-            # Validar que el mínimo sea menor que el máximo
-            if y_min >= y_max:
-                QMessageBox.warning(self, "Error", "El valor mínimo debe ser menor que el máximo")
-                return
-            
-            # Aplicar los límites al gráfico
-            self.waveform1.setYRange(y_min, y_max, padding=0)
-            
-            # Actualizar el gráfico
-            self.waveform1.replot()
-            
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Por favor ingrese valores numéricos válidos")
-        except Exception as e:
-            print(f"Error al aplicar límites Y: {e}")
-
-    def aplicarEtiquetas(self):
-        """Aplica las etiquetas de los ejes al gráfico"""
-        try:
-            # Obtener las etiquetas de los campos de texto
-            etiqueta_x = self.txtEtiquetaX.text()
-            etiqueta_y = self.txtEtiquetaY.text()
-            
-            # Aplicar las etiquetas al gráfico
-            self.waveform1.setLabel('bottom', etiqueta_x)
-            self.waveform1.setLabel('left', etiqueta_y)
-            
-            # Actualizar el gráfico
-            self.waveform1.replot()
-            
-        except Exception as e:
-            print(f"Error al aplicar etiquetas: {e}")
-
-    def aplicarconfiguracion(self):
-        """Aplica la configuración personalizada según el tipo de gráfico seleccionado"""
-        try:
-            # Guardar la configuración actual
-            self.guardarConfiguracion()
-            
-            if self.btnTiempo.isChecked():
-                # Aplicar configuración personalizada para gráfico de tiempo
-                self.aplicarConfiguracionTiempo()
-                
-            elif self.btnFrecuencia.isChecked():
-                # Aplicar configuración personalizada para gráfico de frecuencia
-                self.aplicarConfiguracionEspectro()
-                
-            elif self.btnNivel.isChecked():
-                # Aplicar configuración personalizada para gráfico de nivel
-                self.aplicarConfiguracionNivel()
-            
-            # Actualizar el gráfico
-            self.waveform1.replot()
-            
-            # Cerrar la ventana de configuración
-            self.confWin.close()
-            
-        except Exception as e:
-            print(f"Error en configuración automática: {e}")
-
-    def guardarConfiguracion(self):
-        """Guarda la configuración actual en las variables de configuración"""
-        try:
-            # Guardar configuración de tiempo
-            if hasattr(self, 'cbEscalaXTiempo'):
-                self.var_logModeXTiempo = self.cbEscalaXTiempo.isChecked()
-            if hasattr(self, 'cbEscalaYTiempo'):
-                self.var_logModeYTiempo = self.cbEscalaYTiempo.isChecked()
-            if hasattr(self, 'txtXMinTiempo'):
-                self.var_xMinTiempo = float(self.txtXMinTiempo.text())
-            if hasattr(self, 'txtXMaxTiempo'):
-                self.var_xMaxTiempo = float(self.txtXMaxTiempo.text())
-            if hasattr(self, 'txtYMinTiempo'):
-                self.var_yMinTiempo = float(self.txtYMinTiempo.text())
-            if hasattr(self, 'txtYMaxTiempo'):
-                self.var_yMaxTiempo = float(self.txtYMaxTiempo.text())
-            if hasattr(self, 'txtEtiquetaXTiempo'):
-                self.var_etiquetaXTiempo = self.txtEtiquetaXTiempo.text()
-            if hasattr(self, 'txtEtiquetaYTiempo'):
-                self.var_etiquetaYTiempo = self.txtEtiquetaYTiempo.text()
-            # Guardar tipo de línea y color de tiempo
-            if hasattr(self, 'cmbTipoLineaTiempo'):
-                self.var_tipoLineaTiempo = self.cmbTipoLineaTiempo.currentText()
-            if hasattr(self, 'colorTiempo'):
-                self.var_colorTiempo = self.colorTiempo.name()
-            # Guardar configuración de espectro
-            if hasattr(self, 'cbEscalaXEspectro'):
-                self.var_logModeXEspectro = self.cbEscalaXEspectro.isChecked()
-            if hasattr(self, 'cbEscalaYEspectro'):
-                self.var_logModeYEspectro = self.cbEscalaYEspectro.isChecked()
-            if hasattr(self, 'txtXMinEspectro'):
-                self.var_xMinEspectro = float(self.txtXMinEspectro.text())
-            if hasattr(self, 'txtXMaxEspectro'):
-                self.var_xMaxEspectro = float(self.txtXMaxEspectro.text())
-            if hasattr(self, 'txtYMinEspectro'):
-                self.var_yMinEspectro = float(self.txtYMinEspectro.text())
-            if hasattr(self, 'txtYMaxEspectro'):
-                self.var_yMaxEspectro = float(self.txtYMaxEspectro.text())
-            if hasattr(self, 'txtEtiquetaXEspectro'):
-                self.var_etiquetaXEspectro = self.txtEtiquetaXEspectro.text()
-            if hasattr(self, 'txtEtiquetaYEspectro'):
-                self.var_etiquetaYEspectro = self.txtEtiquetaYEspectro.text()
-            # Guardar tipo de gráfico y color de espectro
-            if hasattr(self, 'cmbTipoGraficoEspectro'):
-                self.var_tipoGraficoEspectro = self.cmbTipoGraficoEspectro.currentText()
-            if hasattr(self, 'colorEspectro'):
-                self.var_colorEspectro = self.colorEspectro.name()
-            # Guardar configuración de nivel
-            if hasattr(self, 'cbEscalaYNivel'):
-                self.var_logModeYNivel = self.cbEscalaYNivel.isChecked()
-            if hasattr(self, 'txtXMinNivel'):
-                self.var_xMinNivel = float(self.txtXMinNivel.text())
-            if hasattr(self, 'txtXMaxNivel'):
-                self.var_xMaxNivel = float(self.txtXMaxNivel.text())
-            if hasattr(self, 'txtYMinNivel'):
-                self.var_yMinNivel = float(self.txtYMinNivel.text())
-            if hasattr(self, 'txtYMaxNivel'):
-                self.var_yMaxNivel = float(self.txtYMaxNivel.text())
-            if hasattr(self, 'txtEtiquetaXNivel'):
-                self.var_etiquetaXNivel = self.txtEtiquetaXNivel.text()
-            if hasattr(self, 'txtEtiquetaYNivel'):
-                self.var_etiquetaYNivel = self.txtEtiquetaYNivel.text()
-            # Guardar tipo de línea y color de nivel
-            if hasattr(self, 'cmbTipoLineaNivel'):
-                self.var_tipoLineaNivel = self.cmbTipoLineaNivel.currentText()
-            if hasattr(self, 'colorNivel'):
-                self.var_colorNivel = self.colorNivel.name()
-        except Exception as e:
-            print(f"Error al guardar configuración: {e}")
 
     def aplicarConfiguracionTiempo(self):
         """Aplica la configuración personalizada para el gráfico de tiempo"""
         try:
-            # Escalas
-            escalaX = self.cbEscalaXTiempo.isChecked()
-            self.var_logModeXTiempo = escalaX
-            escalaY = self.cbEscalaYTiempo.isChecked()
-            self.var_logModeYTiempo = escalaY
-            self.waveform1.setLogMode(x=escalaX, y=escalaY)
-            # Límites
-            x_min = float(self.txtXMinTiempo.text())
-            x_max = float(self.txtXMaxTiempo.text())
-            y_min = float(self.txtYMinTiempo.text())
-            y_max = float(self.txtYMaxTiempo.text())
-            # Guardar límites en variables de configuración
-            self.var_xMinTiempo = x_min
-            self.var_xMaxTiempo = x_max
-            self.var_yMinTiempo = y_min
-            self.var_yMaxTiempo = y_max
-            self.waveform1.setXRange(x_min, x_max, padding=0)
-            self.waveform1.setYRange(y_min, y_max, padding=0)
-            # Etiquetas
-            etiqueta_x = self.txtEtiquetaXTiempo.text()
-            etiqueta_y = self.txtEtiquetaYTiempo.text()
-            # Guardar etiquetas en variables de configuración
-            self.var_etiquetaXTiempo = etiqueta_x
-            self.var_etiquetaYTiempo = etiqueta_y
-            self.waveform1.setLabel('bottom', etiqueta_x)
-            self.waveform1.setLabel('left', etiqueta_y)
+            # # Escalas
+            self.waveform1.setLogMode(x=self.var_logModeXTiempo, y=self.var_logModeYTiempo)
+            # # Límites
+            self.waveform1.setXRange(self.var_xMinTiempo, self.var_xMaxTiempo, padding=0)
+            self.waveform1.setYRange(self.var_yMinTiempo, self.var_yMaxTiempo, padding=0)
+            # # Etiquetas
+            self.waveform1.setLabel('bottom', self.var_etiquetaXTiempo)
+            self.waveform1.setLabel('left', self.var_etiquetaYTiempo)
             # Color y tipo de línea
             if hasattr(self, 'colorTiempo'):
                 color = self.get_color_str(self.colorTiempo)
@@ -1075,31 +773,13 @@ class vista(QMainWindow):
                 self.waveform1.removeItem(self.current_bar_item)
                 delattr(self, 'current_bar_item')
             # Escalas
-            escalaX = self.cbEscalaXEspectro.isChecked()
-            self.var_logModeXEspectro = escalaX
-            escalaY = self.cbEscalaYEspectro.isChecked()
-            self.var_logModeYEspectro = escalaY
-            self.waveform1.setLogMode(x=escalaX, y=escalaY)
+            self.waveform1.setLogMode(x=self.var_logModeXEspectro, y=self.var_logModeYEspectro)
             # Límites
-            x_min = float(self.txtXMinEspectro.text())
-            x_max = float(self.txtXMaxEspectro.text())
-            y_min = float(self.txtYMinEspectro.text())
-            y_max = float(self.txtYMaxEspectro.text())
-            # Guardar límites en variables de configuración
-            self.var_xMinEspectro = x_min
-            self.var_xMaxEspectro = x_max
-            self.var_yMinEspectro = y_min
-            self.var_yMaxEspectro = y_max
-            self.waveform1.setXRange(x_min, x_max, padding=0)
-            self.waveform1.setYRange(y_min, y_max, padding=0)
+            self.waveform1.setXRange(self.var_xMinEspectro, self.var_xMaxEspectro, padding=0)
+            self.waveform1.setYRange(self.var_yMinEspectro, self.var_yMaxEspectro, padding=0)
             # Etiquetas
-            etiqueta_x = self.txtEtiquetaXEspectro.text()
-            etiqueta_y = self.txtEtiquetaYEspectro.text()
-            # Guardar etiquetas en variables de configuración
-            self.var_etiquetaXEspectro = etiqueta_x
-            self.var_etiquetaYEspectro = etiqueta_y
-            self.waveform1.setLabel('bottom', etiqueta_x)
-            self.waveform1.setLabel('left', etiqueta_y)
+            self.waveform1.setLabel('bottom', self.var_etiquetaXEspectro)
+            self.waveform1.setLabel('left', self.var_etiquetaYEspectro)
             # Color y tipo de gráfico
             if hasattr(self, 'colorEspectro'):
                 color = self.get_color_str(self.colorEspectro)
@@ -1114,29 +794,13 @@ class vista(QMainWindow):
         """Aplica la configuración personalizada para el gráfico de nivel"""
         try:
             # Escalas
-            escalaY = self.cbEscalaYNivel.isChecked()
-            self.var_logModeYNivel = escalaY
-            self.waveform1.setLogMode(x=False, y=escalaY)
+            self.waveform1.setLogMode(x=False, y=self.var_logModeYNivel)
             # Límites
-            x_min = float(self.txtXMinNivel.text())
-            x_max = float(self.txtXMaxNivel.text())
-            y_min = float(self.txtYMinNivel.text())
-            y_max = float(self.txtYMaxNivel.text())
-            # Guardar límites en variables de configuración
-            self.var_xMinNivel = x_min
-            self.var_xMaxNivel = x_max
-            self.var_yMinNivel = y_min
-            self.var_yMaxNivel = y_max
-            self.waveform1.setXRange(x_min, x_max, padding=0)
-            self.waveform1.setYRange(y_min, y_max, padding=0)
+            self.waveform1.setXRange(self.var_xMinNivel, self.var_xMaxNivel, padding=0)
+            self.waveform1.setYRange(self.var_yMinNivel, self.var_yMaxNivel, padding=0)
             # Etiquetas
-            etiqueta_x = self.txtEtiquetaXNivel.text()
-            etiqueta_y = self.txtEtiquetaYNivel.text()
-            # Guardar etiquetas en variables de configuración
-            self.var_etiquetaXNivel = etiqueta_x
-            self.var_etiquetaYNivel = etiqueta_y
-            self.waveform1.setLabel('bottom', etiqueta_x)
-            self.waveform1.setLabel('left', etiqueta_y)
+            self.waveform1.setLabel('bottom', self.var_etiquetaXNivel)
+            self.waveform1.setLabel('left', self.var_etiquetaYNivel)
             # Color y tipo de línea
             if hasattr(self, 'colorNivel'):
                 color = self.get_color_str(self.colorNivel)
@@ -1201,14 +865,14 @@ class vista(QMainWindow):
     def obtenerTipoLinea(self, tipoGrafico):
         """Obtiene el tipo de línea seleccionado para el gráfico especificado"""
         if tipoGrafico == "tiempo":
-            return self.cmbTipoLineaTiempo.currentText()
+            return self.var_tipoLineaTiempo
         elif tipoGrafico == "nivel":
-            return self.cmbTipoLineaNivel.currentText()
+            return self.var_tipoLineaNivel
         return "Sólida"  # Valor por defecto
 
     def obtenerTipoGraficoEspectro(self):
         """Obtiene el tipo de gráfico seleccionado para el espectro"""
-        return self.cmbTipoGraficoEspectro.currentText()
+        return self.var_tipoGraficoEspectro
 
     def get_color_str(self, color):
         """Devuelve el color como string hexadecimal, ya sea que sea QColor o string"""
@@ -1264,7 +928,7 @@ class vista(QMainWindow):
                     color = self.get_color_str(self.colorTiempo)
                 tipoLinea = "Sólida"
                 if hasattr(self, 'cmbTipoLineaTiempo'):
-                    tipoLinea = self.cmbTipoLineaTiempo.currentText()
+                    tipoLinea = self.var_tipoLineaTiempo
                 # Crear el pen según el tipo de línea
                 if tipoLinea == "Sólida":
                     pen = pg.mkPen(color=color, width=2)
@@ -1293,9 +957,8 @@ class vista(QMainWindow):
                 self.waveform1.setAxisItems({'bottom': self.log_x_axis})
                 # ---
                 # Determinar tipo de gráfico de espectro
-                tipoGrafico = "Línea"
-                if hasattr(self, 'cmbTipoGraficoEspectro'):
-                    tipoGrafico = self.cmbTipoGraficoEspectro.currentText()
+                tipoGrafico = self.var_tipoGraficoEspectro
+                
                 color = self.default_color_espectro  # Color por defecto centralizado
                 if hasattr(self, 'colorEspectro'):
                     color = self.get_color_str(self.colorEspectro)
@@ -1320,6 +983,7 @@ class vista(QMainWindow):
                         # Calcular anchos de barras proporcionales a las bandas de frecuencia
                         # Para tercios de octava, cada banda es 2^(1/3) veces la anterior
                         log_bandas = np.log10(bandas)
+                        
                         
                         # Calcular anchos de barras
                         if len(bandas) > 1:
@@ -1346,9 +1010,17 @@ class vista(QMainWindow):
                             pen=pg.mkPen(color='black', width=1)
                         )
                         self.waveform1.addItem(bar_item)
-                        
-                        # Configurar rangos de ejes
-                        self.waveform1.setXRange(np.log10(20), np.log10(20000))
+
+                        # Etiquetas del eje X
+                        etiquetas = [(np.log10(fc), f"{int(fc)} Hz") for fc in bandas]
+                        bottom_axis = self.waveform1.getAxis('bottom')
+                        bottom_axis.setTicks([etiquetas])
+
+                        # Espacio para que se vean las etiquetas
+                        self.waveform1.layout.setRowFixedHeight(2, 40)
+
+                        # Rango del eje X
+                        self.waveform1.setXRange(np.min(log_bandas) - 0.05, np.max(log_bandas) + 0.05, padding=0)
                         
                         # Rango Y dinámico basado en los niveles
                         y_min = np.min(niveles) if len(niveles) > 0 else 0
@@ -1515,306 +1187,6 @@ class vista(QMainWindow):
         except Exception as e:
             print(f"Error en update_plot: {e}")
     
-    # CODIGO configuracion de calibración
-    def calibracionWin(self):
-        self.calWin = QMainWindow()
-        self.calWin.setWindowTitle("Calibracion")
-        self.calWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.4, 0.5))
-
-        # Widget central y layout principal
-        centralWidget = QWidget()
-        self.calWin.setCentralWidget(centralWidget)
-        mainLayout = QVBoxLayout(centralWidget)
-
-        # Layouts
-        tipoCalLayoutHori = QHBoxLayout()
-        tipoCalLayoutVer = QVBoxLayout()
-        confHardLayout = QHBoxLayout()
-        self.valorRefLayout = QHBoxLayout() # Make it a class attribute for visibility control
-        botonesLayout = QHBoxLayout()
-
-        # --- Tipo de Calibracion ---
-        self.lblTipoCal = QLabel("Tipo de Calibracion:")
-        tipoCalLayoutHori.addWidget(self.lblTipoCal)
-        self.radioBtnRelativa = QRadioButton("Calibración relativa")
-        self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
-        self.radioBtnExterna = QRadioButton("Calibración externa")
-        tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
-        tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
-        tipoCalLayoutVer.addWidget(self.radioBtnExterna)
-        tipoCalLayoutHori.addLayout(tipoCalLayoutVer)
-        tipoCalLayoutHori.addStretch()
-
-        # --- Dispositivo ---
-        self.lblDispEnt = QLabel("Dispositivo de entrada: ")
-        confHardLayout.addWidget(self.lblDispEnt)
-        self.lblConfHard = QLabel("")
-        confHardLayout.addWidget(self.lblConfHard)
-        self.btnConfHard = QPushButton("Configurar Dispositivo")
-        confHardLayout.addWidget(self.btnConfHard)
-        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
-
-        # --- Calibracion Relativa ---
-        self.lblValRef = QLabel("Valor de Referencia:")
-        self.valorRefLayout.addWidget(self.lblValRef)
-        self.txtValorRef = QLineEdit("")
-        self.valorRefLayout.addWidget(self.txtValorRef)
-
-        # --- Calibracion Externa ---
-        self.calExternaGroup = QGroupBox("Parámetros de Calibración Externa")
-        layoutExterna = QGridLayout(self.calExternaGroup)
-        self.btnImportSig = QPushButton("Importar Archivo de Referencia (.wav)")
-        self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
-        self.lblRutaArchivoCal = QLabel("Ningún archivo seleccionado.")
-        self.lblRutaArchivoCal.setWordWrap(True)
-        self.lblValRefExterna = QLabel("Nivel de Referencia (dBSPL):")
-        self.txtValorRefExterna = QLineEdit("94.0")
-        self.btnReproducirCal = QPushButton("Reproducir Señal de Referencia")
-        # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
-        layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
-        layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
-        layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
-        layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
-        layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
-
-        # --- Grafico ---
-        self.chart2 = QChart()
-        self.chart2.setTheme(QChart.ChartThemeDark)
-        self.winGraph2 = QChartView(self.chart2)
-        self.winGraph2.setRenderHint(QPainter.Antialiasing)
-        # ... (chart setup as before)
-
-        # --- Botones ---
-        self.btnCalibrar = QPushButton("Calibrar")
-        self.btnRepetir = QPushButton("Repetir")
-        self.btnGenerador = QPushButton("Generador de señales")
-        self.btnGenerador.clicked.connect(self.generadorWin)
-        self.btnCancel = QPushButton("Cancelar")
-        self.btnCancel.clicked.connect(self.closeCalibracion)
-        botonesLayout.addWidget(self.btnCalibrar)
-        botonesLayout.addWidget(self.btnRepetir)
-        botonesLayout.addWidget(self.btnGenerador)
-        botonesLayout.addWidget(self.btnCancel)
-
-        # --- Layout Principal ---
-        mainLayout.addLayout(tipoCalLayoutHori)
-        mainLayout.addLayout(confHardLayout)
-        mainLayout.addLayout(self.valorRefLayout)
-        mainLayout.addWidget(self.calExternaGroup)
-        mainLayout.addWidget(self.winGraph2)
-        mainLayout.addLayout(botonesLayout)
-
-        # --- Conexiones y Estado Inicial ---
-        self.radioBtnRelativa.toggled.connect(self.actualizar_vista_calibracion)
-        self.radioBtnExterna.toggled.connect(self.actualizar_vista_calibracion)
-        self.btnCalibrar.clicked.connect(self.iniciarCalibracion)
-        self.radioBtnRelativa.setChecked(True)
-        self.actualizar_vista_calibracion() # Set initial state
-        self.actualizarNombreDispositivo()
-        self.calWin.show()
-
-    def actualizar_vista_calibracion(self):
-        relativa_checked = self.radioBtnRelativa.isChecked()
-        externa_checked = self.radioBtnExterna.isChecked()
-
-        self.lblValRef.setVisible(relativa_checked)
-        self.txtValorRef.setVisible(relativa_checked)
-        self.calExternaGroup.setVisible(externa_checked)
-        self.winGraph2.setVisible(externa_checked)
-
-    def closeCalibracion(self):
-        if hasattr(self, 'calWin') and self.calWin:
-            self.calWin.close()
-            self.calWin = None
- 
-    def generadorWin(self):
-        self.genWin = QMainWindow()
-        self.genWin.setWindowTitle("Generador de señales")
-        self.genWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.3, 0.2, 0.4))
-        
-        # Widget central y layout principal
-        centralWidget = QWidget()
-        self.genWin.setCentralWidget(centralWidget)
-        mainLayout = QVBoxLayout(centralWidget)
-        
-        configLayout = QHBoxLayout()
-        
-        self.lbltipoSig = QLabel("Tipo de señal:")
-        self.tipo_combo = QComboBox()
-        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular"])
-        configLayout.addWidget(self.lbltipoSig)
-        configLayout.addWidget(self.tipo_combo)
-        
-        self.lblFrecSig = QLabel("Frecuencia (Hz):")
-        self.freq_input = QLineEdit("5")
-        configLayout.addWidget(self.lblFrecSig)
-        configLayout.addWidget(self.freq_input)
-        
-        self.lblAmpSig = QLabel("Amplitud:")
-        self.amp_input = QLineEdit("1")
-        configLayout.addWidget(self.lblAmpSig)
-        configLayout.addWidget(self.amp_input)
-
-        self.lblDurSig = QLabel("Duración (s):")
-        self.dur_input = QLineEdit("0.5")
-        configLayout.addWidget(self.lblDurSig)
-        configLayout.addWidget(self.dur_input)
-
-        self.btn_generar = QPushButton("Generar y Graficar")
-        self.btn_generar.clicked.connect(self.generar_senal)
-        configLayout.addWidget(self.btn_generar)
-        
-        self.seriesGenSig = QLineSeries()
-        self.chartGenSig = QChart()
-        self.chartGenSig.addSeries(self.seriesGenSig)
-        self.chartGenSig.createDefaultAxes()
-        # Establecer el rango del eje X para que sea más largo que 1 (por ejemplo, hasta 10)
-        axisX = self.chartGenSig.axisX(self.seriesGenSig)
-        if axisX is not None:
-            axisX.setRange(0, 10)
-        self.chartGenSig.setTitle("Señal Generada")
-
-        self.chartGenSig_view = QChartView(self.chartGenSig)
-        self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
-        
-
-        self.dur_input.textChanged.connect(self.verificar_valores_generador)
-        self.freq_input.textChanged.connect(self.verificar_valores_generador)
-        self.amp_input.textChanged.connect(self.verificar_valores_generador)
-        
-
-        mainLayout.addLayout(configLayout)
-        self.lbl_error_gen_sig = QLabel("")
-        self.lbl_error_gen_sig.setAlignment(Qt.AlignCenter)
-        mainLayout.addWidget(self.lbl_error_gen_sig)
-        self.lbl_error_gen_sig.setVisible(False)
-        mainLayout.addWidget(self.chartGenSig_view)
-
-        for boton in [self.btn_generar]:
-            boton.setProperty("class", "ventanasSec")
-
-        for txt in [self.freq_input, self.amp_input, self.dur_input]:
-            txt.setProperty("class", "ventanasSec")
-            
-        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig]:
-            lbl.setProperty("class", "ventanasSecLabelDestacado")  
-
-        self.lbl_error_gen_sig.setProperty("class", "errorLbl") 
-
-        for combo in [self.tipo_combo]:
-                combo.setProperty("class", "ventanasSec") 
-            
-        self.genWin.show()
-
-    def verificar_valores_generador(self):
-        try:
-            f = float(self.freq_input.text())
-            A = float(self.amp_input.text())
-            T = float(self.dur_input.text())
-            if f <= 0 or f > 500:
-                self.lbl_error_gen_sig.setText("La frecuencia debe ser > 0 y <= 500 Hz.")
-                self.lbl_error_gen_sig.setVisible(True)
-                return False
-            if A <= 0 or A > 100:
-                self.lbl_error_gen_sig.setText("La amplitud debe ser > 0 y <= 100.")
-                self.lbl_error_gen_sig.setVisible(True)
-                return False
-            if T <= 0 or T > 15:
-                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
-                self.lbl_error_gen_sig.setVisible(True)
-                return False
-            self.lbl_error_gen_sig.setVisible(False)
-            return True
-        except ValueError:
-            self.lbl_error_gen_sig.setText("Ingrese solo números en todos los campos.")
-            self.lbl_error_gen_sig.setVisible(True)
-            return False
-
-    def generar_senal(self):
-        if not self.verificar_valores_generador():
-            return
-        tipo = self.tipo_combo.currentText()
-        f = float(self.freq_input.text())
-        A = float(self.amp_input.text())
-        T = float(self.dur_input.text())
-        Fs = 44100
-        t = np.linspace(0, T, int(Fs*T))
-
-        if tipo == "Senoidal":
-            y = A * np.sin(2 * np.pi * f * t)
-        elif tipo == "Cuadrada":
-            y = A * np.sign(np.sin(2 * np.pi * f * t))
-        elif tipo == "Triangular":
-            y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
-
-        #Normalizar la señal
-        y = y / np.max(np.abs(y)) * 0.8 # para evitar saturación
-
-        #Guardar los datos de la señal
-        self.signal_data = y.astype(np.float32)
-        self.sample_rate = Fs
-
-        # Graficar la señal
-        self.chartGenSig.removeSeries(self.seriesGenSig)
-        self.seriesGenSig.clear()
-        
-        for i in range(len(t)):
-            self.seriesGenSig.append(QPointF(t[i], y[i]))
-        
-        self.chartGenSig.addSeries(self.seriesGenSig)
-        self.chartGenSig.createDefaultAxes()
-
-        self.play_signal()
-    
-    def play_signal(self):
-        """Play the generated signal through the selected output device"""
-        if not hasattr(self, 'signal_data') or self.signal_data is None:
-            print("No hay señal generada para reproducir")
-            return
-            
-        try:
-            import sounddevice as sd
-            
-            # Get the selected output device index from the model
-            output_device = self.vController.cModel.getDispositivoSalidaActual()
-            
-            if output_device is None:
-                QMessageBox.warning(self, "Error", "No se ha seleccionado un dispositivo de salida.")
-                return
-                
-            print(f"Reproduciendo señal en el dispositivo {output_device}...")
-            
-            # Play the signal
-            sd.play(self.signal_data, self.sample_rate, device=output_device)
-            
-        except Exception as e:
-            print(f"Error al reproducir la señal: {e}")
-            QMessageBox.critical(self, "Error", f"No se pudo reproducir la señal: {str(e)}")
-        
-    def importarSenalCalibracion(self):
-        """Importa un archivo .wav y lo grafica en chart2"""
-        try:
-            from scipy.io.wavfile import read as wavread
-            
-            # Abrir explorador de archivos para seleccionar archivo .wav
-            fileName, _ = QFileDialog.getOpenFileName(
-                self.calWin, 
-                "Seleccionar archivo de audio", 
-                "", 
-                "Archivos de audio (*.wav);;Todos los archivos (*)"
-            )
-            
-            if fileName:
-                # Actualizar label con la ruta del archivo
-                if hasattr(self, 'lblRutaArchivoCal'):
-                    self.lblRutaArchivoCal.setText(os.path.basename(fileName))
-                
-                # Guardar la ruta en el controlador para que la lógica la use
-                self.vController.establecer_ruta_archivo_calibracion(fileName)
-
-        except Exception as e:
-            QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
-            print(f"Error en importarSenalCalibracion: {e}")
     
     def importarSenalCalibracion(self):
         """Abre un diálogo para seleccionar un archivo .wav y guarda su ruta."""
@@ -1836,613 +1208,76 @@ class vista(QMainWindow):
             QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
             print(f"Error en importarSenalCalibracion: {e}")
     
-    # CODIGO configuracion del graficos
-    def configuracion(self):
-            self.confWin = QMainWindow()
-            self.confWin.setWindowTitle("Configuracion de Gráficos")
-            self.confWin.setGeometry(norm(self.anchoX, self.altoY,0.2, 0.2, 0.6, 0.6))
-            
-            # Crear widget central para la ventana de configuración
-            centralWidget = QWidget()
-            self.confWin.setCentralWidget(centralWidget)
-            
-            # Layout principal para la ventana de configuración
-            self.confWinLayout = QVBoxLayout(centralWidget)
-            self.confinfoLayout = QHBoxLayout()
-            self.confBotonesLayout = QHBoxLayout()
-            self.confWinLayout.addLayout(self.confinfoLayout)
-            self.confWinLayout.addLayout(self.confBotonesLayout)
-            
-            # Grupo de configuración de ejes
-            ejesGroupTiempo = QGroupBox("Configuración de Ejes Tiempo")
-            ejesGroupEspectro = QGroupBox("Configuración de Ejes Espectro")
-            ejesGroupNivel = QGroupBox("Configuración de Ejes Nivel")
-            configLayout = QHBoxLayout()
-            ejesLayoutTiempo = QVBoxLayout()
-            ejesLayoutEspectro = QVBoxLayout()
-            ejesLayoutNivel = QVBoxLayout()
-            
-            
-            #CONFIGURACION DE ESCALA
-            # Configuración de escala Tiempo
-            escalaLayoutTiempo = QHBoxLayout()
-            escalaLayoutTiempo.addWidget(QLabel("Escala:"))
-            
-            self.cbEscalaXTiempo = QCheckBox("Eje X Logarítmico")
-            self.cbEscalaXTiempo.setChecked(self.var_logModeXTiempo)
-            self.cbEscalaYTiempo = QCheckBox("Eje Y Logarítmico")
-            self.cbEscalaYTiempo.setChecked(self.var_logModeYTiempo)
-            
-            
-            escalaLayoutTiempo.addWidget(self.cbEscalaXTiempo)
-            escalaLayoutTiempo.addWidget(self.cbEscalaYTiempo)
-            escalaLayoutTiempo.addStretch()
-            ejesLayoutTiempo.addLayout(escalaLayoutTiempo)
-            
-            # Configuración de escala Espectro
-            escalaLayoutEspectro = QHBoxLayout()
-            escalaLayoutEspectro.addWidget(QLabel("Escala:"))
-            
-            self.cbEscalaXEspectro = QCheckBox("Eje X Logarítmico")
-            self.cbEscalaXEspectro.setChecked(self.var_logModeXEspectro)
-            self.cbEscalaYEspectro = QCheckBox("Eje Y Logarítmico")
-            self.cbEscalaYEspectro.setChecked(self.var_logModeYEspectro)
-            
-            
-            escalaLayoutEspectro.addWidget(self.cbEscalaXEspectro)
-            escalaLayoutEspectro.addWidget(self.cbEscalaYEspectro)
-            escalaLayoutEspectro.addStretch()
-            ejesLayoutEspectro.addLayout(escalaLayoutEspectro)
-            
-            # Configuración de escala Nivel
-            escalaLayoutNivel = QHBoxLayout()
-            escalaLayoutNivel.addWidget(QLabel("Escala:"))
-            
-            self.cbEscalaYNivel = QCheckBox("Eje Y Logarítmico")
-            self.cbEscalaYNivel.setChecked(self.var_logModeYNivel)
-            
-            
-            escalaLayoutNivel.addWidget(self.cbEscalaYNivel)
-            escalaLayoutNivel.addStretch()
-            ejesLayoutNivel.addLayout(escalaLayoutNivel)
-            
-            
-            #CONFIGURACION DE LIMITES
-            # Configuración de límites del eje X Tiempo
-            ejeXGroupTiempo = QGroupBox("Límites del Eje X")
-            ejeXLayoutTiempo = QGridLayout()
-            
-            ejeXLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtXMinTiempo = QLineEdit(str(self.var_xMinTiempo))
-            self.txtXMinTiempo.setMaximumWidth(100)
-            ejeXLayoutTiempo.addWidget(self.txtXMinTiempo, 0, 1)
-            
-            ejeXLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtXMaxTiempo = QLineEdit(str(self.var_xMaxTiempo))
-            self.txtXMaxTiempo.setMaximumWidth(100)
-            ejeXLayoutTiempo.addWidget(self.txtXMaxTiempo, 0, 3)
-            
-            
-            ejeXGroupTiempo.setLayout(ejeXLayoutTiempo)
-            ejesLayoutTiempo.addWidget(ejeXGroupTiempo)
-            
-            # Configuración de límites del eje Y Tiempo
-            ejeYGroupTiempo = QGroupBox("Límites del Eje Y")
-            ejeYLayoutTiempo = QGridLayout()
-            
-            ejeYLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtYMinTiempo = QLineEdit(str(self.var_yMinTiempo))
-            self.txtYMinTiempo.setMaximumWidth(100)
-            ejeYLayoutTiempo.addWidget(self.txtYMinTiempo, 0, 1)
-            
-            ejeYLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtYMaxTiempo = QLineEdit(str(self.var_yMaxTiempo))
-            self.txtYMaxTiempo.setMaximumWidth(100)
-            ejeYLayoutTiempo.addWidget(self.txtYMaxTiempo, 0, 3)
-            
-            ejeYGroupTiempo.setLayout(ejeYLayoutTiempo)
-            ejesLayoutTiempo.addWidget(ejeYGroupTiempo)
-            
-            # Configuración de límites del eje X Espectro
-            ejeXGroupEspectro = QGroupBox("Límites del Eje X")
-            ejeXLayoutEspectro = QGridLayout()
-            
-            ejeXLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtXMinEspectro = QLineEdit(str(self.var_xMinEspectro))
-            self.txtXMinEspectro.setMaximumWidth(100)
-            ejeXLayoutEspectro.addWidget(self.txtXMinEspectro, 0, 1)
-            
-            ejeXLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtXMaxEspectro = QLineEdit(str(self.var_xMaxEspectro))
-            self.txtXMaxEspectro.setMaximumWidth(100)
-            ejeXLayoutEspectro.addWidget(self.txtXMaxEspectro, 0, 3)
-            
-            ejeXGroupEspectro.setLayout(ejeXLayoutEspectro)
-            ejesLayoutEspectro.addWidget(ejeXGroupEspectro)
-            
-            # Configuración de límites del eje Y Espectro
-            ejeYGroupEspectro = QGroupBox("Límites del Eje Y")
-            ejeYLayoutEspectro = QGridLayout()
-            
-            ejeYLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtYMinEspectro = QLineEdit(str(self.var_yMinEspectro))
-            self.txtYMinEspectro.setMaximumWidth(100)
-            ejeYLayoutEspectro.addWidget(self.txtYMinEspectro, 0, 1)
-            
-            ejeYLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtYMaxEspectro = QLineEdit(str(self.var_yMaxEspectro))
-            self.txtYMaxEspectro.setMaximumWidth(100)
-            ejeYLayoutEspectro.addWidget(self.txtYMaxEspectro, 0, 3)
-            
-            ejeYGroupEspectro.setLayout(ejeYLayoutEspectro)
-            ejesLayoutEspectro.addWidget(ejeYGroupEspectro)
-            
-            # Configuración de límites del eje X Nivel
-            ejeXGroupNivel = QGroupBox("Límites del Eje X")
-            ejeXLayoutNivel = QGridLayout()
-            
-            ejeXLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtXMinNivel = QLineEdit(str(self.var_xMinNivel))
-            self.txtXMinNivel.setMaximumWidth(100)
-            ejeXLayoutNivel.addWidget(self.txtXMinNivel, 0, 1)
-            
-            ejeXLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtXMaxNivel = QLineEdit(str(self.var_xMaxNivel))
-            self.txtXMaxNivel.setMaximumWidth(100)
-            ejeXLayoutNivel.addWidget(self.txtXMaxNivel, 0, 3)
-            
-            ejeXGroupNivel.setLayout(ejeXLayoutNivel)
-            ejesLayoutNivel.addWidget(ejeXGroupNivel)
-            
-            # Configuración de límites del eje Y Nivel
-            ejeYGroupNivel = QGroupBox("Límites del Eje Y")
-            ejeYLayoutNivel = QGridLayout()
-            
-            ejeYLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
-            self.txtYMinNivel = QLineEdit(str(self.var_yMinNivel))
-            self.txtYMinNivel.setMaximumWidth(100)
-            ejeYLayoutNivel.addWidget(self.txtYMinNivel, 0, 1)
-            
-            ejeYLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
-            self.txtYMaxNivel = QLineEdit(str(self.var_yMaxNivel))
-            self.txtYMaxNivel.setMaximumWidth(100)
-            ejeYLayoutNivel.addWidget(self.txtYMaxNivel, 0, 3)
-            
-            ejeYGroupNivel.setLayout(ejeYLayoutNivel)
-            ejesLayoutNivel.addWidget(ejeYGroupNivel)
-            
-            
-            #CONFIGURACION DE ETIQUETAS
-            # Configuración de etiquetas Tiempo
-            etiquetasGroupTiempo = QGroupBox("Etiquetas de Ejes")
-            etiquetasLayoutTiempo = QGridLayout()
-            
-            etiquetasLayoutTiempo.addWidget(QLabel("Eje X:"), 0, 0)
-            self.txtEtiquetaXTiempo = QLineEdit(self.var_etiquetaXTiempo)
-            etiquetasLayoutTiempo.addWidget(self.txtEtiquetaXTiempo, 0, 1)
-            
-            etiquetasLayoutTiempo.addWidget(QLabel("Eje Y:"), 1, 0)
-            self.txtEtiquetaYTiempo = QLineEdit(self.var_etiquetaYTiempo)
-            etiquetasLayoutTiempo.addWidget(self.txtEtiquetaYTiempo, 1, 1)
-            
-            etiquetasGroupTiempo.setLayout(etiquetasLayoutTiempo)
-            ejesLayoutTiempo.addWidget(etiquetasGroupTiempo)
-            
-            # Configuración de etiquetas Espectro
-            etiquetasGroupEspectro = QGroupBox("Etiquetas de Ejes")
-            etiquetasLayoutEspectro = QGridLayout()
-            
-            etiquetasLayoutEspectro.addWidget(QLabel("Eje X:"), 0, 0)
-            self.txtEtiquetaXEspectro = QLineEdit(self.var_etiquetaXEspectro)
-            etiquetasLayoutEspectro.addWidget(self.txtEtiquetaXEspectro, 0, 1)
-            
-            etiquetasLayoutEspectro.addWidget(QLabel("Eje Y:"), 1, 0)
-            self.txtEtiquetaYEspectro = QLineEdit(self.var_etiquetaYEspectro)
-            etiquetasLayoutEspectro.addWidget(self.txtEtiquetaYEspectro, 1, 1)
-            
-            etiquetasGroupEspectro.setLayout(etiquetasLayoutEspectro)
-            ejesLayoutEspectro.addWidget(etiquetasGroupEspectro)
-            
-            # Configuración de etiquetas Nivel
-            etiquetasGroupNivel = QGroupBox("Etiquetas de Ejes")
-            etiquetasLayoutNivel = QGridLayout()
-            
-            etiquetasLayoutNivel.addWidget(QLabel("Eje X:"), 0, 0)
-            self.txtEtiquetaXNivel = QLineEdit(self.var_etiquetaXNivel)
-            etiquetasLayoutNivel.addWidget(self.txtEtiquetaXNivel, 0, 1)
-            
-            etiquetasLayoutNivel.addWidget(QLabel("Eje Y:"), 1, 0)
-            self.txtEtiquetaYNivel = QLineEdit(self.var_etiquetaYNivel)
-            etiquetasLayoutNivel.addWidget(self.txtEtiquetaYNivel, 1, 1)
-            
-            etiquetasGroupNivel.setLayout(etiquetasLayoutNivel)
-            ejesLayoutNivel.addWidget(etiquetasGroupNivel)
-            
-            
-            #CONFIGURACION DE COLORES
-            # Configuración de color Tiempo
-            colorGroupTiempo = QGroupBox("Color de Línea")
-            colorLayoutTiempo = QHBoxLayout()
-            
-            self.colorFrameTiempo = QFrame()
-            self.colorFrameTiempo.setFixedSize(30, 20)
-            color_tiempo = self.get_color_str(self.colorTiempo) if hasattr(self, 'colorTiempo') else self.default_color_tiempo
-            self.colorFrameTiempo.setStyleSheet(f"background-color: {color_tiempo}; border: 1px solid black;")
-            
-            self.btnColorTiempo = QPushButton("Seleccionar Color")
-            self.btnColorTiempo.clicked.connect(lambda: self.seleccionarColor(self.colorFrameTiempo, "tiempo"))
-            
-            colorLayoutTiempo.addWidget(QLabel("Color:"))
-            colorLayoutTiempo.addWidget(self.colorFrameTiempo)
-            colorLayoutTiempo.addWidget(self.btnColorTiempo)
-            colorLayoutTiempo.addStretch()
-            
-            colorGroupTiempo.setLayout(colorLayoutTiempo)
-            ejesLayoutTiempo.addWidget(colorGroupTiempo)
-            
-            # Configuración de color Espectro
-            colorGroupEspectro = QGroupBox("Color de Línea")
-            colorLayoutEspectro = QHBoxLayout()
-            
-            self.colorFrameEspectro = QFrame()
-            self.colorFrameEspectro.setFixedSize(30, 20)
-            color_espectro = self.get_color_str(self.colorEspectro) if hasattr(self, 'colorEspectro') else self.default_color_espectro
-            self.colorFrameEspectro.setStyleSheet(f"background-color: {color_espectro}; border: 1px solid black;")
-            
-            self.btnColorEspectro = QPushButton("Seleccionar Color")
-            self.btnColorEspectro.clicked.connect(lambda: self.seleccionarColor(self.colorFrameEspectro, "espectro"))
-            
-            colorLayoutEspectro.addWidget(QLabel("Color:"))
-            colorLayoutEspectro.addWidget(self.colorFrameEspectro)
-            colorLayoutEspectro.addWidget(self.btnColorEspectro)
-            colorLayoutEspectro.addStretch()
-            
-            colorGroupEspectro.setLayout(colorLayoutEspectro)
-            ejesLayoutEspectro.addWidget(colorGroupEspectro)
-            
-            # Configuración de color Nivel
-            colorGroupNivel = QGroupBox("Color de Línea")
-            colorLayoutNivel = QHBoxLayout()
-            
-            self.colorFrameNivel = QFrame()
-            self.colorFrameNivel.setFixedSize(30, 20)
-            color_nivel = self.get_color_str(self.colorNivel) if hasattr(self, 'colorNivel') else self.default_color_nivel
-            self.colorFrameNivel.setStyleSheet(f"background-color: {color_nivel}; border: 1px solid black;")
-            
-            self.btnColorNivel = QPushButton("Seleccionar Color")
-            self.btnColorNivel.clicked.connect(lambda: self.seleccionarColor(self.colorFrameNivel, "nivel"))
-            
-            colorLayoutNivel.addWidget(QLabel("Color:"))
-            colorLayoutNivel.addWidget(self.colorFrameNivel)
-            colorLayoutNivel.addWidget(self.btnColorNivel)
-            colorLayoutNivel.addStretch()
-            
-            colorGroupNivel.setLayout(colorLayoutNivel)
-            ejesLayoutNivel.addWidget(colorGroupNivel)
-            
-            # CONFIGURACION DE TIPO DE LINEA y TIPO DE GRAFICO
-            # Configuración de tipo de línea Tiempo
-            tipoLineaGroupTiempo = QGroupBox("Tipo de Línea")
-            tipoLineaLayoutTiempo = QHBoxLayout()
-            
-            tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"))
-            self.cmbTipoLineaTiempo = QComboBox()
-            self.cmbTipoLineaTiempo.addItems(["Sólida", "Punteada", "Rayada"])
-            # Seleccionar el valor guardado
-            if self.var_tipoLineaTiempo:
-                idx = self.cmbTipoLineaTiempo.findText(self.var_tipoLineaTiempo)
-                if idx >= 0:
-                    self.cmbTipoLineaTiempo.setCurrentIndex(idx)
-            tipoLineaLayoutTiempo.addWidget(self.cmbTipoLineaTiempo)
-            tipoLineaLayoutTiempo.addStretch()
-            tipoLineaGroupTiempo.setLayout(tipoLineaLayoutTiempo)
-            ejesLayoutTiempo.addWidget(tipoLineaGroupTiempo)
-            
-            # Configuración de tipo de gráfico Espectro
-            tipoGraficoGroupEspectro = QGroupBox("Tipo de Gráfico")
-            tipoGraficoLayoutEspectro = QHBoxLayout()
-            
-            tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
-            self.cmbTipoGraficoEspectro = QComboBox()
-            self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras-octavas", "Barras-tercios"])
-            # Seleccionar el valor guardado
-            if self.var_tipoGraficoEspectro:
-                idx = self.cmbTipoGraficoEspectro.findText(self.var_tipoGraficoEspectro)
-                if idx >= 0:
-                    self.cmbTipoGraficoEspectro.setCurrentIndex(idx)
-            tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro)
-            tipoGraficoLayoutEspectro.addStretch()
-            tipoGraficoGroupEspectro.setLayout(tipoGraficoLayoutEspectro)
-            ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
-            
-            # Configuración de tipo de línea Nivel
-            tipoLineaGroupNivel = QGroupBox("Tipo de Línea")
-            tipoLineaLayoutNivel = QHBoxLayout()
-            
-            tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"))
-            self.cmbTipoLineaNivel = QComboBox()
-            self.cmbTipoLineaNivel.addItems(["Sólida", "Punteada", "Rayada"])
-            # Seleccionar el valor guardado
-            if self.var_tipoLineaNivel:
-                idx = self.cmbTipoLineaNivel.findText(self.var_tipoLineaNivel)
-                if idx >= 0:
-                    self.cmbTipoLineaNivel.setCurrentIndex(idx)
-            tipoLineaLayoutNivel.addWidget(self.cmbTipoLineaNivel)
-            tipoLineaLayoutNivel.addStretch()
-            tipoLineaGroupNivel.setLayout(tipoLineaLayoutNivel)
-            ejesLayoutNivel.addWidget(tipoLineaGroupNivel)
-            
-            
-            
-            # Botón para aplicar configuración automática según el tipo de gráfico
-            self.btnConfigAplicar = QPushButton("Aplicar")
-            self.btnConfigAplicar.clicked.connect(self.aplicarconfiguracion)
-            self.btnConfigCancelar = QPushButton("Cancelar")
-            self.btnConfigCancelar.clicked.connect(self.confWin.close)
-            
-            ejesGroupTiempo.setLayout(ejesLayoutTiempo)
-            ejesGroupEspectro.setLayout(ejesLayoutEspectro)
-            ejesGroupNivel.setLayout(ejesLayoutNivel)
-            
-            self.confinfoLayout.addWidget(ejesGroupTiempo)
-            self.confinfoLayout.addWidget(ejesGroupEspectro)
-            self.confinfoLayout.addWidget(ejesGroupNivel)
-            self.confBotonesLayout.addWidget(self.btnConfigCancelar)
-            self.confBotonesLayout.addWidget(self.btnConfigAplicar)
-            
-            
-            # Agregar stretch para empujar todo hacia arriba
-            self.confWinLayout.addStretch()
-            
-            for boton in [self.btnColorTiempo, self.btnColorEspectro, self.btnColorNivel, self.btnConfigAplicar, self.btnConfigCancelar]:
-                boton.setProperty("class", "ventanasSec")
     
-            for combo in [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel]:
-                combo.setProperty("class", "ventanasSec")
-            # Mostrar la ventana de configuración
-            self.confWin.show()
-
-    def actualizarNombreDispositivo(self):
-        """Actualiza el label con el nombre del dispositivo actual"""
+    def aplicarConfiguracionExterna(self, config):
+        """Aplica la configuración recibida desde la ventana externa de configuración"""
         try:
-            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
-            if not hasattr(self, 'lblConfHard'):
-                print("Label lblConfHard no existe - ventana de calibración no abierta")
-                return
-                
-            dispositivo_actual = self.vController.cModel.getDispositivoActual()
-            if dispositivo_actual is not None:
-                # Obtener los nombres e índices de dispositivos
-                nombres = self.vController.cModel.getDispositivosEntrada('nombre')
-                indices = self.vController.cModel.getDispositivosEntrada('indice')
-                
-                # Buscar el nombre del dispositivo actual
-                try:
-                    idx_actual = indices.index(dispositivo_actual)
-                    nombre_dispositivo = nombres[idx_actual]
-                    self.lblConfHard.setText(nombre_dispositivo)
-                    print(f"Dispositivo actualizado: {nombre_dispositivo}")
-                except ValueError:
-                    # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
-                    self.lblConfHard.setText("Desconocido")
-                    print("Dispositivo no encontrado en la lista")
-            else:
-                self.lblConfHard.setText("No disponible")
-                print("No hay dispositivo actual")
+            # Guardar configuración en variables de clase
+            # Configuración de tiempo
+            self.var_logModeXTiempo = config['tiempo']['logModeX']
+            self.var_logModeYTiempo = config['tiempo']['logModeY']
+            self.var_xMinTiempo = config['tiempo']['xMin']
+            self.var_xMaxTiempo = config['tiempo']['xMax']
+            self.var_yMinTiempo = config['tiempo']['yMin']
+            self.var_yMaxTiempo = config['tiempo']['yMax']
+            self.var_etiquetaXTiempo = config['tiempo']['etiquetaX']
+            self.var_etiquetaYTiempo = config['tiempo']['etiquetaY']
+            self.var_tipoLineaTiempo = config['tiempo']['tipoLinea']
+            
+            # Configuración de espectro
+            self.var_logModeXEspectro = config['espectro']['logModeX']
+            self.var_logModeYEspectro = config['espectro']['logModeY']
+            self.var_xMinEspectro = config['espectro']['xMin']
+            self.var_xMaxEspectro = config['espectro']['xMax']
+            self.var_yMinEspectro = config['espectro']['yMin']
+            self.var_yMaxEspectro = config['espectro']['yMax']
+            self.var_etiquetaXEspectro = config['espectro']['etiquetaX']
+            self.var_etiquetaYEspectro = config['espectro']['etiquetaY']
+            self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
+            
+            # Configuración de nivel
+            self.var_logModeYNivel = config['nivel']['logModeY']
+            self.var_xMinNivel = config['nivel']['xMin']
+            self.var_xMaxNivel = config['nivel']['xMax']
+            self.var_yMinNivel = config['nivel']['yMin']
+            self.var_yMaxNivel = config['nivel']['yMax']
+            self.var_etiquetaXNivel = config['nivel']['etiquetaX']
+            self.var_etiquetaYNivel = config['nivel']['etiquetaY']
+            self.var_tipoLineaNivel = config['nivel']['tipoLinea']
+            
+            # Aplicar configuración según el gráfico activo
+            if self.btnTiempo.isChecked():
+                self.aplicarConfiguracionTiempo()
+            elif self.btnFrecuencia.isChecked():
+                self.aplicarConfiguracionEspectro()
+            elif self.btnNivel.isChecked():
+                self.aplicarConfiguracionNivel()
+            
+            # Actualizar el gráfico
+            self.waveform1.replot()
+            
+            print("Configuración aplicada exitosamente")
+            
         except Exception as e:
-            print(f"Error al actualizar nombre del dispositivo: {e}")
-            if hasattr(self, 'lblConfHard'):
-                self.lblConfHard.setText("Error")
-    
-    def actualizarNombreDispositivoSalida(self):
-        """Actualiza el label con el nombre del dispositivo de salida actual"""
-        try:
-            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
-            if not hasattr(self, 'lblConfHardSalida'):
-                print("Label lblConfHardSalida no existe - ventana de calibración no abierta")
-                return
-                
-            dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
-            if dispositivo_salida_actual is not None:
-                # Obtener los nombres e índices de dispositivos de salida
-                nombres = self.vController.cModel.getDispositivosSalida('nombre')
-                indices = self.vController.cModel.getDispositivosSalida('indice')
-                
-                # Buscar el nombre del dispositivo actual
-                try:
-                    idx_actual = indices.index(dispositivo_salida_actual)
-                    nombre_dispositivo = nombres[idx_actual]
-                    self.lblConfHardSalida.setText(nombre_dispositivo)
-                    print(f"Dispositivo de salida actualizado: {nombre_dispositivo}")
-                except ValueError:
-                    # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
-                    self.lblConfHardSalida.setText("Desconocido")
-                    print("Dispositivo de salida no encontrado en la lista")
-            else:
-                self.lblConfHardSalida.setText("No disponible")
-                print("No hay dispositivo de salida actual")
-        except Exception as e:
-            print(f"Error al actualizar nombre del dispositivo de salida: {e}")
-            if hasattr(self, 'lblConfHardSalida'):
-                self.lblConfHardSalida.setText("Error")
+            print(f"Error al aplicar configuración externa: {e}")
 
-    def configuracionDispositivo(self):
-        self.confDispWin = QMainWindow()
-        self.confDispWin.setWindowTitle("Configuración de Dispositivo")
-        self.confDispWin.setGeometry(norm(self.anchoX, self.altoY,0.4, 0.4, 0.2, 0.2))
-
-        # Widget central y layout principal
-        centralWidget = QWidget()
-        self.confDispWin.setCentralWidget(centralWidget)
-        mainLayout = QVBoxLayout(centralWidget)
-
-        # Layout de selección de dispositivo Entrada
-        dispGroupEntrada = QGroupBox("Dispositivo de Entrada")
-        dispLayoutEntrada = QHBoxLayout()
-        self.cmbDispositivosEntrada = QComboBox()
-        # Obtener lista de dispositivos del modelo
-        dispositivosEntrada = self.vController.cModel.getDispositivosEntrada('nombre')
-        self.cmbDispositivosEntrada.addItems(dispositivosEntrada)
-        
-        # Obtener el dispositivo actual y seleccionarlo en el ComboBox
-        dispositivo_actual = self.vController.cModel.getDispositivoActual()
-        if dispositivo_actual is not None:
-            # Buscar el índice del dispositivo actual en la lista de dispositivos
-            indices = self.vController.cModel.getDispositivosEntrada('indice')
-            try:
-                idx_actual = indices.index(dispositivo_actual)
-                self.cmbDispositivosEntrada.setCurrentIndex(idx_actual)
-            except ValueError:
-                # Si no se encuentra el dispositivo actual, usar el primer dispositivo
-                self.cmbDispositivosEntrada.setCurrentIndex(0)
-        else:
-            # Si no hay dispositivo actual, usar el primer dispositivo
-            self.cmbDispositivosEntrada.setCurrentIndex(0)
-        
-        self.lblSelEnt = QLabel("Seleccionar:")
-        dispLayoutEntrada.addWidget(self.lblSelEnt)
-        dispLayoutEntrada.addWidget(self.cmbDispositivosEntrada)
-        dispGroupEntrada.setLayout(dispLayoutEntrada)
-        mainLayout.addWidget(dispGroupEntrada)
-        
-        # Layout de selección de dispositivo Salida
-        dispGroupSalida = QGroupBox("Dispositivo de Salida")
-        dispLayoutSalida = QHBoxLayout()
-        self.cmbDispositivosSalida = QComboBox()
-        # Obtener lista de dispositivos de salida del modelo
-        dispositivosSalida = self.vController.cModel.getDispositivosSalida('nombre')
-        self.cmbDispositivosSalida.addItems(dispositivosSalida)
-        
-        # Obtener el dispositivo de salida actual y seleccionarlo en el ComboBox
-        dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
-        if dispositivo_salida_actual is not None:
-            # Buscar el índice del dispositivo actual en la lista de dispositivos
-            indicesSalida = self.vController.cModel.getDispositivosSalida('indice')
-            try:
-                idx_actual = indicesSalida.index(dispositivo_salida_actual)
-                self.cmbDispositivosSalida.setCurrentIndex(idx_actual)
-            except ValueError:
-                # Si no se encuentra el dispositivo actual, usar el primer dispositivo
-                self.cmbDispositivosSalida.setCurrentIndex(0)
-        else:
-            # Si no hay dispositivo actual, usar el primer dispositivo
-            self.cmbDispositivosSalida.setCurrentIndex(0)
-        
-        self.lblSelSal= QLabel("Seleccionar:")
-        dispLayoutSalida.addWidget(self.lblSelSal)
-        dispLayoutSalida.addWidget(self.cmbDispositivosSalida)
-        dispGroupSalida.setLayout(dispLayoutSalida)
-        mainLayout.addWidget(dispGroupSalida)
-        
-        # Layout de configuración de rate y chunk
-        rateChunkGroup = QGroupBox("Parámetros de Audio")
-        rateChunkLayout = QHBoxLayout()
-        self.txtRate = QLineEdit(str(self.vController.cModel.rate))
-        self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
-        self.lblRate = QLabel("Rate (Hz):")
-        rateChunkLayout.addWidget(self.lblRate)
-        rateChunkLayout.addWidget(self.txtRate)
-        self.lblChunk = QLabel("Chunk:")
-        rateChunkLayout.addWidget(self.lblChunk)
-        rateChunkLayout.addWidget(self.txtChunk)
-        rateChunkGroup.setLayout(rateChunkLayout)
-        mainLayout.addWidget(rateChunkGroup)
-
-        # Botones Agregar y Cancelar
-        botonesLayout = QHBoxLayout()
-        self.btnDispAgregar = QPushButton("Aplicar")
-        self.btnDispAgregar.clicked.connect(self.aplicarConfiguracionDispositivo)
-        self.btnDispCancelar = QPushButton("Cancelar")
-        self.btnDispCancelar.clicked.connect(self.confDispWin.close)
-        botonesLayout.addWidget(self.btnDispCancelar)
-        botonesLayout.addWidget(self.btnDispAgregar)
-        mainLayout.addLayout(botonesLayout)
-
-        for boton in [self.btnDispAgregar, self.btnDispCancelar]:
-            boton.setProperty("class", "ventanasSec")
-        
-        for lbl in [self.lblChunk, self.lblRate, self.lblSelEnt, self.lblSelSal]:
-            lbl.setProperty("class", "ventanasSecLabelDestacado")
-            
-        for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida]:
-            cmb.setProperty("class", "ventanasSec")
-        self.confDispWin.show()
-
-    def aplicarConfiguracionDispositivo(self):
-        try:
-            # Obtener valores seleccionados
-            dispositivo_entrada_idx = self.cmbDispositivosEntrada.currentIndex()
-            dispositivo_salida_idx = self.cmbDispositivosSalida.currentIndex()
-            rate = int(self.txtRate.text())
-            chunk = int(self.txtChunk.text())
-            
-            # Obtener el índice real del dispositivo de entrada seleccionado
-            indices_entrada = self.vController.cModel.getDispositivosEntrada('indice')
-            device_index_entrada = indices_entrada[dispositivo_entrada_idx] if dispositivo_entrada_idx < len(indices_entrada) else None
-            
-            # Obtener el índice real del dispositivo de salida seleccionado
-            indices_salida = self.vController.cModel.getDispositivosSalida('indice')
-            device_index_salida = indices_salida[dispositivo_salida_idx] if dispositivo_salida_idx < len(indices_salida) else None
-            
-            # Obtener el dispositivo actual antes del cambio
-            dispositivo_entrada_actual = self.vController.cModel.getDispositivoActual()
-            dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
-            
-            print(f"Dispositivo entrada actual: {dispositivo_entrada_actual}")
-            print(f"Dispositivo entrada seleccionado: {device_index_entrada}")
-            print(f"Dispositivo salida actual: {dispositivo_salida_actual}")
-            print(f"Dispositivo salida seleccionado: {device_index_salida}")
-            print(f"Rate: {rate}, Chunk: {chunk}")
-            
-            # Cambiar el dispositivo de entrada si es diferente al actual
-            if device_index_entrada != dispositivo_entrada_actual:
-                print(f"Cambiando dispositivo de entrada de {dispositivo_entrada_actual} a {device_index_entrada}")
-                
-                # Cerrar el stream actual si existe
-                if hasattr(self.vController.cModel, 'stream') and self.vController.cModel.stream is not None:
-                    print("Cerrando stream actual...")
-                    self.vController.cModel.stream.close()
-                
-                # Reinicializar el stream con el nuevo dispositivo
-                print("Inicializando nuevo stream...")
-                self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
-                
-                # Verificar que el cambio se aplicó correctamente
-                nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
-                print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
-                
-                if nuevo_dispositivo_entrada == device_index_entrada:
-                    print("✅ Cambio de dispositivo de entrada exitoso")
-                    # Actualizar el label con el nuevo nombre del dispositivo
-                    self.actualizarNombreDispositivo()
-                else:
-                    print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
-            else:
-                print("No se requiere cambio de dispositivo de entrada")
-            
-            # Cambiar el dispositivo de salida si es diferente al actual
-            if device_index_salida != dispositivo_salida_actual:
-                print(f"Cambiando dispositivo de salida de {dispositivo_salida_actual} a {device_index_salida}")
-                
-                # Actualizar el dispositivo de salida en el modelo
-                self.vController.cModel.setDispositivoSalida(device_index_salida)
-                
-                # Verificar que el cambio se aplicó correctamente
-                nuevo_dispositivo_salida = self.vController.cModel.getDispositivoSalidaActual()
-                print(f"Dispositivo salida después del cambio: {nuevo_dispositivo_salida}")
-                
-                if nuevo_dispositivo_salida == device_index_salida:
-                    print("✅ Cambio de dispositivo de salida exitoso")
-                    # Actualizar el label con el nuevo nombre del dispositivo de salida
-                    self.actualizarNombreDispositivoSalida()
-                else:
-                    print("⚠️ El cambio de dispositivo de salida no se aplicó correctamente")
-            else:
-                print("No se requiere cambio de dispositivo de salida")
-            
-            # Cerrar ventana
+    # 4. MODIFICAR LA FUNCIÓN closeEvent() para incluir la nueva ventana:
+    def closeEvent(self, event):
+        """Se ejecuta cuando se cierra la ventana principal"""
+        # Cerrar todas las ventanas secundarias
+        if hasattr(self, 'calWin') and self.calWin and self.calWin.isVisible():
+            self.calWin.close()
+        if hasattr(self, 'confWin') and self.confWin and self.confWin.isVisible():
+            self.confWin.close()  # Esta línea ya funciona con la nueva ventana
+        if hasattr(self, 'confDispWin') and self.confDispWin and self.confDispWin.isVisible():
             self.confDispWin.close()
-            
-        except Exception as e:
-            print(f"Error al aplicar configuración: {e}")
-            QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")
+        if hasattr(self, 'calAutWin') and self.calAutWin and self.calAutWin.isVisible():
+            self.calAutWin.close()
+        if hasattr(self, 'calManWin') and self.calManWin and self.calManWin.isVisible():
+            self.calManWin.close()
+        if hasattr(self, 'calFEWin') and self.calFEWin and self.calFEWin.isVisible():
+            self.calFEWin.close()
+        
+        # Aceptar el evento de cierre
+        event.accept()
+        

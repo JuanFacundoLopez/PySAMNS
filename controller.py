@@ -445,10 +445,10 @@ class controlador():
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
                 QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
-                return
+                return False
         except Exception as e:
             QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
-            return
+            return False
 
         # Reset de niveles
         self.setGainZero()
@@ -475,7 +475,7 @@ class controlador():
             )
         except Exception as e:
             QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
-            return
+            return False
 
         # Iniciar captura
         try:
@@ -483,7 +483,7 @@ class controlador():
         except Exception as e:
             output_stream.close()
             QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
-            return
+            return False
 
         ultima_amplitud_baja_thd = None
         ultimo_thd = None
@@ -537,6 +537,7 @@ class controlador():
 
         except Exception as e:
             print(f"Error durante calibración automática: {e}")
+            return False
         finally:
             try:
                 output_stream.stop_stream()
@@ -553,7 +554,7 @@ class controlador():
             self.cVista.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             print(error_message)
-            return
+            return False
 
         # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
         cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
@@ -566,6 +567,7 @@ class controlador():
             "Calibración automática",
             f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
         )
+        return True
 
     def establecer_ruta_archivo_calibracion(self, ruta):
         """Guarda la ruta del archivo de calibración en el modelo."""
@@ -607,7 +609,7 @@ class controlador():
             ref_spl_text = self.cVista.txtValorRefExterna.text()
             if not ref_spl_text:
                 QMessageBox.warning(self.cVista, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
-                return
+                return False
             ref_spl = float(ref_spl_text)
 
             # 2. Iniciar una grabación corta para medir el nivel dBFS
@@ -630,7 +632,7 @@ class controlador():
 
             if not grabacion_data:
                 QMessageBox.critical(self.cVista, "Error de Medición", "No se pudieron capturar datos de audio.")
-                return
+                return False
 
             # Concatenar y procesar los datos grabados
             audio_completo = np.concatenate(grabacion_data)
@@ -656,19 +658,22 @@ class controlador():
                                    f"Nivel de Referencia: {ref_spl:.2f} dBSPL\n"
                                    f"Nivel Medido: {medido_dbfs:.2f} dBFS\n"
                                    f"Factor de Ajuste: {offset:.2f} dB")
+            return True
 
         except ValueError:
             QMessageBox.warning(self.cVista, "Entrada Inválida", "El valor de referencia debe ser un número.")
+            return False
         except Exception as e:
             QMessageBox.critical(self.cVista, "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
             print(f"Error en iniciar_calibracion_relativa: {e}")
+            return False
 
     def calRelativa(self):
         try:
             ref_level = float(self.cVista.txtValorRef.text())
         except (ValueError, AttributeError):
             QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
-            return
+            return False
 
         # Obtener dispositivos de entrada y salida seleccionados
         try:
@@ -677,10 +682,10 @@ class controlador():
             
             if output_device_index is None:
                 QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
-                return
+                return False
         except Exception as e:
             QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
-            return
+            return False
 
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
@@ -734,6 +739,23 @@ class controlador():
             output_stream.close()
             self.cModel.stream.stop_stream()
             
+<<<<<<< HEAD
+        except Exception as e:
+            QMessageBox.warning(self.cVista, "Error de Audio", f"Error al reproducir o capturar audio: {str(e)}")
+            return False
+        
+        # Obtener los niveles capturados
+        NZ = self.cModel.getNivelesZ('P')
+        
+        # Calcular el promedio de los niveles capturados
+        if len(NZ) > 0:
+            # Filtrar valores extremos (opcional)
+            NZ_filtered = NZ[NZ > -100]  # Eliminar valores muy bajos que podrían ser ruido
+            if len(NZ_filtered) > 0:
+                promNZ = np.mean(NZ_filtered)
+            else:
+                promNZ = np.mean(NZ)
+=======
             if not captured_audio:
                 raise ValueError("No se capturó audio. Verifique la conexión del micrófono.")
                 
@@ -743,6 +765,7 @@ class controlador():
             # Calcular el nivel RMS en dBFS
             rms = np.sqrt(np.mean(captured_audio**2))
             rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+>>>>>>> origin/main
             
             # Calcular el factor de calibración
             cal = ref_level - rms_db
@@ -758,6 +781,19 @@ class controlador():
             self.cVista.txtValorRef.setText(f"{cal:.2f}")
             
             # Mostrar mensaje de éxito
+<<<<<<< HEAD
+            QMessageBox.information(self.cVista, "Calibración Exitosa", 
+                                   f"Calibración relativa completada.\n\n" \
+                                   f"Nivel de referencia: {ref_level:.2f} dB\n" \
+                                   f"Nivel medido: {promNZ:.2f} dB\n" \
+                                   f"Factor de ajuste: {cal:.2f} dB")
+            return True
+        else:
+            error_message = "No se pudieron medir niveles. Verifique la fuente de audio y los dispositivos seleccionados."
+            QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
+            print(error_message)
+            return False
+=======
             QMessageBox.information(
                 self.cVista,
                 "Calibración Exitosa",
@@ -771,3 +807,4 @@ class controlador():
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
             QMessageBox.critical(self.cVista, "Error de Calibración", error_msg)
+>>>>>>> origin/main
