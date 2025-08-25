@@ -334,7 +334,6 @@ class modelo:
         if NP == 'A':
             return (pico, inst, fast, slow)
     def getCalibracionAutomatica(self):
-
         return self.cal
     
 # -------------- funcion codigo YAMILI-----------------
@@ -363,8 +362,8 @@ class modelo:
         fft_freqs = fft_freqs[valid]
         fft_magnitude = fft_magnitude[valid]
         # Convertir a dB
-        # fft_magnitude_db = 20 * np.log10(fft_magnitude + 1e-12)  # Evita log(0)
-        return fft_freqs, fft_magnitude
+        fft_magnitude_db = 20*np.log10(fft_magnitude)  # Evita log(0)
+        return fft_freqs, fft_magnitude_db
 
     def calcular_tercios_octava(self, fft_freqs, fft_magnitude):
         """
