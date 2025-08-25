@@ -46,6 +46,7 @@ class ConfigDispWin(QMainWindow):
             # Si no hay dispositivo actual, usar el primer dispositivo
             self.cmbDispositivosEntrada.setCurrentIndex(0)
         
+        self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada)
         self.lblSelEnt = QLabel("Seleccionar:")
         dispLayoutEntrada.addWidget(self.lblSelEnt)
         dispLayoutEntrada.addWidget(self.cmbDispositivosEntrada)
@@ -85,8 +86,9 @@ class ConfigDispWin(QMainWindow):
         rateChunkGroup = QGroupBox("Parámetros de Audio")
         rateChunkLayout = QHBoxLayout()
         self.txtRate = QLineEdit(str(self.vController.cModel.rate))
+        self.txtRate.setEnabled(False)  # Deshabilitado para evitar cambios
         self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
-        self.lblRate = QLabel("Rate (Hz):")
+        self.lblRate = QLabel("Frecuencia de muestreo(Hz):")
         rateChunkLayout.addWidget(self.lblRate)
         rateChunkLayout.addWidget(self.txtRate)
         self.lblChunk = QLabel("Chunk:")
@@ -94,6 +96,7 @@ class ConfigDispWin(QMainWindow):
         rateChunkLayout.addWidget(self.txtChunk)
         rateChunkGroup.setLayout(rateChunkLayout)
         mainLayout.addWidget(rateChunkGroup)
+        self.actualizarFrecuenciaMuestreoEntrada(self.cmbDispositivosEntrada.currentIndex())
 
         # Botones Agregar y Cancelar
         botonesLayout = QHBoxLayout()
@@ -115,7 +118,15 @@ class ConfigDispWin(QMainWindow):
             cmb.setProperty("class", "ventanasSec")
             
         self.setCentralWidget(centralWidget)
-        
+     
+    def actualizarFrecuenciaMuestreoEntrada(self, idx):
+        # Obtener la frecuencia de muestreo predeterminada del dispositivo seleccionado
+        frec_muestreo = self.vController.cModel.getDispositivosEntradaRate()
+        if idx < len(frec_muestreo):
+            self.txtRate.setText(str(int(frec_muestreo[idx])))
+        else:
+            self.txtRate.setText("")
+               
     def aplicarConfiguracionDispositivo(self):
         try:
             # Obtener valores seleccionados

@@ -46,6 +46,63 @@ class TimeAxisItem(pg.AxisItem):
             strings.append(f"{val:.2f} s")
         return strings
 
+class FrequencyAxisItem(pg.AxisItem):
+    """
+    Eje personalizado para mostrar etiquetas de frecuencia en gráficos de barras
+    """
+    def __init__(self, orientation='bottom', bandas=None):
+        super().__init__(orientation)
+        self.bandas = bandas if bandas is not None else []
+    
+    def tickValues(self, minVal, maxVal, size):
+        """
+        Forzar que se muestren ticks para cada posición de barra
+        """
+        if len(self.bandas) == 0:
+            return []
+        
+        # Crear ticks para cada posición de barra
+        major_ticks = list(range(len(self.bandas)))
+        return [(1.0, major_ticks), (0.0, [])]  # (spacing, ticks)
+    
+    def tickStrings(self, values, scale, spacing):
+        """
+        Devuelve las etiquetas personalizadas para cada posición
+        """
+        strings = []
+        for v in values:
+            # v es la posición en el eje (0, 1, 2, 3...)
+            idx = int(round(v))
+            if 0 <= idx < len(self.bandas):
+                freq = self.bandas[idx]
+                # Formatear la frecuencia de manera legible
+                if freq >= 1000:
+                    if freq % 1000 == 0:
+                        strings.append(f'{int(freq/1000)}k')
+                    else:
+                        strings.append(f'{freq/1000:.1f}k')
+                else:
+                    if freq == int(freq):
+                        strings.append(f'{int(freq)}')
+                    else:
+                        strings.append(f'{freq:.1f}')
+            else:
+                strings.append('')
+        return strings
+    
+    def update_bandas(self, new_bandas):
+        """
+        Actualizar las bandas de frecuencia
+        """
+        self.bandas = new_bandas
+        self.update()
+    
+    def update_bandas(self, new_bandas):
+        """
+        Actualizar las bandas de frecuencia
+        """
+        self.bandas = new_bandas
+        self.update()
 class vista(QMainWindow):
 
     def resizeEvent(self, event):
@@ -271,12 +328,12 @@ class vista(QMainWindow):
         botonesLayout.addWidget(self.btnNivel)
         
         # RAM
-        self.ram = QLabel("Ram")
-        self.ram.setAlignment(QtCore.Qt.AlignCenter)
-        self.ram.setStyleSheet("background-color: lightblue; font-size:11pt; color: white;")
+        # self.ram = QLabel("Ram")
+        # self.ram.setAlignment(QtCore.Qt.AlignCenter)
+        # self.ram.setStyleSheet("background-color: lightblue; font-size:11pt; color: white;")
         
         tipoGraficoLayout.addLayout(botonesLayout, 75)
-        tipoGraficoLayout.addWidget(self.ram, 25)
+        #tipoGraficoLayout.addWidget(self.ram, 25)
         tipoGraficoGroup.setLayout(tipoGraficoLayout)
         self.rightLayout.addWidget(tipoGraficoGroup)
         
@@ -957,8 +1014,9 @@ class vista(QMainWindow):
                 self.waveform1.setAxisItems({'bottom': self.log_x_axis})
                 # ---
                 # Determinar tipo de gráfico de espectro
-                tipoGrafico = self.var_tipoGraficoEspectro
+                tipoGrafico = "Línea"
                 
+                tipoGrafico = self.var_tipoGraficoEspectro
                 color = self.default_color_espectro  # Color por defecto centralizado
                 if hasattr(self, 'colorEspectro'):
                     color = self.get_color_str(self.colorEspectro)
@@ -970,57 +1028,46 @@ class vista(QMainWindow):
                         bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
                     else:
                         bandas, niveles = [], []
+                    
                     print("bandas:", bandas)
                     print("niveles:", niveles)
+                    
                     if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
                         
-                        # Usar eje logarítmico para X
-                        if not hasattr(self, 'log_x_axis'):
-                            self.log_x_axis = LogAxis(orientation='bottom')
-                        self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                        # Crear un eje personalizado para las etiquetas de frecuencia
+                        frequency_axis = FrequencyAxisItem(orientation='bottom', bandas=bandas)
+                        self.waveform1.setAxisItems({'bottom': frequency_axis})
                         
-                        # Calcular anchos de barras proporcionales a las bandas de frecuencia
-                        # Para tercios de octava, cada banda es 2^(1/3) veces la anterior
-                        log_bandas = np.log10(bandas)
+                        # Usar posiciones secuenciales para las barras (0, 1, 2, 3...)
+                        x_positions = np.arange(len(bandas))
                         
-                        
-                        # Calcular anchos de barras
-                        if len(bandas) > 1:
-                            # Para múltiples bandas, calcular el ancho basado en la diferencia entre bandas
-                            widths = np.diff(log_bandas) * 0.8  # 0.8 para dejar espacio entre barras
-                            # Agregar un ancho para la última banda (aproximadamente igual al anterior)
-                            if len(widths) > 0:
-                                widths = np.append(widths, widths[-1])
-                        else:
-                            # Si solo hay una banda, usar un ancho por defecto
-                            widths = [0.1]
+                        # Calcular anchos de barras uniformes
+                        bar_width = 0.8  # Ancho fijo para todas las barras
                         
                         # Verificar que todos los arrays tengan la misma longitud
-                        if len(log_bandas) != len(niveles) or len(log_bandas) != len(widths):
-                            print(f"Error: Arrays con longitudes diferentes - log_bandas: {len(log_bandas)}, niveles: {len(niveles)}, widths: {len(widths)}")
+                        if len(x_positions) != len(niveles):
+                            print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
                             return
                         
                         # Crear el gráfico de barras
                         bar_item = pg.BarGraphItem(
-                            x=log_bandas, 
+                            x=x_positions, 
                             height=niveles, 
-                            width=widths, 
+                            width=bar_width, 
                             brush=color,
                             pen=pg.mkPen(color='black', width=1)
                         )
                         self.waveform1.addItem(bar_item)
-
-                        # Etiquetas del eje X
-                        etiquetas = [(np.log10(fc), f"{int(fc)} Hz") for fc in bandas]
-                        bottom_axis = self.waveform1.getAxis('bottom')
-                        bottom_axis.setTicks([etiquetas])
-
-                        # Espacio para que se vean las etiquetas
-                        self.waveform1.layout.setRowFixedHeight(2, 40)
-
-                        # Rango del eje X
-                        self.waveform1.setXRange(np.min(log_bandas) - 0.05, np.max(log_bandas) + 0.05, padding=0)
+                        
+                        for i, h in enumerate(niveles):
+                            # Position the text slightly above the bar
+                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0)) # Center horizontally, align to bottom of text
+                            text_item.setPos(x_positions[i], h + 0.5) # Adjust 0.5 for desired offset
+                            self.waveform1.addItem(text_item)
+                            
+                        # Configurar rangos de ejes
+                        self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
                         
                         # Rango Y dinámico basado en los niveles
                         y_min = np.min(niveles) if len(niveles) > 0 else 0
@@ -1045,7 +1092,7 @@ class vista(QMainWindow):
                         self.waveform1.setLabel('left', 'Amplitud')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
-                        # Configurar modo logarítmico para X
+                        # Configurar modo lineal para ambos ejes
                         self.waveform1.setLogMode(x=False, y=False)
                         
                         # Limpiar línea de tiempo si existe
@@ -1056,10 +1103,7 @@ class vista(QMainWindow):
                         self.current_bar_item = bar_item
                         
                         print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        print(f"Anchos de barras: {len(widths)} anchos, valores: {widths[:5]}...")
-                        print(f"Posiciones X: {len(log_bandas)} posiciones, valores: {log_bandas[:5]}...")
-                    else:
-                        print("No hay datos de tercios de octava disponibles")
+                        print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
                 else:
                     # Por defecto, línea
                     if device_num == 1 and len(fft_freqs) > 0:
@@ -1094,7 +1138,7 @@ class vista(QMainWindow):
                     else:
                         if hasattr(self, 'plot_line_freq') and self.plot_line_freq is not None:
                             self.plot_line_freq.setData([], [])
-
+                            
             elif self.btnNivel.isChecked(): 
                 import numpy as np
                 # --- Gráfico de Nivel ---

@@ -10,11 +10,12 @@ from scipy.fftpack import fft
 class modelo:
     def __init__(self, Controller, rate=44100, chunk=1024, device_index=1):          # Constructor del modelo
         self.mController = Controller
-        dispEn, dispEnIndice, dispSal, dispSalIndice = consDisp.consDisp()
+        dispEn, dispEnIndice, dispSal, dispSalIndice, dispEnRate = consDisp.consDisp()
         self.dispEn = dispEn
         self.dispEnIndice = dispEnIndice
         self.dispSal = dispSal
         self.dispSalIndice = dispSalIndice
+        self.dispEnRate = dispEnRate
         
         #para ponere valorea a las frecuencias
         self.modo_espectro = "lineal"  # Puede ser: "lineal", "octava", "tercio"
@@ -230,6 +231,9 @@ class modelo:
     def aplicar_calibracion_spl(self, valor_dbfs):
         return valor_dbfs + self.offset_calibracion_spl
 
+    def getDispositivosEntradaRate(self):
+        return self.dispEnRate
+    
 # Getters
     def getFs(self):
         return self.Fs    

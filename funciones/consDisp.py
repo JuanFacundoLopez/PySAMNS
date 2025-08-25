@@ -1,7 +1,7 @@
 import sounddevice as sd
 
 def consDisp():
-    disp = sd.query_devices() # funcion principal
+    disp = sd.query_devices() # Query all available audio devices using sounddevice
 
     dispNameInputStr=[]
     dispNameInputNum=[]
@@ -9,19 +9,22 @@ def consDisp():
     dispNameOutputStr=[]
     dispNameOutputNum=[]
 
-    frecMuestreo=[]
+    frecMuestreoInput=[]
 
 
-    for i in range(0,len(disp)):
-        if disp[i].get('max_input_channels') > 0:
+    for i in range(len(disp)):
+        if disp[i].get('max_input_channels', 0) > 0:
             dispNameInputStr.append(disp[i].get('name'))
             dispNameInputNum.append(i)
-        if disp[i].get('max_output_channels') > 0:
+            frecMuestreoInput.append(disp[i].get('default_samplerate'))
+        if disp[i].get('max_output_channels', 0) > 0:
             dispNameOutputStr.append(disp[i].get('name'))
             dispNameOutputNum.append(i)
-        frecMuestreo.append(disp[i].get('default_samplerate'))
-
-    return (dispNameInputStr, dispNameInputNum, dispNameOutputStr, dispNameOutputNum)
+        
+    print(f"nombres dispos: {dispNameInputStr}")
+    print(f"nombres dispos: {dispNameInputNum}")
+    print(f"frecuewncia muestreo: {frecMuestreoInput}")
+    return (dispNameInputStr, dispNameInputNum, dispNameOutputStr, dispNameOutputNum, frecMuestreoInput)
 
 
 # DispInputStr    = {};DispOutputStr   = {};DispInOutStr    = {}; % Variables STRINGS

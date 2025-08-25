@@ -50,7 +50,7 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.amp_input)
 
         self.lblDurSig = QLabel("Duración (s):")
-        self.dur_input = QLineEdit("0.5")
+        self.dur_input = QLineEdit("600")
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
@@ -152,8 +152,8 @@ class GeneradorWin(QMainWindow):
                 self.lbl_error_gen_sig.setText("La amplitud debe ser > 0 y <= 100.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
-            if T <= 0 or T > 15:
-                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
+            if T <= 0 or T > 900:
+                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 900 s.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
             if self.tipo_combo.currentText() == "Cuadrada" and (d < 0 or d > 100):

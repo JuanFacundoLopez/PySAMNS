@@ -192,7 +192,7 @@ class ProgramarWin(QMainWindow):
             btn_borrar = QPushButton()
             btn_borrar.setIcon(QIcon("img/borrar.png"))
             btn_borrar.clicked.connect(
-                lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin): self.confirmar_borrado(r)
+                lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin, duracion): self.confirmar_borrado(r)
             )
             self.table.setCellWidget(row, 5, btn_borrar)
 
