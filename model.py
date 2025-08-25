@@ -362,7 +362,9 @@ class modelo:
         fft_freqs = fft_freqs[valid]
         fft_magnitude = fft_magnitude[valid]
         # Convertir a dB
-        fft_magnitude_db = 20*np.log10(fft_magnitude)  # Evita log(0)
+        normalized = self.normalize_data(data)
+        rms = np.sqrt(np.mean(normalized**2))
+        fft_magnitude_db = 20 * np.log10(rms / self.reference)
         return fft_freqs, fft_magnitude_db
 
     def calcular_tercios_octava(self, fft_freqs, fft_magnitude):
