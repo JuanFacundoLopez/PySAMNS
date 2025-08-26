@@ -11,7 +11,6 @@ from PyQt5.QtGui import  QPainter
 from PyQt5.QtChart import QChart, QChartView
 from PyQt5.QtCore import Qt
 from utils import norm
-
 import os
 
 

@@ -551,7 +551,7 @@ class controlador():
 
         if ultima_amplitud_baja_thd is None:
             error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
-            self.cVista.txtValorRef.setText("Error")
+            self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             print(error_message)
             return False
@@ -561,7 +561,7 @@ class controlador():
         self.cModel.setCalibracionAutomatica(cal_db)
 
         # Actualizar UI
-        self.cVista.txtValorRef.setText(f"{cal_db:.2f}")
+        self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
         QMessageBox.information(
             self.cVista,
             "Calibración automática",
@@ -606,7 +606,7 @@ class controlador():
         """
         try:
             # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cVista.txtValorRefExterna.text()
+            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
             if not ref_spl_text:
                 QMessageBox.warning(self.cVista, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
@@ -670,7 +670,7 @@ class controlador():
 
     def calRelativa(self):
         try:
-            ref_level = float(self.cVista.txtValorRef.text())
+            ref_level = float(self.cVista.calWin.txtValorRef.text())
         except (ValueError, AttributeError):
             QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
@@ -759,8 +759,8 @@ class controlador():
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
             
-            # Actualizar la UI
-            self.cVista.txtValorRef.setText(f"{cal:.2f}")
+            # # Actualizar la UI
+            # self.cVista.txtValorRef.setText(f"{cal:.2f}")
             
             # Mostrar mensaje de éxito
             QMessageBox.information(

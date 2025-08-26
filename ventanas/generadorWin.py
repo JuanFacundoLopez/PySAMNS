@@ -14,9 +14,9 @@ from utils import norm
 
 
 
-
 class GeneradorWin(QMainWindow):
     def __init__(self, vController):
+        self.vController = vController
         super().__init__()
         self.setWindowTitle("Generador de señales")
         screen = QApplication.primaryScreen().size()
