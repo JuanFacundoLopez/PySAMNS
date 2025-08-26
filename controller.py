@@ -553,6 +553,8 @@ class controlador():
 
         if ultima_amplitud_baja_thd is None:
             error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
+            self.cVista.calWin.txtValorRef.setText("Error")
+            QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             self.cVista.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
@@ -563,7 +565,7 @@ class controlador():
         self.cModel.setCalibracionAutomatica(cal_db)
 
         # Actualizar UI
-        self.cVista.txtValorRef.setText(f"{cal_db:.2f}")
+        self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
         QMessageBox.information(
             self.cCalWin,
             "Calibración automática",
@@ -608,7 +610,7 @@ class controlador():
         """
         try:
             # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cVista.txtValorRefExterna.text()
+            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
             if not ref_spl_text:
                 QMessageBox.warning(self.cCalWin, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
@@ -672,10 +674,10 @@ class controlador():
 
     def calRelativa(self):
         try:
-            ref_level = float(self.cVista.txtValorRef.text())
+            ref_level = float(self.cVista.calWin.txtValorRef.text())
         except (ValueError, AttributeError):
-            QMessageBox.warning(self.cCalWin, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
-            return False
+            QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
+            return
 
         # Obtener dispositivos de entrada y salida seleccionados
         try:
@@ -683,11 +685,11 @@ class controlador():
             output_device_index = self.cModel.getDispositivoSalidaActual()
             
             if output_device_index is None:
-                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
-                return False
+                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                return
         except Exception as e:
-            QMessageBox.warning(self.cCalWin, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
-            return False
+            QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            return
 
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
@@ -741,21 +743,15 @@ class controlador():
             output_stream.close()
             self.cModel.stream.stop_stream()
             
-        except Exception as e:
-            QMessageBox.warning(self.cCalWin, "Error de Audio", f"Error al reproducir o capturar audio: {str(e)}")
-            return False
-        
-        # Obtener los niveles capturados
-        NZ = self.cModel.getNivelesZ('P')
-        
-        # Calcular el promedio de los niveles capturados
-        if len(NZ) > 0:
-            # Filtrar valores extremos (opcional)
-            NZ_filtered = NZ[NZ > -100]  # Eliminar valores muy bajos que podrían ser ruido
-            if len(NZ_filtered) > 0:
-                promNZ = np.mean(NZ_filtered)
-            else:
-                promNZ = np.mean(NZ)
+            if not captured_audio:
+                raise ValueError("No se capturó audio. Verifique la conexión del micrófono.")
+                
+            # Convertir a array de numpy
+            captured_audio = np.array(captured_audio)
+            
+            # Calcular el nivel RMS en dBFS
+            rms = np.sqrt(np.mean(captured_audio**2))
+            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
             
             # Calcular el factor de calibración
             cal = ref_level - rms_db
@@ -767,18 +763,20 @@ class controlador():
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
             
-            # Actualizar la UI
-            self.cVista.txtValorRef.setText(f"{cal:.2f}")
+            # # Actualizar la UI
+            # self.cVista.txtValorRef.setText(f"{cal:.2f}")
             
             # Mostrar mensaje de éxito
-            QMessageBox.information(self.cCalWin, "Calibración Exitosa", 
-                                   f"Calibración relativa completada.\n\n" \
-                                   f"Nivel de referencia: {ref_level:.2f} dB\n" \
-                                   f"Nivel medido: {promNZ:.2f} dB\n" \
-                                   f"Factor de ajuste: {cal:.2f} dB")
-            return True
-        else:
-            error_message = "No se pudieron medir niveles. Verifique la fuente de audio y los dispositivos seleccionados."
-            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            print(error_message)
-            return False
+            QMessageBox.information(
+                self.cVista,
+                "Calibración Exitosa",
+                f"Calibración relativa completada.\n\n"
+                f"Nivel de referencia: {ref_level:.2f} dB\n"
+                f"Nivel medido: {rms_db:.2f} dB\n"
+                f"Factor de ajuste: {cal:.2f} dB"
+            )
+            
+        except Exception as e:
+            error_msg = f"Error durante la calibración: {str(e)}"
+            print(error_msg)
+            QMessageBox.critical(self.cVista, "Error de Calibración", error_msg)

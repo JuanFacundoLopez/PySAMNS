@@ -338,7 +338,6 @@ class modelo:
         if NP == 'A':
             return (pico, inst, fast, slow)
     def getCalibracionAutomatica(self):
-
         return self.cal
     
 # -------------- funcion codigo YAMILI-----------------
