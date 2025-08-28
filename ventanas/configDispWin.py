@@ -47,8 +47,8 @@ class ConfigDispWin(QMainWindow):
             self.cmbDispositivosEntrada.setCurrentIndex(0)
         
         self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada)
-        self.lblSelEnt = QLabel("Seleccionar:")
-        dispLayoutEntrada.addWidget(self.lblSelEnt)
+        #self.lblSelEnt = QLabel("Seleccionar:")
+        #dispLayoutEntrada.addWidget(self.lblSelEnt)
         dispLayoutEntrada.addWidget(self.cmbDispositivosEntrada)
         dispGroupEntrada.setLayout(dispLayoutEntrada)
         mainLayout.addWidget(dispGroupEntrada)
@@ -76,8 +76,8 @@ class ConfigDispWin(QMainWindow):
             # Si no hay dispositivo actual, usar el primer dispositivo
             self.cmbDispositivosSalida.setCurrentIndex(0)
         
-        self.lblSelSal= QLabel("Seleccionar:")
-        dispLayoutSalida.addWidget(self.lblSelSal)
+        #self.lblSelSal= QLabel("Seleccionar:")
+        #dispLayoutSalida.addWidget(self.lblSelSal)
         dispLayoutSalida.addWidget(self.cmbDispositivosSalida)
         dispGroupSalida.setLayout(dispLayoutSalida)
         mainLayout.addWidget(dispGroupSalida)
@@ -111,7 +111,7 @@ class ConfigDispWin(QMainWindow):
         for boton in [self.btnDispAgregar, self.btnDispCancelar]:
             boton.setProperty("class", "ventanasSec")
         
-        for lbl in [self.lblChunk, self.lblRate, self.lblSelEnt, self.lblSelSal]:
+        for lbl in [self.lblChunk, self.lblRate ]:
             lbl.setProperty("class", "ventanasSecLabelDestacado")
             
         for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida]:

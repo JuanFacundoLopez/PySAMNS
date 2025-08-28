@@ -125,6 +125,23 @@ QPushButton:checked {
     color: white;
     border-color: #475ECB;
 }
+QPushButton[class="filtros"] {
+    padding: 8px 8px;
+    border-radius: 8px;
+    border: 2px solid #cccccc;
+    background-color: #f0f0f0;
+    font-weight: bold;
+    font-size: 8px;
+    font-family: Arial;
+}
+QPushButton[class="filtros"]:hover {
+    background-color: #e0e0e0;
+    border-color: #999999;
+}
+QPushButton[class="filtros"]:pressed {
+    background-color: #d0d0d0;
+    border-color: #666666;
+}
 QPushButton[class="ventanasSec"] {
     padding: 8px 8px;
     border-radius: 8px;

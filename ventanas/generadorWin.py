@@ -11,6 +11,7 @@ from PyQt5.QtCore import QPointF
 from PyQt5.QtChart import QChart, QChartView, QLineSeries
 from PyQt5.QtCore import Qt
 from utils import norm
+import time
 
 
 
@@ -40,7 +41,7 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.tipo_combo)
         
         self.lblFrecSig = QLabel("Frecuencia (Hz):")
-        self.freq_input = QLineEdit("5")
+        self.freq_input = QLineEdit("1000")
         configLayout.addWidget(self.lblFrecSig)
         configLayout.addWidget(self.freq_input)
         
@@ -50,14 +51,14 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.amp_input)
 
         self.lblDurSig = QLabel("Duración (s):")
-        self.dur_input = QLineEdit("600")
+        self.dur_input = QLineEdit("10")
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
         self.lblDutyCicleSig = QLabel("Duty cicle (%):")
         self.duty_input = QSpinBox()
         self.duty_input.setRange(0, 99)
-        self.duty_input.setValue(1)  # Valor por defecto
+        self.duty_input.setValue(50)  # Valor por defecto
         configLayout.addWidget(self.lblDutyCicleSig)
         configLayout.addWidget(self.duty_input)
         self.lblDutyCicleSig.setVisible(False)
@@ -119,8 +120,13 @@ class GeneradorWin(QMainWindow):
 
         for combo in [self.tipo_combo]:
                 combo.setProperty("class", "ventanasSec") 
-            
+         
+         
         self.setCentralWidget(centralWidget)
+        
+        time.sleep(0.5)  # Pequeña pausa para asegurar que la ventana se renderice correctamente
+        self.generar_senal()  # Generar la señal inicial
+        
     
     def mostra_duty_cicle(self):
         if self.tipo_combo.currentText() == "Cuadrada":
@@ -211,7 +217,7 @@ class GeneradorWin(QMainWindow):
             y *= A
 
         #Normalizar la señal
-        y = y / np.max(np.abs(y)) * 1 # para evitar saturación
+        #y = y / np.max(np.abs(y)) * 1 # para evitar saturación
 
         #Guardar los datos de la señal
         self.signal_data = y.astype(np.float32)

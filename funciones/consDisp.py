@@ -26,6 +26,20 @@ def consDisp():
     print(f"frecuewncia muestreo: {frecMuestreoInput}")
     return (dispNameInputStr, dispNameInputNum, dispNameOutputStr, dispNameOutputNum, frecMuestreoInput)
 
+def probar_frecuencias_entrada(device_index, frecuencias, canales=1):
+    compatibles = []
+    for fs in frecuencias:
+        try:
+            sd.check_input_settings(device=device_index, samplerate=fs, channels=canales)
+            compatibles.append(fs)
+        except Exception as e:
+            pass  # No compatible
+    return compatibles
+
+frecuencias_comunes = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000, 192000]
+dispositivo = 1  # Cambia según el índice de tu micrófono
+frecuencias_validas = probar_frecuencias_entrada(dispositivo, frecuencias_comunes)
+print("Frecuencias compatibles:", frecuencias_validas)
 
 # DispInputStr    = {};DispOutputStr   = {};DispInOutStr    = {}; % Variables STRINGS
 # DispInputSer    = {};DispOutputSer   = {};DispInOutSer    = {}; % Variables Servidor
