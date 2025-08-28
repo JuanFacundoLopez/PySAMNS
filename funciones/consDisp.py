@@ -1,7 +1,7 @@
 import sounddevice as sd
 
 def consDisp():
-    disp = sd.query_devices() # funcion principal
+    disp = sd.query_devices() # Query all available audio devices using sounddevice
 
     dispNameInputStr=[]
     dispNameInputNum=[]
@@ -9,20 +9,37 @@ def consDisp():
     dispNameOutputStr=[]
     dispNameOutputNum=[]
 
-    frecMuestreo=[]
+    frecMuestreoInput=[]
 
 
-    for i in range(0,len(disp)):
-        if disp[i].get('max_input_channels') > 0:
+    for i in range(len(disp)):
+        if disp[i].get('max_input_channels', 0) > 0:
             dispNameInputStr.append(disp[i].get('name'))
             dispNameInputNum.append(i)
-        if disp[i].get('max_output_channels') > 0:
+            frecMuestreoInput.append(disp[i].get('default_samplerate'))
+        if disp[i].get('max_output_channels', 0) > 0:
             dispNameOutputStr.append(disp[i].get('name'))
             dispNameOutputNum.append(i)
-        frecMuestreo.append(disp[i].get('default_samplerate'))
+        
+    print(f"nombres dispos: {dispNameInputStr}")
+    print(f"nombres dispos: {dispNameInputNum}")
+    print(f"frecuewncia muestreo: {frecMuestreoInput}")
+    return (dispNameInputStr, dispNameInputNum, dispNameOutputStr, dispNameOutputNum, frecMuestreoInput)
 
-    return (dispNameInputStr, dispNameInputNum, dispNameOutputStr, dispNameOutputNum)
+def probar_frecuencias_entrada(device_index, frecuencias, canales=1):
+    compatibles = []
+    for fs in frecuencias:
+        try:
+            sd.check_input_settings(device=device_index, samplerate=fs, channels=canales)
+            compatibles.append(fs)
+        except Exception as e:
+            pass  # No compatible
+    return compatibles
 
+frecuencias_comunes = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000, 192000]
+# dispositivo = 1  # Cambia según el índice de tu micrófono
+# frecuencias_validas = probar_frecuencias_entrada(dispositivo, frecuencias_comunes)
+# print("Frecuencias compatibles:", frecuencias_validas)
 
 # DispInputStr    = {};DispOutputStr   = {};DispInOutStr    = {}; % Variables STRINGS
 # DispInputSer    = {};DispOutputSer   = {};DispInOutSer    = {}; % Variables Servidor

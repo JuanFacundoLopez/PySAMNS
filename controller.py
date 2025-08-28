@@ -1,5 +1,6 @@
 from model import modelo
 from view import vista
+from ventanas.calibracionWin import CalibracionWin
 
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
@@ -32,6 +33,7 @@ class controlador():
     def __init__(self):                             # Constructor del controlador
         self.cModel = modelo(self)                  # Conecto la referencia del modelo 
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
+        self.cCalWin = CalibracionWin(self)         # Ventana de calibración
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -131,7 +133,9 @@ class controlador():
         # para que los datos levantados sean cargados
         self.graficar()
 
-    
+    def probar_frecuencias_entrada(self, device_index, lista_frecuencias, canales=1):
+        from funciones.consDisp import probar_frecuencias_entrada
+        return probar_frecuencias_entrada(device_index, lista_frecuencias, canales)
 
     def graficar(self):                             # Funcion para graficar las señales
         print(f"DEBUG: Función graficar llamada")
@@ -444,10 +448,10 @@ class controlador():
             input_device_index = self.cModel.getDispositivoActual()
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
-                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return False
         except Exception as e:
-            QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
             return False
 
         # Reset de niveles
@@ -474,7 +478,7 @@ class controlador():
                 frames_per_buffer=frames_per_buffer
             )
         except Exception as e:
-            QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
             return False
 
         # Iniciar captura
@@ -482,7 +486,7 @@ class controlador():
             self.cModel.stream.start_stream()
         except Exception as e:
             output_stream.close()
-            QMessageBox.warning(self.cVista, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
             return False
 
         ultima_amplitud_baja_thd = None
@@ -553,6 +557,8 @@ class controlador():
             error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
             self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
+            self.cVista.txtValorRef.setText("Error")
+            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
             return False
 
@@ -563,7 +569,7 @@ class controlador():
         # Actualizar UI
         self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
         QMessageBox.information(
-            self.cVista,
+            self.cCalWin,
             "Calibración automática",
             f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
         )
@@ -579,7 +585,7 @@ class controlador():
         try:
             ruta = self.cModel.get_ruta_archivo_calibracion()
             if not ruta:
-                QMessageBox.warning(self.cVista, "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
+                QMessageBox.warning(self.cCalWin, "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
                 return
 
             # Leer el archivo de audio
@@ -588,15 +594,15 @@ class controlador():
             # Obtener dispositivo de salida
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
-                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return
 
             # Reproducir el audio
             sd.play(data, samplerate, device=output_device_index)
-            QMessageBox.information(self.cVista, "Reproducción", f"Reproduciendo {ruta}...")
+            QMessageBox.information(self.cCalWin, "Reproducción", f"Reproduciendo {ruta}...")
 
         except Exception as e:
-            QMessageBox.critical(self.cVista, "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
+            QMessageBox.critical(self.cCalWin, "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
             print(f"Error en reproducir_audio_calibracion: {e}")
 
     def iniciar_calibracion_externa(self):
@@ -608,12 +614,12 @@ class controlador():
             # 1. Obtener el nivel de referencia dBSPL del usuario
             ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
             if not ref_spl_text:
-                QMessageBox.warning(self.cVista, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
+                QMessageBox.warning(self.cCalWin, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
             ref_spl = float(ref_spl_text)
 
             # 2. Iniciar una grabación corta para medir el nivel dBFS
-            QMessageBox.information(self.cVista, "Medición en Curso", 
+            QMessageBox.information(self.cCalWin, "Medición en Curso", 
                                     "Se medirá el nivel de entrada durante 3 segundos.\n" 
                                     "Asegúrese de que su tono de referencia esté sonando y presione OK.")
             
@@ -631,7 +637,7 @@ class controlador():
             self.cModel.stream.stop_stream()
 
             if not grabacion_data:
-                QMessageBox.critical(self.cVista, "Error de Medición", "No se pudieron capturar datos de audio.")
+                QMessageBox.critical(self.cCalWin, "Error de Medición", "No se pudieron capturar datos de audio.")
                 return False
 
             # Concatenar y procesar los datos grabados
@@ -653,7 +659,7 @@ class controlador():
             # 7. Actualizar la interfaz con el offset
             self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
 
-            QMessageBox.information(self.cVista, "Calibración Completa", 
+            QMessageBox.information(self.cCalWin, "Calibración Completa", 
                                    f"Calibración finalizada con éxito.\n\n"
                                    f"Nivel de Referencia: {ref_spl:.2f} dBSPL\n"
                                    f"Nivel Medido: {medido_dbfs:.2f} dBFS\n"
@@ -661,10 +667,10 @@ class controlador():
             return True
 
         except ValueError:
-            QMessageBox.warning(self.cVista, "Entrada Inválida", "El valor de referencia debe ser un número.")
+            QMessageBox.warning(self.cCalWin, "Entrada Inválida", "El valor de referencia debe ser un número.")
             return False
         except Exception as e:
-            QMessageBox.critical(self.cVista, "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
+            QMessageBox.critical(self.cCalWin, "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
             print(f"Error en iniciar_calibracion_relativa: {e}")
             return False
 

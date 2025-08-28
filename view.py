@@ -8,7 +8,7 @@ from ventanas.configuracionWin import ConfiguracionWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
-                             QMenu, QMessageBox, QColorDialog, QFileDialog)
+                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame)
 
 from PyQt5.QtGui import QPixmap, QIcon
 from pyqtgraph.Qt import  QtCore
@@ -46,6 +46,63 @@ class TimeAxisItem(pg.AxisItem):
             strings.append(f"{val:.2f} s")
         return strings
 
+class FrequencyAxisItem(pg.AxisItem):
+    """
+    Eje personalizado para mostrar etiquetas de frecuencia en gráficos de barras
+    """
+    def __init__(self, orientation='bottom', bandas=None):
+        super().__init__(orientation)
+        self.bandas = bandas if bandas is not None else []
+    
+    def tickValues(self, minVal, maxVal, size):
+        """
+        Forzar que se muestren ticks para cada posición de barra
+        """
+        if len(self.bandas) == 0:
+            return []
+        
+        # Crear ticks para cada posición de barra
+        major_ticks = list(range(len(self.bandas)))
+        return [(1.0, major_ticks), (0.0, [])]  # (spacing, ticks)
+    
+    def tickStrings(self, values, scale, spacing):
+        """
+        Devuelve las etiquetas personalizadas para cada posición
+        """
+        strings = []
+        for v in values:
+            # v es la posición en el eje (0, 1, 2, 3...)
+            idx = int(round(v))
+            if 0 <= idx < len(self.bandas):
+                freq = self.bandas[idx]
+                # Formatear la frecuencia de manera legible
+                if freq >= 1000:
+                    if freq % 1000 == 0:
+                        strings.append(f'{int(freq/1000)}k')
+                    else:
+                        strings.append(f'{freq/1000:.1f}k')
+                else:
+                    if freq == int(freq):
+                        strings.append(f'{int(freq)}')
+                    else:
+                        strings.append(f'{freq:.1f}')
+            else:
+                strings.append('')
+        return strings
+    
+    def update_bandas(self, new_bandas):
+        """
+        Actualizar las bandas de frecuencia
+        """
+        self.bandas = new_bandas
+        self.update()
+    
+    def update_bandas(self, new_bandas):
+        """
+        Actualizar las bandas de frecuencia
+        """
+        self.bandas = new_bandas
+        self.update()
 class vista(QMainWindow):
 
     def resizeEvent(self, event):
@@ -132,7 +189,7 @@ class vista(QMainWindow):
         self.columna1tab1.addWidget(self.winGraph1)
         
         #variables para configuracion de grafico
-        self.var_logModeXTiempo = False
+        #self.var_logModeXTiempo = False
         self.var_logModeYTiempo = False
         self.var_logModeXEspectro = False
         self.var_logModeYEspectro = False
@@ -152,8 +209,8 @@ class vista(QMainWindow):
         self.var_yMaxNivel = 1
         self.var_etiquetaXTiempo = "Tiempo"
         self.var_etiquetaYTiempo = "Amplitud Normalizada"
-        self.var_etiquetaXEspectro = "Tiempo"
-        self.var_etiquetaYEspectro = "Amplitud Normalizada"
+        self.var_etiquetaXEspectro = "Frecuencia"
+        self.var_etiquetaYEspectro = "Amplitud"
         self.var_etiquetaXNivel = "Tiempo"
         self.var_etiquetaYNivel = "Amplitud Normalizada"
         self.var_tipoLineaTiempo = ""
@@ -247,7 +304,7 @@ class vista(QMainWindow):
         self.rightLayout = QVBoxLayout(self.rightPanel)
         
         # Grupo de tipo de gráfico
-        tipoGraficoGroup = QGroupBox("Tipo de gráfico")
+        tipoGraficoGroup = QGroupBox("Analisis")
         tipoGraficoLayout = QHBoxLayout()
         
         # Contenedor para los botones
@@ -271,197 +328,214 @@ class vista(QMainWindow):
         botonesLayout.addWidget(self.btnNivel)
         
         # RAM
-        self.ram = QLabel("Ram")
-        self.ram.setAlignment(QtCore.Qt.AlignCenter)
-        self.ram.setStyleSheet("background-color: lightblue; font-size:11pt; color: white;")
+        # self.ram = QLabel("Ram")
+        # self.ram.setAlignment(QtCore.Qt.AlignCenter)
+        # self.ram.setStyleSheet("background-color: lightblue; font-size:11pt; color: white;")
         
         tipoGraficoLayout.addLayout(botonesLayout, 75)
-        tipoGraficoLayout.addWidget(self.ram, 25)
+        #tipoGraficoLayout.addWidget(self.ram, 25)
         tipoGraficoGroup.setLayout(tipoGraficoLayout)
         self.rightLayout.addWidget(tipoGraficoGroup)
         
         # Filtros ponderados
-        filtrosGroup = QGroupBox("Filtros ponderados")
-        filtrosLayout = QVBoxLayout()
+        self.filtrosGroup = QGroupBox("Filtros ponderados frecuenciales")
+        filtrosLayout = QHBoxLayout()
         
-        self.r0 = QRadioButton("Filtro ponderado A")
-        self.r1 = QRadioButton("Filtro ponderado C")
-        self.r2 = QRadioButton("Filtro ponderado Z")
+        self.r0 = QRadioButton("A")
+        self.r1 = QRadioButton("C")
+        self.r2 = QRadioButton("Z")
         self.r2.setChecked(True)
         
         filtrosLayout.addWidget(self.r0)
         filtrosLayout.addWidget(self.r1)
         filtrosLayout.addWidget(self.r2)
-        filtrosGroup.setLayout(filtrosLayout)
-        self.rightLayout.addWidget(filtrosGroup)
+        self.filtrosGroup.setLayout(filtrosLayout)
+        self.rightLayout.addWidget(self.filtrosGroup)
         
         # Niveles estadísticos
-        nivelesGroup = QGroupBox("Niveles estadísticos")
-        self.tabFilt = QTabWidget()
-        self.tabFiltA = QWidget()
-        self.tabFiltC = QWidget()
-        self.tabFiltZ = QWidget()
-        
-        # Layout para filtro A
-        layoutFiltA = QGridLayout(self.tabFiltA)
-        self.cbEqA = QCheckBox("LA eq",self.tabFiltA)
-        self.cb01A = QCheckBox("01 eq",self.tabFiltA)
-        self.cb10A = QCheckBox("10 eq",self.tabFiltA)
-        self.cb50A = QCheckBox("50 eq",self.tabFiltA)
-        self.cb90A = QCheckBox("90 eq",self.tabFiltA)
-        self.cb99A = QCheckBox("99 eq",self.tabFiltA)
-        # Primera fila
-        layoutFiltA.addWidget(self.cbEqA, 0, 0)
-        layoutFiltA.addWidget(self.cb01A, 0, 1)
-        layoutFiltA.addWidget(self.cb10A, 0, 2)
-        # Segunda fila
-        layoutFiltA.addWidget(self.cb50A, 1, 0)
-        layoutFiltA.addWidget(self.cb90A, 1, 1)
-        layoutFiltA.addWidget(self.cb99A, 1, 2)
-        # Agregar espacio al final
-        layoutFiltA.setColumnStretch(3, 1)
-        
-        # Layout para filtro C
-        layoutFiltC = QGridLayout(self.tabFiltC)
-        self.cbEqC = QCheckBox("LC eq",self.tabFiltC)
-        self.cb01C = QCheckBox("01 eq",self.tabFiltC)
-        self.cb10C = QCheckBox("10 eq",self.tabFiltC)
-        self.cb50C = QCheckBox("50 eq",self.tabFiltC)
-        self.cb90C = QCheckBox("90 eq",self.tabFiltC)
-        self.cb99C = QCheckBox("99 eq",self.tabFiltC)
-        # Primera fila
-        layoutFiltC.addWidget(self.cbEqC, 0, 0)
-        layoutFiltC.addWidget(self.cb01C, 0, 1)
-        layoutFiltC.addWidget(self.cb10C, 0, 2)
-        # Segunda fila
-        layoutFiltC.addWidget(self.cb50C, 1, 0)
-        layoutFiltC.addWidget(self.cb90C, 1, 1)
-        layoutFiltC.addWidget(self.cb99C, 1, 2)
-        # Agregar espacio al final
-        #layoutFiltC.setColumnStretch(3, 1)
+        self.nivelesGroup = QGroupBox("Niveles estadísticos")
+                
+        layoutNivelesEsta = QGridLayout()
+        self.nivelesGroup.setLayout(layoutNivelesEsta)
         
         # Layout para filtro Z
-        layoutFiltZ = QGridLayout(self.tabFiltZ)
-        self.cbEqZ = QCheckBox("LZ eq",self.tabFiltZ)
-        self.cb01Z = QCheckBox("01 eq",self.tabFiltZ)
-        self.cb10Z = QCheckBox("10 eq",self.tabFiltZ)
-        self.cb50Z = QCheckBox("50 eq",self.tabFiltZ)
-        self.cb90Z = QCheckBox("90 eq",self.tabFiltZ)
-        self.cb99Z = QCheckBox("99 eq",self.tabFiltZ)
+        self.cbEqZ = QCheckBox("LZeq",self.nivelesGroup)
+        self.cb01Z = QCheckBox("LZ01",self.nivelesGroup)
+        self.cb10Z = QCheckBox("LZ10",self.nivelesGroup)
+        self.cb50Z = QCheckBox("LZ50",self.nivelesGroup)
+        self.cb90Z = QCheckBox("LZ90",self.nivelesGroup)
+        self.cb99Z = QCheckBox("LZ99",self.nivelesGroup)
+        # Layout para filtro C
+        self.cbEqC = QCheckBox("LCeq",self.nivelesGroup)
+        self.cb01C = QCheckBox("LC01",self.nivelesGroup)
+        self.cb10C = QCheckBox("LC10",self.nivelesGroup)
+        self.cb50C = QCheckBox("LC50",self.nivelesGroup)
+        self.cb90C = QCheckBox("LC90",self.nivelesGroup)
+        self.cb99C = QCheckBox("LC99",self.nivelesGroup)
+       
+        # Layout para filtro A
+        self.cbEqA = QCheckBox("LAeq",self.nivelesGroup)
+        self.cb01A = QCheckBox("LA01",self.nivelesGroup)
+        self.cb10A = QCheckBox("LA10",self.nivelesGroup)
+        self.cb50A = QCheckBox("LA50",self.nivelesGroup)
+        self.cb90A = QCheckBox("LA90",self.nivelesGroup)
+        self.cb99A = QCheckBox("LA99",self.nivelesGroup)
+        
+        self.btnClearNEsta = QPushButton("Limpiar")
+        
+       
         # Primera fila
-        layoutFiltZ.addWidget(self.cbEqZ, 0, 0)
-        layoutFiltZ.addWidget(self.cb01Z, 0, 1)
-        layoutFiltZ.addWidget(self.cb10Z, 0, 2)
+        layoutNivelesEsta.addWidget(self.cbEqZ, 0, 0)
+        layoutNivelesEsta.addWidget(self.cbEqC, 0, 1)
+        layoutNivelesEsta.addWidget(self.cbEqA, 0, 2)
+        
         # Segunda fila
-        layoutFiltZ.addWidget(self.cb50Z, 1, 0)
-        layoutFiltZ.addWidget(self.cb90Z, 1, 1)
-        layoutFiltZ.addWidget(self.cb99Z, 1, 2)
+        layoutNivelesEsta.addWidget(self.cb01Z, 1, 0)
+        layoutNivelesEsta.addWidget(self.cb01C, 1, 1)
+        layoutNivelesEsta.addWidget(self.cb01A, 1, 2)
         
-
-        self.tabFilt.addTab(self.tabFiltA, "Filtro A")
-        self.tabFilt.addTab(self.tabFiltC, "Filtro C")
-        self.tabFilt.addTab(self.tabFiltZ, "Filtro Z")
+        # Tercera fila
+        layoutNivelesEsta.addWidget(self.cb10Z, 2, 0)
+        layoutNivelesEsta.addWidget(self.cb10C, 2, 1)
+        layoutNivelesEsta.addWidget(self.cb10A, 2, 2)
         
-        nivelesLayout = QVBoxLayout()
-        nivelesLayout.addWidget(self.tabFilt)
-        nivelesGroup.setLayout(nivelesLayout)
-        self.rightLayout.addWidget(nivelesGroup)
+        # Cuarta fila
+        layoutNivelesEsta.addWidget(self.cb50Z, 3, 0)
+        layoutNivelesEsta.addWidget(self.cb50C, 3, 1)
+        layoutNivelesEsta.addWidget(self.cb50A, 3, 2)
+        
+         # Quinta fila
+        layoutNivelesEsta.addWidget(self.cb90Z, 4, 0)
+        layoutNivelesEsta.addWidget(self.cb90C, 4, 1)
+        layoutNivelesEsta.addWidget(self.cb90A, 4, 2)
+        
+        # Sexta fila
+        layoutNivelesEsta.addWidget(self.cb99Z, 5, 0)
+        layoutNivelesEsta.addWidget(self.cb99C, 5, 1)
+        layoutNivelesEsta.addWidget(self.cb99A, 5, 2)
+        
+        layoutNivelesEsta.addWidget(self.btnClearNEsta, 6, 2, QtCore.Qt.AlignRight)
+        self.btnClearNEsta.clicked.connect(self.limpiarNivelesEstadisticos)
+        self.btnClearNEsta.setToolTip("Desmarca todos los niveles estadísticos")
+        self.btnClearNEsta.setProperty("class", "filtros")
+        
+        self.rightLayout.addWidget(self.nivelesGroup)
         
         # Ponderación temporal
-        ponderacionGroup = QGroupBox("Ponderación temporal")
-        self.tabNieles = QTabWidget()
-        self.tabNivPico = QWidget()
-        self.tabNivInst = QWidget()
-        self.tabNivFast = QWidget()
-        self.tabNivSlow = QWidget()
+        self.ponderacionGroup = QGroupBox("Niveles de integración")
+        nivelesLayout = QGridLayout()
+        
+        self.ponderacionGroup.setLayout(nivelesLayout)
+        line1 = QFrame()
+        line1.setFrameShape(QFrame.HLine)
+        line1.setFrameShadow(QFrame.Sunken)
+        nivelesLayout.addWidget(line1, 1, 0, 1, 4)
+
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.HLine)
+        line2.setFrameShadow(QFrame.Sunken)
+        nivelesLayout.addWidget(line2, 5, 0, 1, 4)
+
+        line3 = QFrame()
+        line3.setFrameShape(QFrame.HLine)
+        line3.setFrameShadow(QFrame.Sunken)
+        nivelesLayout.addWidget(line3, 9, 0, 1, 4)
         
         # Layout para Pico
-        layoutPico = QHBoxLayout(self.tabNivPico)
+        self.lblNivelesPico = QLabel("Pico")
         self.cbNivPicoA = QCheckBox("A")
         self.cbNivPicoC = QCheckBox("C")
         self.cbNivPicoZ = QCheckBox("Z")
-        layoutPico.addWidget(self.cbNivPicoA)
-        layoutPico.addWidget(self.cbNivPicoC)
-        layoutPico.addWidget(self.cbNivPicoZ)
-        layoutPico.addStretch()
+        
+        nivelesLayout.addWidget(self.lblNivelesPico, 0, 0,QtCore.Qt.AlignCenter)
+        nivelesLayout.addWidget(self.cbNivPicoA,0,1)
+        nivelesLayout.addWidget(self.cbNivPicoC,0,2)
+        nivelesLayout.addWidget(self.cbNivPicoZ,0,3)
         
         # Layout para Instantaneo
-        layoutInst = QGridLayout(self.tabNivInst)
+        self.lblNivelesInst = QLabel("Instantáneo")
         self.cbNivInstA = QCheckBox("A")
         self.cbNivInstC = QCheckBox("C")
         self.cbNivInstZ = QCheckBox("Z")
-        self.cbNivInstMinA = QCheckBox("A min")
-        self.cbNivInstMinC = QCheckBox("C min")
-        self.cbNivInstMinZ = QCheckBox("Z min")
-        self.cbNivInstMaxA = QCheckBox("A max")
-        self.cbNivInstMaxC = QCheckBox("C max")
-        self.cbNivInstMaxZ = QCheckBox("Z max")
+        self.cbNivInstMinA = QCheckBox("LAI min")
+        self.cbNivInstMinC = QCheckBox("LCI min")
+        self.cbNivInstMinZ = QCheckBox("LZI min")
+        self.cbNivInstMaxA = QCheckBox("LAI max")
+        self.cbNivInstMaxC = QCheckBox("LCI max")
+        self.cbNivInstMaxZ = QCheckBox("LZI max")
+        
+        nivelesLayout.addWidget(self.lblNivelesInst, 2, 0,3,1,QtCore.Qt.AlignCenter)  
         # Primera fila
-        layoutInst.addWidget(self.cbNivInstA, 0, 0)
-        layoutInst.addWidget(self.cbNivInstC, 0, 1)
-        layoutInst.addWidget(self.cbNivInstZ, 0, 2)
+        nivelesLayout.addWidget(self.cbNivInstA, 2, 1)
+        nivelesLayout.addWidget(self.cbNivInstC, 3, 1)
+        nivelesLayout.addWidget(self.cbNivInstZ, 4, 1)
         # Segunda fila
-        layoutInst.addWidget(self.cbNivInstMinA, 1, 0)
-        layoutInst.addWidget(self.cbNivInstMinC, 1, 1)
-        layoutInst.addWidget(self.cbNivInstMinZ, 1, 2)
+        nivelesLayout.addWidget(self.cbNivInstMinA, 2, 2)
+        nivelesLayout.addWidget(self.cbNivInstMinC, 3, 2)
+        nivelesLayout.addWidget(self.cbNivInstMinZ, 4, 2)
         # Tercera fila
-        layoutInst.addWidget(self.cbNivInstMaxA, 2, 0)
-        layoutInst.addWidget(self.cbNivInstMaxC, 2, 1)
-        layoutInst.addWidget(self.cbNivInstMaxZ, 2, 2)
+        nivelesLayout.addWidget(self.cbNivInstMaxA, 2, 3)
+        nivelesLayout.addWidget(self.cbNivInstMaxC, 3, 3)
+        nivelesLayout.addWidget(self.cbNivInstMaxZ, 4, 3)
 
 
         # Layout para Instantaneo
-        layoutFast = QGridLayout(self.tabNivFast)
+        self.lblNivelesFast = QLabel("Rapido")
         self.cbNivFastA = QCheckBox("A")
         self.cbNivFastC = QCheckBox("C")
         self.cbNivFastZ = QCheckBox("Z")
-        self.cbNivFastMinA = QCheckBox("A min")
-        self.cbNivFastMinC = QCheckBox("C min")
-        self.cbNivFastMinZ = QCheckBox("Z min")
-        self.cbNivFastMaxA = QCheckBox("A max")
-        self.cbNivFastMaxC = QCheckBox("C max")
-        self.cbNivFastMaxZ = QCheckBox("Z max")
+        self.cbNivFastMinA = QCheckBox("LAR min")
+        self.cbNivFastMinC = QCheckBox("LCR min")
+        self.cbNivFastMinZ = QCheckBox("LZR min")
+        self.cbNivFastMaxA = QCheckBox("LAR max")
+        self.cbNivFastMaxC = QCheckBox("LCR max")
+        self.cbNivFastMaxZ = QCheckBox("LZR max")
+        
+        nivelesLayout.addWidget(self.lblNivelesFast, 6, 0,3,1,QtCore.Qt.AlignCenter)  
         # Primera fila
-        layoutFast.addWidget(self.cbNivFastA, 0, 0)
-        layoutFast.addWidget(self.cbNivFastC, 0, 1)
-        layoutFast.addWidget(self.cbNivFastZ, 0, 2)
+        nivelesLayout.addWidget(self.cbNivFastA, 6, 1)
+        nivelesLayout.addWidget(self.cbNivFastC, 7, 1)
+        nivelesLayout.addWidget(self.cbNivFastZ, 8, 1)
         # Segunda fila
-        layoutFast.addWidget(self.cbNivFastMinA, 1, 0)
-        layoutFast.addWidget(self.cbNivFastMinC, 1, 1)
-        layoutFast.addWidget(self.cbNivFastMinZ, 1, 2)
+        nivelesLayout.addWidget(self.cbNivFastMinA, 6, 2)
+        nivelesLayout.addWidget(self.cbNivFastMinC, 7, 2)
+        nivelesLayout.addWidget(self.cbNivFastMinZ, 8, 2)
         # Tercera fila
-        layoutFast.addWidget(self.cbNivFastMaxA, 2, 0)
-        layoutFast.addWidget(self.cbNivFastMaxC, 2, 1)
-        layoutFast.addWidget(self.cbNivFastMaxZ, 2, 2)
+        nivelesLayout.addWidget(self.cbNivFastMaxA, 6, 3)
+        nivelesLayout.addWidget(self.cbNivFastMaxC, 7, 3)
+        nivelesLayout.addWidget(self.cbNivFastMaxZ, 8, 3)
         
         # Layout para Slow
-        layoutSlow = QGridLayout(self.tabNivSlow)
+        self.lblNivelesPico = QLabel("Lento")
         self.cbNivSlowA = QCheckBox("A")
         self.cbNivSlowC = QCheckBox("C")
         self.cbNivSlowZ = QCheckBox("Z")
-        self.cbNivSlowMinA = QCheckBox("A min")
-        self.cbNivSlowMinC = QCheckBox("C min")
-        self.cbNivSlowMinZ = QCheckBox("Z min")
-        self.cbNivSlowMaxA = QCheckBox("A max")
-        self.cbNivSlowMaxC = QCheckBox("C max")
-        self.cbNivSlowMaxZ = QCheckBox("Z max")
-        # Primera fila
-        layoutSlow.addWidget(self.cbNivSlowA, 0, 0)
-        layoutSlow.addWidget(self.cbNivSlowC, 0, 1)
-        layoutSlow.addWidget(self.cbNivSlowZ, 0, 2)
-        # Segunda fila
-        layoutSlow.addWidget(self.cbNivSlowMinA, 1, 0)
-        layoutSlow.addWidget(self.cbNivSlowMinC, 1, 1)
-        layoutSlow.addWidget(self.cbNivSlowMinZ, 1, 2)
-        # Tercera fila
-        layoutSlow.addWidget(self.cbNivSlowMaxA, 2, 0)
-        layoutSlow.addWidget(self.cbNivSlowMaxC, 2, 1)
-        layoutSlow.addWidget(self.cbNivSlowMaxZ, 2, 2)
+        self.cbNivSlowMinA = QCheckBox("LAL min")
+        self.cbNivSlowMinC = QCheckBox("LCL min")
+        self.cbNivSlowMinZ = QCheckBox("LZL min")
+        self.cbNivSlowMaxA = QCheckBox("LAL max")
+        self.cbNivSlowMaxC = QCheckBox("LCL max")
+        self.cbNivSlowMaxZ = QCheckBox("LZL max")
         
-        self.tabNieles.addTab(self.tabNivPico, "Pico")
-        self.tabNieles.addTab(self.tabNivInst, "Instantaneo")
-        self.tabNieles.addTab(self.tabNivFast, "Fast")
-        self.tabNieles.addTab(self.tabNivSlow, "Slow")
+        nivelesLayout.addWidget(self.lblNivelesPico, 10, 0,3,1,QtCore.Qt.AlignCenter)  
+        # Primera fila
+        nivelesLayout.addWidget(self.cbNivSlowA, 10, 1)
+        nivelesLayout.addWidget(self.cbNivSlowC, 11, 1)
+        nivelesLayout.addWidget(self.cbNivSlowZ, 12, 1)
+        # Segunda fila
+        nivelesLayout.addWidget(self.cbNivSlowMinA, 10, 2)
+        nivelesLayout.addWidget(self.cbNivSlowMinC, 11, 2)
+        nivelesLayout.addWidget(self.cbNivSlowMinZ, 12, 2)
+        # Tercera fila
+        nivelesLayout.addWidget(self.cbNivSlowMaxA, 10, 3)
+        nivelesLayout.addWidget(self.cbNivSlowMaxC, 11, 3)
+        nivelesLayout.addWidget(self.cbNivSlowMaxZ, 12, 3)
+        
+        self.btnClearNIntegra = QPushButton("Limpiar")
+        self.btnClearNIntegra.clicked.connect(self.limpiarNivelesIntegrados)
+        self.btnClearNIntegra.setToolTip("Desmarca todos los niveles integrados")
+        self.btnClearNIntegra.setProperty("class", "filtros")
+        nivelesLayout.addWidget(self.btnClearNIntegra, 13, 3, QtCore.Qt.AlignRight)
         
         # Conectar checkboxes de nivel para actualizar el gráfico
         self.cbNivPicoA.toggled.connect(self.actualizarGraficoNivel)
@@ -477,14 +551,14 @@ class vista(QMainWindow):
         self.cbNivSlowC.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowZ.toggled.connect(self.actualizarGraficoNivel)
         
+        
+        
         # Debug para verificar el estado inicial de los checkboxes
         print(f"DEBUG: Estado inicial cbNivSlowZ: {self.cbNivSlowZ.isChecked()}")
         
-        ponderacionLayout = QVBoxLayout()
-        ponderacionLayout.addWidget(self.tabNieles)
-        ponderacionGroup.setLayout(ponderacionLayout)
-        self.rightLayout.addWidget(ponderacionGroup)
+        self.rightLayout.addWidget(self.ponderacionGroup)
         
+        self.rightLayout.addStretch()
         # Logos
         min_logo_width = 80   # píxeles
         min_logo_height = 80  # píxeles
@@ -508,7 +582,7 @@ class vista(QMainWindow):
         self.rightLayout.addLayout(logosLayout)
         
         # Agregar stretch al final del panel derecho para empujar todo hacia arriba
-        self.rightLayout.addStretch()
+        
         
         # Agregar los paneles al layout principal con proporciones
         self.mainLayout.addWidget(self.leftPanel, stretch=75)
@@ -572,8 +646,9 @@ class vista(QMainWindow):
         self.btnTiempo.setChecked(True)
         self.btnFrecuencia.setChecked(False)
         self.btnNivel.setChecked(False)
-        self.tabFilt.setDisabled(True)
-        self.tabNieles.setDisabled(True)
+        self.filtrosGroup.setVisible(False)
+        self.nivelesGroup.setVisible(False)
+        self.ponderacionGroup.setVisible(False)
         
         # Limpiar el gráfico actual
         self.waveform1.clear()
@@ -593,6 +668,60 @@ class vista(QMainWindow):
             
         self.show()
 
+    def limpiarNivelesEstadisticos(self):
+        """Desmarca todos los checkboxes de niveles estadísticos"""
+        self.cbEqZ.setChecked(False)
+        self.cb01Z.setChecked(False)
+        self.cb10Z.setChecked(False)
+        self.cb50Z.setChecked(False)
+        self.cb90Z.setChecked(False)
+        self.cb99Z.setChecked(False)
+        self.cbEqC.setChecked(False)
+        self.cb01C.setChecked(False)
+        self.cb10C.setChecked(False)
+        self.cb50C.setChecked(False)
+        self.cb90C.setChecked(False)
+        self.cb99C.setChecked(False)
+        self.cbEqA.setChecked(False)
+        self.cb01A.setChecked(False)
+        self.cb10A.setChecked(False)
+        self.cb50A.setChecked(False)
+        self.cb90A.setChecked(False)
+        self.cb99A.setChecked(False)
+        
+    def limpiarNivelesIntegrados(self):
+        """Desmarca todos los checkboxes de niveles integrados"""
+        self.cbNivPicoA.setChecked(False)
+        self.cbNivPicoC.setChecked(False)
+        self.cbNivPicoZ.setChecked(False)
+        self.cbNivInstA.setChecked(False)
+        self.cbNivInstC.setChecked(False)
+        self.cbNivInstZ.setChecked(False)
+        self.cbNivInstMinA.setChecked(False)
+        self.cbNivInstMinC.setChecked(False)
+        self.cbNivInstMinZ.setChecked(False)
+        self.cbNivInstMaxA.setChecked(False)
+        self.cbNivInstMaxC.setChecked(False)
+        self.cbNivInstMaxZ.setChecked(False)
+        self.cbNivFastA.setChecked(False)
+        self.cbNivFastC.setChecked(False)
+        self.cbNivFastZ.setChecked(False)
+        self.cbNivFastMinA.setChecked(False)
+        self.cbNivFastMinC.setChecked(False)
+        self.cbNivFastMinZ.setChecked(False)
+        self.cbNivFastMaxA.setChecked(False)
+        self.cbNivFastMaxC.setChecked(False)
+        self.cbNivFastMaxZ.setChecked(False)
+        self.cbNivSlowA.setChecked(False)
+        self.cbNivSlowC.setChecked(False)
+        self.cbNivSlowZ.setChecked(False)
+        self.cbNivSlowMinA.setChecked(False)
+        self.cbNivSlowMinC.setChecked(False)
+        self.cbNivSlowMinZ.setChecked(False)
+        self.cbNivSlowMaxA.setChecked(False)
+        self.cbNivSlowMaxC.setChecked(False)
+        self.cbNivSlowMaxZ.setChecked(False)
+        
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
@@ -628,8 +757,9 @@ class vista(QMainWindow):
     def ventanaTiempo(self):
         self.btnNivel.setChecked(False)
         self.btnFrecuencia.setChecked(False)
-        self.tabFilt.setDisabled(True)
-        self.tabNieles.setDisabled(True)
+        self.filtrosGroup.setVisible(False)
+        self.nivelesGroup.setVisible(False)
+        self.ponderacionGroup.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -652,6 +782,7 @@ class vista(QMainWindow):
             self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
             self.waveform1.setLabel('left', 'Amplitud Normalizada')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
+            self.waveform1.setTitle('Gráfico de Dominio del Tiempo')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -660,8 +791,9 @@ class vista(QMainWindow):
     def ventanaFrecuencia(self):
         self.btnNivel.setChecked(False)
         self.btnTiempo.setChecked(False)
-        self.tabFilt.setDisabled(True)
-        self.tabNieles.setDisabled(True)
+        self.filtrosGroup.setVisible(True)
+        self.nivelesGroup.setVisible(False)
+        self.ponderacionGroup.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -678,6 +810,7 @@ class vista(QMainWindow):
             self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
             self.waveform1.setLabel('left', 'Amplitud')
             self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+            self.waveform1.setTitle('Gráfico de Espectro de Frecuencia')
         # Actualizar el gráfico
         self.waveform1.replot()
         self.vController.graficar()
@@ -685,8 +818,9 @@ class vista(QMainWindow):
     def ventanaNivel(self):
         self.btnTiempo.setChecked(False)
         self.btnFrecuencia.setChecked(False)
-        self.tabFilt.setEnabled(True)
-        self.tabNieles.setEnabled(True)
+        self.filtrosGroup.setVisible(False)
+        self.nivelesGroup.setVisible(True)
+        self.ponderacionGroup.setVisible(True)
         
         print("DEBUG: Configurando ventana de nivel")
         
@@ -748,7 +882,7 @@ class vista(QMainWindow):
         """Aplica la configuración personalizada para el gráfico de tiempo"""
         try:
             # # Escalas
-            self.waveform1.setLogMode(x=self.var_logModeXTiempo, y=self.var_logModeYTiempo)
+            self.waveform1.setLogMode(x=False, y=self.var_logModeYTiempo)
             # # Límites
             self.waveform1.setXRange(self.var_xMinTiempo, self.var_xMaxTiempo, padding=0)
             self.waveform1.setYRange(self.var_yMinTiempo, self.var_yMaxTiempo, padding=0)
@@ -957,8 +1091,9 @@ class vista(QMainWindow):
                 self.waveform1.setAxisItems({'bottom': self.log_x_axis})
                 # ---
                 # Determinar tipo de gráfico de espectro
-                tipoGrafico = self.var_tipoGraficoEspectro
+                tipoGrafico = "Línea"
                 
+                tipoGrafico = self.var_tipoGraficoEspectro
                 color = self.default_color_espectro  # Color por defecto centralizado
                 if hasattr(self, 'colorEspectro'):
                     color = self.get_color_str(self.colorEspectro)
@@ -970,57 +1105,46 @@ class vista(QMainWindow):
                         bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
                     else:
                         bandas, niveles = [], []
+                    
                     print("bandas:", bandas)
                     print("niveles:", niveles)
+                    
                     if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
                         
-                        # Usar eje logarítmico para X
-                        if not hasattr(self, 'log_x_axis'):
-                            self.log_x_axis = LogAxis(orientation='bottom')
-                        self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                        # Crear un eje personalizado para las etiquetas de frecuencia
+                        frequency_axis = FrequencyAxisItem(orientation='bottom', bandas=bandas)
+                        self.waveform1.setAxisItems({'bottom': frequency_axis})
                         
-                        # Calcular anchos de barras proporcionales a las bandas de frecuencia
-                        # Para tercios de octava, cada banda es 2^(1/3) veces la anterior
-                        log_bandas = np.log10(bandas)
+                        # Usar posiciones secuenciales para las barras (0, 1, 2, 3...)
+                        x_positions = np.arange(len(bandas))
                         
-                        
-                        # Calcular anchos de barras
-                        if len(bandas) > 1:
-                            # Para múltiples bandas, calcular el ancho basado en la diferencia entre bandas
-                            widths = np.diff(log_bandas) * 0.8  # 0.8 para dejar espacio entre barras
-                            # Agregar un ancho para la última banda (aproximadamente igual al anterior)
-                            if len(widths) > 0:
-                                widths = np.append(widths, widths[-1])
-                        else:
-                            # Si solo hay una banda, usar un ancho por defecto
-                            widths = [0.1]
+                        # Calcular anchos de barras uniformes
+                        bar_width = 0.8  # Ancho fijo para todas las barras
                         
                         # Verificar que todos los arrays tengan la misma longitud
-                        if len(log_bandas) != len(niveles) or len(log_bandas) != len(widths):
-                            print(f"Error: Arrays con longitudes diferentes - log_bandas: {len(log_bandas)}, niveles: {len(niveles)}, widths: {len(widths)}")
+                        if len(x_positions) != len(niveles):
+                            print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
                             return
                         
                         # Crear el gráfico de barras
                         bar_item = pg.BarGraphItem(
-                            x=log_bandas, 
+                            x=x_positions, 
                             height=niveles, 
-                            width=widths, 
+                            width=bar_width, 
                             brush=color,
                             pen=pg.mkPen(color='black', width=1)
                         )
                         self.waveform1.addItem(bar_item)
-
-                        # Etiquetas del eje X
-                        etiquetas = [(np.log10(fc), f"{int(fc)} Hz") for fc in bandas]
-                        bottom_axis = self.waveform1.getAxis('bottom')
-                        bottom_axis.setTicks([etiquetas])
-
-                        # Espacio para que se vean las etiquetas
-                        self.waveform1.layout.setRowFixedHeight(2, 40)
-
-                        # Rango del eje X
-                        self.waveform1.setXRange(np.min(log_bandas) - 0.05, np.max(log_bandas) + 0.05, padding=0)
+                        
+                        for i, h in enumerate(niveles):
+                            # Position the text slightly above the bar
+                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0)) # Center horizontally, align to bottom of text
+                            text_item.setPos(x_positions[i], h + 0.5) # Adjust 0.5 for desired offset
+                            self.waveform1.addItem(text_item)
+                            
+                        # Configurar rangos de ejes
+                        self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
                         
                         # Rango Y dinámico basado en los niveles
                         y_min = np.min(niveles) if len(niveles) > 0 else 0
@@ -1045,7 +1169,7 @@ class vista(QMainWindow):
                         self.waveform1.setLabel('left', 'Amplitud')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
-                        # Configurar modo logarítmico para X
+                        # Configurar modo lineal para ambos ejes
                         self.waveform1.setLogMode(x=False, y=False)
                         
                         # Limpiar línea de tiempo si existe
@@ -1056,10 +1180,7 @@ class vista(QMainWindow):
                         self.current_bar_item = bar_item
                         
                         print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        print(f"Anchos de barras: {len(widths)} anchos, valores: {widths[:5]}...")
-                        print(f"Posiciones X: {len(log_bandas)} posiciones, valores: {log_bandas[:5]}...")
-                    else:
-                        print("No hay datos de tercios de octava disponibles")
+                        print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
                 else:
                     # Por defecto, línea
                     if device_num == 1 and len(fft_freqs) > 0:
@@ -1094,7 +1215,7 @@ class vista(QMainWindow):
                     else:
                         if hasattr(self, 'plot_line_freq') and self.plot_line_freq is not None:
                             self.plot_line_freq.setData([], [])
-
+                            
             elif self.btnNivel.isChecked(): 
                 import numpy as np
                 # --- Gráfico de Nivel ---
@@ -1214,7 +1335,7 @@ class vista(QMainWindow):
         try:
             # Guardar configuración en variables de clase
             # Configuración de tiempo
-            self.var_logModeXTiempo = config['tiempo']['logModeX']
+            #self.var_logModeXTiempo = config['tiempo']['logModeX']
             self.var_logModeYTiempo = config['tiempo']['logModeY']
             self.var_xMinTiempo = config['tiempo']['xMin']
             self.var_xMaxTiempo = config['tiempo']['xMax']

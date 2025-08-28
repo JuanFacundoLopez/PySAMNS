@@ -11,6 +11,8 @@ from PyQt5.QtCore import QPointF
 from PyQt5.QtChart import QChart, QChartView, QLineSeries
 from PyQt5.QtCore import Qt
 from utils import norm
+import time
+from scipy.interpolate import interp1d
 
 
 
@@ -40,7 +42,7 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.tipo_combo)
         
         self.lblFrecSig = QLabel("Frecuencia (Hz):")
-        self.freq_input = QLineEdit("5")
+        self.freq_input = QLineEdit("1000")
         configLayout.addWidget(self.lblFrecSig)
         configLayout.addWidget(self.freq_input)
         
@@ -50,14 +52,14 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.amp_input)
 
         self.lblDurSig = QLabel("Duración (s):")
-        self.dur_input = QLineEdit("0.5")
+        self.dur_input = QLineEdit("10")
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
         self.lblDutyCicleSig = QLabel("Duty cicle (%):")
         self.duty_input = QSpinBox()
         self.duty_input.setRange(0, 99)
-        self.duty_input.setValue(1)  # Valor por defecto
+        self.duty_input.setValue(50)  # Valor por defecto
         configLayout.addWidget(self.lblDutyCicleSig)
         configLayout.addWidget(self.duty_input)
         self.lblDutyCicleSig.setVisible(False)
@@ -119,8 +121,13 @@ class GeneradorWin(QMainWindow):
 
         for combo in [self.tipo_combo]:
                 combo.setProperty("class", "ventanasSec") 
-            
+         
+         
         self.setCentralWidget(centralWidget)
+        
+        time.sleep(0.5)  # Pequeña pausa para asegurar que la ventana se renderice correctamente
+        self.generar_senal()  # Generar la señal inicial
+        
     
     def mostra_duty_cicle(self):
         if self.tipo_combo.currentText() == "Cuadrada":
@@ -152,8 +159,8 @@ class GeneradorWin(QMainWindow):
                 self.lbl_error_gen_sig.setText("La amplitud debe ser > 0 y <= 100.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
-            if T <= 0 or T > 15:
-                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 15 s.")
+            if T <= 0 or T > 900:
+                self.lbl_error_gen_sig.setText("La duración debe ser > 0 y <= 900 s.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
             if self.tipo_combo.currentText() == "Cuadrada" and (d < 0 or d > 100):
@@ -182,50 +189,72 @@ class GeneradorWin(QMainWindow):
     def generar_senal(self):
         if not self.verificar_valores_generador():
             return
+
         tipo = self.tipo_combo.currentText()
         f = float(self.freq_input.text())
         A = float(self.amp_input.text())
         T = float(self.dur_input.text())
         Fs = 44100
-        t = np.linspace(0, T, int(Fs*T))
+        t = np.linspace(0, T, int(Fs * T))
 
         if tipo == "Senoidal":
             y = A * np.sin(2 * np.pi * f * t)
         elif tipo == "Cuadrada":
-            duty = self.duty_input.value() / 100.0  # 0..1
-            fase = (f * t) % 1.0                   # 0..1 por ciclo
+            duty = self.duty_input.value() / 100.0
+            fase = (f * t) % 1.0
             y = A * np.where(fase < duty, 1.0, -1.0)
         elif tipo == "Triangular":
             y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
         elif tipo == "Ruido Blanco":
             y = A * np.random.normal(0, 1, len(t))
         elif tipo == "Ruido Rosa":
-            # Método basado en filtrado 1/f
-            # FFT-based approach para generar ruido rosa
             N = len(t)
             uneven = N % 2
             X = np.random.randn(N // 2 + 1 + uneven) + 1j * np.random.randn(N // 2 + 1 + uneven)
-            S = np.sqrt(np.arange(len(X)) + 1)  # +1 para evitar división por cero
+            S = np.sqrt(np.arange(len(X)) + 1)
             y = (np.fft.irfft(X / S)).real
             y = y[:N]
             y *= A
 
-        #Normalizar la señal
-        y = y / np.max(np.abs(y)) * 1 # para evitar saturación
-
-        #Guardar los datos de la señal
         self.signal_data = y.astype(np.float32)
         self.sample_rate = Fs
 
-        # Graficar la señal
+        # -----------------------
+        # Ajuste dinámico del eje X según frecuencia
+        # -----------------------
+        num_ciclos_visibles = 5
+        duracion_visible = num_ciclos_visibles / f  # ventana de tiempo que muestra 5 ciclos
+        num_samples_visible = int(Fs * duracion_visible)
+
+        t_visible = t[:num_samples_visible]
+        y_visible = y[:num_samples_visible]
+
+        # Interpolación visual para evitar aliasing en pantalla
+        Fs_vis = Fs * 10
+        t_interp = np.linspace(t_visible[0], t_visible[-1], int(len(t_visible) * 10))
+
+        interpolador = interp1d(t_visible, y_visible, kind='cubic')
+        y_interp = interpolador(t_interp)
+
+        # Submuestreo para mostrar máximo N puntos
+        max_points = 1000
+        step = max(1, len(t_interp) // max_points)
+
         self.chartGenSig.removeSeries(self.seriesGenSig)
         self.seriesGenSig.clear()
-        
-        for i in range(len(t)):
-            self.seriesGenSig.append(QPointF(t[i], y[i]))
-        
+
+        for i in range(0, len(t_interp), step):
+            self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
+
         self.chartGenSig.addSeries(self.seriesGenSig)
         self.chartGenSig.createDefaultAxes()
+
+        # Eje X ajustado dinámicamente a la frecuencia
+        axisX = self.chartGenSig.axisX(self.seriesGenSig)
+        if axisX is not None:
+            axisX.setRange(0, duracion_visible)
+
+        
     
     def play_signal(self):
         """Play the generated signal through the selected output device"""

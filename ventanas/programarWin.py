@@ -32,13 +32,13 @@ class ProgramarWin(QMainWindow):
         layoutHorizontal = QVBoxLayout()
         layout = QVBoxLayout(central_widget)
         
-        lbl_info = QLabel(
-            "Se programará la grabación automática de audio\n"
-            "para el día y rango de tiempo seleccionados"
-        )
-        lbl_info.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        lbl_info.setWordWrap(True)
-        layout.addWidget(lbl_info)
+        # lbl_info = QLabel(
+        #     "Se programará la grabación automática de audio\n"
+        #     "para el día y rango de tiempo seleccionados"
+        # )
+        # lbl_info.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        # lbl_info.setWordWrap(True)
+        # layout.addWidget(lbl_info)
 
         # Selector de fecha Inicio
         group_box_inicio = QGroupBox("Inicio")
@@ -192,7 +192,7 @@ class ProgramarWin(QMainWindow):
             btn_borrar = QPushButton()
             btn_borrar.setIcon(QIcon("img/borrar.png"))
             btn_borrar.clicked.connect(
-                lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin): self.confirmar_borrado(r)
+                lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin, duracion): self.confirmar_borrado(r)
             )
             self.table.setCellWidget(row, 5, btn_borrar)
 
