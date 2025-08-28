@@ -189,7 +189,7 @@ class vista(QMainWindow):
         self.columna1tab1.addWidget(self.winGraph1)
         
         #variables para configuracion de grafico
-        self.var_logModeXTiempo = False
+        #self.var_logModeXTiempo = False
         self.var_logModeYTiempo = False
         self.var_logModeXEspectro = False
         self.var_logModeYEspectro = False
@@ -209,8 +209,8 @@ class vista(QMainWindow):
         self.var_yMaxNivel = 1
         self.var_etiquetaXTiempo = "Tiempo"
         self.var_etiquetaYTiempo = "Amplitud Normalizada"
-        self.var_etiquetaXEspectro = "Tiempo"
-        self.var_etiquetaYEspectro = "Amplitud Normalizada"
+        self.var_etiquetaXEspectro = "Frecuencia"
+        self.var_etiquetaYEspectro = "Amplitud"
         self.var_etiquetaXNivel = "Tiempo"
         self.var_etiquetaYNivel = "Amplitud Normalizada"
         self.var_tipoLineaTiempo = ""
@@ -882,7 +882,7 @@ class vista(QMainWindow):
         """Aplica la configuración personalizada para el gráfico de tiempo"""
         try:
             # # Escalas
-            self.waveform1.setLogMode(x=self.var_logModeXTiempo, y=self.var_logModeYTiempo)
+            self.waveform1.setLogMode(x=False, y=self.var_logModeYTiempo)
             # # Límites
             self.waveform1.setXRange(self.var_xMinTiempo, self.var_xMaxTiempo, padding=0)
             self.waveform1.setYRange(self.var_yMinTiempo, self.var_yMaxTiempo, padding=0)
@@ -1335,7 +1335,7 @@ class vista(QMainWindow):
         try:
             # Guardar configuración en variables de clase
             # Configuración de tiempo
-            self.var_logModeXTiempo = config['tiempo']['logModeX']
+            #self.var_logModeXTiempo = config['tiempo']['logModeX']
             self.var_logModeYTiempo = config['tiempo']['logModeY']
             self.var_xMinTiempo = config['tiempo']['xMin']
             self.var_xMaxTiempo = config['tiempo']['xMax']

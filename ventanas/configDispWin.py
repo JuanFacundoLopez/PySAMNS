@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout
                              QLabel, QLineEdit, QGroupBox, QWidget, QMessageBox, QComboBox)
 
 from utils import norm
+from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 
 
 class ConfigDispWin(QMainWindow):
@@ -84,19 +85,33 @@ class ConfigDispWin(QMainWindow):
         
         # Layout de configuración de rate y chunk
         rateChunkGroup = QGroupBox("Parámetros de Audio")
-        rateChunkLayout = QHBoxLayout()
-        self.txtRate = QLineEdit(str(self.vController.cModel.rate))
-        self.txtRate.setEnabled(False)  # Deshabilitado para evitar cambios
-        self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
+        rateChunkLayoutVert = QVBoxLayout()
+        rateChunkLayoutH1 = QHBoxLayout()
+        rateChunkLayoutH2 = QHBoxLayout()
+        #self.txtRate = QLineEdit(str(self.vController.cModel.rate))
+        #self.txtRate.setEnabled(False)  # Deshabilitado para evitar cambios
+        self.cmbRate = QComboBox()
+        #self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
+        self.cmbBuffer = QComboBox()
+        self.cmbBuffer.addItems(["128","256", "512", "1024", "2048", "4096", "8192"])
         self.lblRate = QLabel("Frecuencia de muestreo(Hz):")
-        rateChunkLayout.addWidget(self.lblRate)
-        rateChunkLayout.addWidget(self.txtRate)
-        self.lblChunk = QLabel("Chunk:")
-        rateChunkLayout.addWidget(self.lblChunk)
-        rateChunkLayout.addWidget(self.txtChunk)
-        rateChunkGroup.setLayout(rateChunkLayout)
+        rateChunkLayoutH1.addWidget(self.lblRate)
+        rateChunkLayoutH1.addWidget(self.cmbRate)
+        self.lblChunk = QLabel("Buffer:")
+        rateChunkLayoutH1.addWidget(self.lblChunk)
+        rateChunkLayoutH1.addWidget(self.cmbBuffer)
+        self.lblLatenciaTitle = QLabel("Latencia dada:")
+        self.lblLatencia = QLabel("N/A")
+        rateChunkLayoutH2.addWidget(self.lblLatenciaTitle)
+        rateChunkLayoutH2.addWidget(self.lblLatencia)
+        rateChunkLayoutVert.addLayout(rateChunkLayoutH1)
+        rateChunkLayoutVert.addLayout(rateChunkLayoutH2)
+        rateChunkGroup.setLayout(rateChunkLayoutVert)
         mainLayout.addWidget(rateChunkGroup)
-        self.actualizarFrecuenciaMuestreoEntrada(self.cmbDispositivosEntrada.currentIndex())
+        #self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada(self.cmbDispositivosEntrada.currentIndex()))
+        self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciasEntrada)
+        self.cmbBuffer.currentIndexChanged.connect(self.actualizarLatencia)
+        self.cmbRate.currentIndexChanged.connect(self.actualizarLatencia)
 
         # Botones Agregar y Cancelar
         botonesLayout = QHBoxLayout()
@@ -111,14 +126,29 @@ class ConfigDispWin(QMainWindow):
         for boton in [self.btnDispAgregar, self.btnDispCancelar]:
             boton.setProperty("class", "ventanasSec")
         
-        for lbl in [self.lblChunk, self.lblRate ]:
+        for lbl in [self.lblChunk, self.lblRate, self.lblLatenciaTitle]:
             lbl.setProperty("class", "ventanasSecLabelDestacado")
             
-        for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida]:
+        for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida, self.cmbBuffer, self.cmbRate]:
             cmb.setProperty("class", "ventanasSec")
             
+        self.actualizarFrecuenciasEntrada(self.cmbDispositivosEntrada.currentIndex())
+
         self.setCentralWidget(centralWidget)
-     
+
+    def actualizarLatencia(self):
+        try:
+            buffer = int(self.cmbBuffer.currentText())
+            rate_text = self.cmbRate.currentText()
+            if not rate_text.isdigit() or int(rate_text) == 0:
+                self.lblLatencia.setText("N/A")
+                return
+            rate = int(rate_text)
+            latencia_ms = buffer / rate * 1000
+            self.lblLatencia.setText(f"{latencia_ms:.2f} ms")
+        except Exception as e:
+            print(f"Error al calcular latencia: {e}")
+            self.lblLatencia.setText("Error") 
     def actualizarFrecuenciaMuestreoEntrada(self, idx):
         # Obtener la frecuencia de muestreo predeterminada del dispositivo seleccionado
         frec_muestreo = self.vController.cModel.getDispositivosEntradaRate()
@@ -126,14 +156,40 @@ class ConfigDispWin(QMainWindow):
             self.txtRate.setText(str(int(frec_muestreo[idx])))
         else:
             self.txtRate.setText("")
+    
+    def actualizarFrecuenciasEntrada(self, idx):
+        try:
+            # Obtener el índice real del dispositivo de entrada
+            indices_entrada = self.vController.cModel.getDispositivosEntrada('indice')
+            if idx >= len(indices_entrada):
+                return
+            device_index = indices_entrada[idx]
+
+            # Usar el controller para acceder a la función de prueba de frecuencias
+            frecuencias_validas = self.vController.probar_frecuencias_entrada(device_index, frecuencias_comunes)
+
+            # Actualizar el comboBox de frecuencias
+            self.cmbRate.clear()
+            if frecuencias_validas:
+                for f in frecuencias_validas:
+                    self.cmbRate.addItem(str(int(f)))
+                self.cmbRate.setCurrentIndex(0)
+            else:
+                self.cmbRate.addItem("Ninguna compatible")
+            self.actualizarLatencia()
+        except Exception as e:
+            print(f"Error al actualizar frecuencias de entrada: {e}")
+            self.cmbRate.clear()
+            self.cmbRate.addItem("Error")
+
                
     def aplicarConfiguracionDispositivo(self):
         try:
             # Obtener valores seleccionados
             dispositivo_entrada_idx = self.cmbDispositivosEntrada.currentIndex()
             dispositivo_salida_idx = self.cmbDispositivosSalida.currentIndex()
-            rate = int(self.txtRate.text())
-            chunk = int(self.txtChunk.text())
+            rate = int(self.cmbRate.currentText())
+            chunk = int(self.cmbBuffer.text())
             
             # Obtener el índice real del dispositivo de entrada seleccionado
             indices_entrada = self.vController.cModel.getDispositivosEntrada('indice')

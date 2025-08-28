@@ -133,7 +133,9 @@ class controlador():
         # para que los datos levantados sean cargados
         self.graficar()
 
-    
+    def probar_frecuencias_entrada(self, device_index, lista_frecuencias, canales=1):
+        from funciones.consDisp import probar_frecuencias_entrada
+        return probar_frecuencias_entrada(device_index, lista_frecuencias, canales)
 
     def graficar(self):                             # Funcion para graficar las señales
         print(f"DEBUG: Función graficar llamada")

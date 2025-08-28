@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGr
 from PyQt5.QtCore import Qt, pyqtSignal
 from utils import norm
 
+
 class ConfiguracionWin(QMainWindow):
     # Señal para comunicar cambios a la ventana principal
     configuracionCambiada = pyqtSignal(dict)
@@ -70,9 +71,9 @@ class ConfiguracionWin(QMainWindow):
         # Escala
         escalaLayoutTiempo = QHBoxLayout()
         escalaLayoutTiempo.addWidget(QLabel("Escala:"))
-        self.cbEscalaXTiempo = QCheckBox("Eje X Logarítmico")
+        #self.cbEscalaXTiempo = QCheckBox("Eje X Logarítmico")
         self.cbEscalaYTiempo = QCheckBox("Eje Y Logarítmico")
-        escalaLayoutTiempo.addWidget(self.cbEscalaXTiempo)
+        #escalaLayoutTiempo.addWidget(self.cbEscalaXTiempo)
         escalaLayoutTiempo.addWidget(self.cbEscalaYTiempo)
         escalaLayoutTiempo.addStretch()
         ejesLayoutTiempo.addLayout(escalaLayoutTiempo)
@@ -84,7 +85,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtXMinTiempo = QLineEdit()
         self.txtXMinTiempo.setMaximumWidth(100)
         ejeXLayoutTiempo.addWidget(self.txtXMinTiempo, 0, 1)
-        ejeXLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeXLayoutTiempo.addWidget(QLabel("[s]"), 0, 2)
+        ejeXLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeXLayoutTiempo.addWidget(QLabel("[s]"), 0, 4)
         self.txtXMaxTiempo = QLineEdit()
         self.txtXMaxTiempo.setMaximumWidth(100)
         ejeXLayoutTiempo.addWidget(self.txtXMaxTiempo, 0, 3)
@@ -98,7 +101,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtYMinTiempo = QLineEdit()
         self.txtYMinTiempo.setMaximumWidth(100)
         ejeYLayoutTiempo.addWidget(self.txtYMinTiempo, 0, 1)
-        ejeYLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeYLayoutTiempo.addWidget(QLabel("[dB]"), 0, 2)
+        ejeYLayoutTiempo.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeYLayoutTiempo.addWidget(QLabel("[dB]"), 0, 4)
         self.txtYMaxTiempo = QLineEdit()
         self.txtYMaxTiempo.setMaximumWidth(100)
         ejeYLayoutTiempo.addWidget(self.txtYMaxTiempo, 0, 3)
@@ -166,7 +171,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtXMinEspectro = QLineEdit()
         self.txtXMinEspectro.setMaximumWidth(100)
         ejeXLayoutEspectro.addWidget(self.txtXMinEspectro, 0, 1)
-        ejeXLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeXLayoutEspectro.addWidget(QLabel("[Hz]"), 0, 2)
+        ejeXLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeXLayoutEspectro.addWidget(QLabel("[Hz]"), 0, 4)
         self.txtXMaxEspectro = QLineEdit()
         self.txtXMaxEspectro.setMaximumWidth(100)
         ejeXLayoutEspectro.addWidget(self.txtXMaxEspectro, 0, 3)
@@ -180,7 +187,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtYMinEspectro = QLineEdit()
         self.txtYMinEspectro.setMaximumWidth(100)
         ejeYLayoutEspectro.addWidget(self.txtYMinEspectro, 0, 1)
-        ejeYLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeYLayoutEspectro.addWidget(QLabel("[dB]"), 0, 2)
+        ejeYLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeYLayoutEspectro.addWidget(QLabel("[dB]"), 0, 4)
         self.txtYMaxEspectro = QLineEdit()
         self.txtYMaxEspectro.setMaximumWidth(100)
         ejeYLayoutEspectro.addWidget(self.txtYMaxEspectro, 0, 3)
@@ -246,7 +255,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtXMinNivel = QLineEdit()
         self.txtXMinNivel.setMaximumWidth(100)
         ejeXLayoutNivel.addWidget(self.txtXMinNivel, 0, 1)
-        ejeXLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeXLayoutNivel.addWidget(QLabel("[s]"), 0, 2)
+        ejeXLayoutNivel.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeXLayoutNivel.addWidget(QLabel("[s]"), 0, 4)
         self.txtXMaxNivel = QLineEdit()
         self.txtXMaxNivel.setMaximumWidth(100)
         ejeXLayoutNivel.addWidget(self.txtXMaxNivel, 0, 3)
@@ -260,7 +271,9 @@ class ConfiguracionWin(QMainWindow):
         self.txtYMinNivel = QLineEdit()
         self.txtYMinNivel.setMaximumWidth(100)
         ejeYLayoutNivel.addWidget(self.txtYMinNivel, 0, 1)
-        ejeYLayoutNivel.addWidget(QLabel("Máximo:"), 0, 2)
+        ejeYLayoutNivel.addWidget(QLabel("[dB]"), 0, 2)
+        ejeYLayoutNivel.addWidget(QLabel("Máximo:"), 0, 3)
+        ejeYLayoutNivel.addWidget(QLabel("[dB]"), 0, 4)
         self.txtYMaxNivel = QLineEdit()
         self.txtYMaxNivel.setMaximumWidth(100)
         ejeYLayoutNivel.addWidget(self.txtYMaxNivel, 0, 3)
@@ -309,7 +322,7 @@ class ConfiguracionWin(QMainWindow):
     def cargarValoresActuales(self):
         """Carga los valores actuales desde la vista principal"""
         # Valores de tiempo
-        self.cbEscalaXTiempo.setChecked(getattr(self.vista, 'var_logModeXTiempo', False))
+        #self.cbEscalaXTiempo.setChecked(getattr(self.vista, 'var_logModeXTiempo', False))
         self.cbEscalaYTiempo.setChecked(getattr(self.vista, 'var_logModeYTiempo', False))
         self.txtXMinTiempo.setText(str(getattr(self.vista, 'var_xMinTiempo', 0)))
         self.txtXMaxTiempo.setText(str(getattr(self.vista, 'var_xMaxTiempo', 1024)))
@@ -388,7 +401,7 @@ class ConfiguracionWin(QMainWindow):
             # Crear diccionario con toda la configuración
             config = {
                 'tiempo': {
-                    'logModeX': self.cbEscalaXTiempo.isChecked(),
+                    #'logModeX': self.cbEscalaXTiempo.isChecked(),
                     'logModeY': self.cbEscalaYTiempo.isChecked(),
                     'xMin': float(self.txtXMinTiempo.text()),
                     'xMax': float(self.txtXMaxTiempo.text()),
