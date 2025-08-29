@@ -210,7 +210,7 @@ class vista(QMainWindow):
         self.var_etiquetaXTiempo = "Tiempo"
         self.var_etiquetaYTiempo = "Amplitud Normalizada"
         self.var_etiquetaXEspectro = "Frecuencia"
-        self.var_etiquetaYEspectro = "Amplitud"
+        self.var_etiquetaYEspectro = "Nivel (dB)"
         self.var_etiquetaXNivel = "Tiempo"
         self.var_etiquetaYNivel = "Amplitud Normalizada"
         self.var_tipoLineaTiempo = ""
@@ -798,19 +798,32 @@ class vista(QMainWindow):
         # Resetear bandera de nivel
         self.nivel_configured = False
         
-        # Eliminar el clear para no borrar la línea del espectro
-        # self.waveform1.clear()
+        # Configurar el gráfico para frecuencia
+        self.waveform1.clear()
+        
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
             self.aplicarConfiguracionEspectro()
         else:
             # Configuración por defecto para gráfico de frecuencia
-            self.waveform1.setLogMode(x=False, y=False)    # Escala lineal
-            self.waveform1.setXRange(20, 20000, padding=0) # Rango de frecuencia
-            self.waveform1.setYRange(-120, 0, padding=0)   # Rango de amplitud en dB
-            self.waveform1.setLabel('left', 'Amplitud')
+            self.waveform1.setLogMode(x=True, y=False)     # Escala logarítmica en X, lineal en Y
+            self.waveform1.setXRange(np.log10(20), np.log10(20000))  # Rango de frecuencia logarítmico
+            self.waveform1.setYRange(-120, 0)              # Rango de amplitud en dB
+            
+            # Configurar ticks del eje X para mostrar valores de frecuencia legibles
+            ticks = [
+                (np.log10(20), '20'),
+                (np.log10(100), '100'),
+                (np.log10(1000), '1k'),
+                (np.log10(10000), '10k'),
+                (np.log10(20000), '20k')
+            ]
+            self.waveform1.getAxis('bottom').setTicks([ticks])
+            
+            self.waveform1.setLabel('left', 'Nivel (dB)')
             self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-            self.waveform1.setTitle('Gráfico de Espectro de Frecuencia')
+            self.waveform1.setTitle('Espectro de Frecuencia (dB)')
+        
         # Actualizar el gráfico
         self.waveform1.replot()
         self.vController.graficar()
@@ -1016,7 +1029,7 @@ class vista(QMainWindow):
 
 # CODIGO YAMILI
 
-    def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, db_level, device_name, times, fft_freqs, fft_magnitude):
+    def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, device_name, times, fft_freqs, fft_magnitude):
         try:
             if self.btnTiempo.isChecked():
                 import numpy as np
@@ -1166,7 +1179,7 @@ class vista(QMainWindow):
                         self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
                         
                         # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Amplitud')
+                        self.waveform1.setLabel('left', 'Nivel (dB)')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
@@ -1186,7 +1199,8 @@ class vista(QMainWindow):
                     if device_num == 1 and len(fft_freqs) > 0:
                         mask = (fft_freqs >= 20) & (fft_freqs <= 20000)
                         freqs_plot = fft_freqs[mask]
-                        amp_plot = fft_magnitude[mask]
+                        amp_plot = fft_magnitude[mask]  # Already in dB from model
+                        
                         if len(freqs_plot) > 0:
                             self.waveform1.clear()
                             
@@ -1195,9 +1209,33 @@ class vista(QMainWindow):
                                 self.waveform1.removeItem(self.current_bar_item)
                                 delattr(self, 'current_bar_item')
                             
+                            # Configurar el gráfico para escala logarítmica en X y lineal en Y (dB)
                             self.waveform1.setAxisItems({'bottom': self.log_x_axis})
-                            self.plot_line_freq = self.waveform1.plot(np.log10(freqs_plot), amp_plot, pen=pg.mkPen(color=color, width=2))
+                            
+                            # Graficar el espectro en dB
+                            self.plot_line_freq = self.waveform1.plot(
+                                np.log10(freqs_plot), 
+                                amp_plot, 
+                                pen=pg.mkPen(color=color, width=2)
+                            )
+                            
+                            # Configurar rangos de los ejes
                             self.waveform1.setXRange(np.log10(20), np.log10(20000))
+                            
+                            # Actualizar etiquetas de los ejes
+                            self.waveform1.setLabel('left', 'Nivel (dB)')
+                            self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                            self.waveform1.setTitle('Espectro de Frecuencia (dB)')
+                            
+                            # Configurar ticks del eje X para mostrar valores de frecuencia legibles
+                            ticks = [
+                                (np.log10(20), '20'),
+                                (np.log10(100), '100'),
+                                (np.log10(1000), '1k'),
+                                (np.log10(10000), '10k'),
+                                (np.log10(20000), '20k')
+                            ]
+                            self.waveform1.getAxis('bottom').setTicks([ticks])
                             if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
                                 self.fft_ymin = np.min(amp_plot)
                                 self.fft_ymax = np.max(amp_plot)
@@ -1207,7 +1245,7 @@ class vista(QMainWindow):
                                 if np.max(amp_plot) > self.fft_ymax:
                                     self.fft_ymax = np.max(amp_plot)
                             self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                        self.waveform1.setLabel('left', 'Amplitud')
+                        self.waveform1.setLabel('left', 'Nivel (dB)')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         self.waveform1.setLogMode(x=False, y=False)
                         if hasattr(self, 'plot_line'):

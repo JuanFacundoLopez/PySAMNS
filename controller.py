@@ -407,11 +407,11 @@ class controlador():
          # Actualizar dispositivo 1 si está activo
         if self.device_active:
             try:
-                current_data1, all_data1, norm_current1, norm_all1, db1, times1, fft_freqs1, fft_db1 = self.cModel.get_audio_data()
+                current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = self.cModel.get_audio_data()
                 if len(current_data1) > 0:  # Verificar si hay datos
                     # Calcular FFT
                     fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
-                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, db1, self.device1_name, times1, fft_freqs, fft_db)
+                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, self.device1_name, times1, fft_freqs, fft_db)
                     
                     # Procesar datos para el gráfico de nivel si está activo
                     if self.cVista.btnNivel.isChecked():
@@ -510,7 +510,7 @@ class controlador():
                     output_stream.write(chunk.tobytes())
 
                     # Leer del input
-                    current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                    current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
                     if len(current_data) > 0:
                         capturados.append(current_data.astype(np.float32) / 32767.0)
 
@@ -629,7 +629,7 @@ class controlador():
             grabacion_data = []
             tiempo_inicio = time.time()
             while time.time() - tiempo_inicio < 3: # Grabar por 3 segundos
-                current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
                 if len(current_data) > 0:
                     grabacion_data.append(current_data)
                 time.sleep(0.01) # Pequeña pausa
@@ -730,7 +730,7 @@ class controlador():
             
             while time.time() - start_time < duracion + 0.5:  # Añadir 0.5s extra
                 try:
-                    current_data, _, _, _, _, _, _, _ = self.cModel.get_audio_data()
+                    current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
                     if len(current_data) > 0:
                         # Convertir a float32 y normalizar (-1.0 a 1.0)
                         normalized_data = current_data.astype(np.float32) / 32767.0

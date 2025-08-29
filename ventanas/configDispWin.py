@@ -189,7 +189,7 @@ class ConfigDispWin(QMainWindow):
             dispositivo_entrada_idx = self.cmbDispositivosEntrada.currentIndex()
             dispositivo_salida_idx = self.cmbDispositivosSalida.currentIndex()
             rate = int(self.cmbRate.currentText())
-            chunk = int(self.cmbBuffer.text())
+            chunk = int(self.cmbBuffer.currentText())
             
             # Obtener el índice real del dispositivo de entrada seleccionado
             indices_entrada = self.vController.cModel.getDispositivosEntrada('indice')
