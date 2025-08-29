@@ -45,9 +45,9 @@ class CalibracionWin(QMainWindow):
         # --- Tipo de Calibracion ---
         self.lblTipoCal = QLabel("Tipo de Calibracion:")
         tipoCalLayoutHori.addWidget(self.lblTipoCal)
-        self.radioBtnRelativa = QRadioButton("Calibración relativa")
-        self.radioBtnAutomatica = QRadioButton("Calibración automatica (fondo de escala)")
-        self.radioBtnExterna = QRadioButton("Calibración externa")
+        self.radioBtnRelativa = QRadioButton("Calibración con fuente de referencia externa")
+        self.radioBtnAutomatica = QRadioButton("Calibración relativa a fondo de escala")
+        self.radioBtnExterna = QRadioButton("Calibración con fuente de referencia interna")
         tipoCalLayoutVer.addWidget(self.radioBtnRelativa)
         tipoCalLayoutVer.addWidget(self.radioBtnAutomatica)
         tipoCalLayoutVer.addWidget(self.radioBtnExterna)
@@ -138,13 +138,13 @@ class CalibracionWin(QMainWindow):
         exito = False
         if self.radioBtnRelativa.isChecked():
             # Llama al método de calibración relativa existente en el controlador
-            exito=self.vController.calRelativa()
+            exito=self.vController.calFuenteCalibracionExterna()
         elif self.radioBtnAutomatica.isChecked():
             # Llama al método de calibración automática existente en el controlador
-            exito=self.vController.calAutomatica()
+            exito=self.vController.calRelativaAFondoDeEscala()
         elif self.radioBtnExterna.isChecked():
             # Llama al nuevo método de calibración externa en el controlador
-            exito=self.vController.iniciar_calibracion_externa()
+            exito=self.vController.calFuenteReferenciaInterna()
         
         if exito and not self.calibracion_realizada:
             self.btnCalibrar.setText("Repetir Calibracion")

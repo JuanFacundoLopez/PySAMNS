@@ -407,20 +407,32 @@ class controlador():
          # Actualizar dispositivo 1 si está activo
         if self.device_active:
             try:
-                current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = self.cModel.get_audio_data()
-                if len(current_data1) > 0:  # Verificar si hay datos
-                    # Calcular FFT
-                    fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
-                    self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, self.device1_name, times1, fft_freqs, fft_db)
+                # Get audio data from the model
+                audio_data = self.cModel.get_audio_data()
+                
+                # Check if we got valid data
+                if audio_data and len(audio_data) >= 7:  # Ensure we have all expected return values
+                    current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = audio_data
                     
-                    # Procesar datos para el gráfico de nivel si está activo
-                    if self.cVista.btnNivel.isChecked():
-                        # Convertir los datos de audio int16 a float32 normalizados para compatibilidad con grabacionSAMNS
-                        # Los datos vienen como int16 (-32768 a 32767), necesitamos normalizarlos a float32 (-1 a 1)
-                        normalized_data = current_data1.astype(np.float32) / 32767.0
-                        self.wf_data = normalized_data
-                        self.grabar()
+                    if len(current_data1) > 0:  # Verify we have data to process
+                        # Calculate FFT
+                        fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
                         
+                        # Update the main plot
+                        self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
+                                             self.device1_name, times1, fft_freqs, fft_db)
+                        
+                        # Process data for level plot if active
+                        if self.cVista.btnNivel.isChecked():
+                            # Convert int16 audio data to float32 normalized for compatibility with grabacionSAMNS
+                            # Data comes as int16 (-32768 to 32767), needs to be normalized to float32 (-1 to 1)
+                            normalized_data = current_data1.astype(np.float32) / 32767.0
+                            self.wf_data = normalized_data
+                            
+                            # Only process if we have valid data
+                            if len(self.wf_data) > 0:
+                                self.grabar()
+                            
             except Exception as e:
                 print(f"Error al actualizar dispositivo 1: {e}")
                 self.device_active = False
@@ -437,7 +449,7 @@ class controlador():
         time_diff_str = f"{time_diff:.2f}"
         self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
-    def calAutomatica(self):                        # Calibración automática (fondo de escala)
+    def calRelativaAFondoDeEscala(self):                        # Calibración automática (fondo de escala)
         """
         Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
         captura de micrófono. La referencia (0 dBFS) se fija en la última
@@ -510,9 +522,14 @@ class controlador():
                     output_stream.write(chunk.tobytes())
 
                     # Leer del input
-                    current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
-                    if len(current_data) > 0:
-                        capturados.append(current_data.astype(np.float32) / 32767.0)
+                    try:
+                        audio_data = self.cModel.get_audio_data()
+                        if audio_data and len(audio_data) >= 7:
+                            current_data, _, _, _, _, _, _ = audio_data
+                            if len(current_data) > 0:
+                                capturados.append(current_data.astype(np.float32) / 32767.0)
+                    except Exception as e:
+                        print(f"Error al capturar audio: {e}")
 
                 if len(capturados) == 0:
                     continue
@@ -557,7 +574,7 @@ class controlador():
             error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
             self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
-            self.cVista.txtValorRef.setText("Error")
+            self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
             return False
@@ -605,7 +622,7 @@ class controlador():
             QMessageBox.critical(self.cCalWin, "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
             print(f"Error en reproducir_audio_calibracion: {e}")
 
-    def iniciar_calibracion_externa(self):
+    def calFuenteReferenciaInterna(self):
         """
         Orquesta el proceso de calibración externa: mide el nivel de la señal de entrada 
         mientras se reproduce el tono de referencia y calcula el offset.
@@ -628,10 +645,15 @@ class controlador():
             # Acumular datos durante unos segundos
             grabacion_data = []
             tiempo_inicio = time.time()
-            while time.time() - tiempo_inicio < 3: # Grabar por 3 segundos
-                current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
-                if len(current_data) > 0:
-                    grabacion_data.append(current_data)
+            while time.time() - tiempo_inicio < 3:  # Grabar por 3 segundos
+                try:
+                    audio_data = self.cModel.get_audio_data()
+                    if audio_data and len(audio_data) >= 7:
+                        current_data, _, _, _, _, _, _ = audio_data
+                        if len(current_data) > 0:
+                            grabacion_data.append(current_data.astype(np.float32) / 32767.0)
+                except Exception as e:
+                    print(f"Error al capturar audio: {e}")
                 time.sleep(0.01) # Pequeña pausa
 
             self.cModel.stream.stop_stream()
@@ -674,7 +696,7 @@ class controlador():
             print(f"Error en iniciar_calibracion_relativa: {e}")
             return False
 
-    def calRelativa(self):
+    def calFuenteCalibracionExterna(self):
         try:
             ref_level = float(self.cVista.calWin.txtValorRef.text())
         except (ValueError, AttributeError):
@@ -730,11 +752,13 @@ class controlador():
             
             while time.time() - start_time < duracion + 0.5:  # Añadir 0.5s extra
                 try:
-                    current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db
-                    if len(current_data) > 0:
-                        # Convertir a float32 y normalizar (-1.0 a 1.0)
-                        normalized_data = current_data.astype(np.float32) / 32767.0
-                        captured_audio.extend(normalized_data)
+                    audio_data = self.cModel.get_audio_data()
+                    if audio_data and len(audio_data) >= 7:
+                        current_data, _, _, _, _, _, _ = audio_data
+                        if len(current_data) > 0:
+                            # Convertir a float32 y normalizar (-1.0 a 1.0)
+                            normalized_data = current_data.astype(np.float32) / 32767.0
+                            captured_audio.extend(normalized_data)
                     time.sleep(0.01)  # Pequeña pausa para no saturar el CPU
                 except Exception as e:
                     print(f"Error durante la captura de audio: {e}")
