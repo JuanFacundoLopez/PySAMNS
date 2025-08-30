@@ -18,7 +18,7 @@ import os
 class CalibracionWin(QMainWindow):
     def __init__(self, vController):
         super().__init__()
-        self.setWindowTitle("Calibracion")
+        self.setWindowTitle("Calibración")
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -43,7 +43,7 @@ class CalibracionWin(QMainWindow):
         botonesLayout = QHBoxLayout()
 
         # --- Tipo de Calibracion ---
-        self.lblTipoCal = QLabel("Tipo de Calibracion:")
+        self.lblTipoCal = QLabel("Tipo de Calibración:")
         tipoCalLayoutHori.addWidget(self.lblTipoCal)
         self.radioBtnRelativa = QRadioButton("Calibración con fuente de referencia externa")
         self.radioBtnAutomatica = QRadioButton("Calibración relativa a fondo de escala")
@@ -65,28 +65,30 @@ class CalibracionWin(QMainWindow):
         gridHardLayout.addWidget(self.lblConfDispSal,1,1)
         
         
-        self.btnConfHard = QPushButton("Configurar Dispositivo")
+        self.btnConfHard = QPushButton("Configurar dispositivo")
         confLayoutVer.addWidget(self.btnConfHard, alignment=Qt.AlignHCenter)
         confLayoutVer.addStretch()
         self.btnConfHard.clicked.connect(self.configuracionDispositivo)
         gridHardLayout.addLayout(confLayoutVer, 0, 2, 2, 1)
 
         # --- Calibracion Relativa ---
-        self.lblValRef = QLabel("Valor de Referencia:")
+        self.lblValRef = QLabel("Valor de deferencia:")
         self.valorRefLayout.addWidget(self.lblValRef)
         self.txtValorRef = QLineEdit("")
         self.valorRefLayout.addWidget(self.txtValorRef)
+        self.lblUnidadRef = QLabel("[dB]")
+        self.valorRefLayout.addWidget(self.lblUnidadRef)
 
         # --- Calibracion Externa ---
-        self.calExternaGroup = QGroupBox("Parámetros de Calibración Externa")
+        self.calExternaGroup = QGroupBox("Parámetros de calibración externa")
         layoutExterna = QGridLayout(self.calExternaGroup)
-        self.btnImportSig = QPushButton("Importar Archivo de Referencia (.wav)")
+        self.btnImportSig = QPushButton("Importar archivo de referencia (.wav)")
         self.btnImportSig.clicked.connect(self.importarSenalCalibracion)
         self.lblRutaArchivoCal = QLabel("Ningún archivo seleccionado.")
         self.lblRutaArchivoCal.setWordWrap(True)
-        self.lblValRefExterna = QLabel("Nivel de Referencia (dBSPL):")
+        self.lblValRefExterna = QLabel("Nivel de referencia (dBSPL):")
         self.txtValorRefExterna = QLineEdit("94.0")
-        self.btnReproducirCal = QPushButton("Reproducir Señal de Referencia")
+        self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
         # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
@@ -147,7 +149,7 @@ class CalibracionWin(QMainWindow):
             exito=self.vController.calFuenteReferenciaInterna()
         
         if exito and not self.calibracion_realizada:
-            self.btnCalibrar.setText("Repetir Calibracion")
+            self.btnCalibrar.setText("Repetir calibración")
             self.calibracion_realizada = True          
     
     def actualizar_vista_calibracion(self):
@@ -156,6 +158,7 @@ class CalibracionWin(QMainWindow):
 
         self.lblValRef.setVisible(relativa_checked)
         self.txtValorRef.setVisible(relativa_checked)
+        self.lblUnidadRef.setVisible(relativa_checked)
         self.calExternaGroup.setVisible(externa_checked)
         self.winGraph2.setVisible(externa_checked) 
         

@@ -94,6 +94,24 @@ QLabel[class="errorLbl"] {
     padding: 4px 8px;           /* Espaciado interno */
     background: #fff6f6;        /* Fondo suave opcional */
 }
+QLabel[class="infoLbl"] {
+    font-size: 10px;
+    color: #1565C0; /* Rojo para errores */
+    font-family: Arial;
+    border: 2px solid #1565C0; /* Borde rojo */
+    border-radius: 6px;         /* Esquinas redondeadas */
+    padding: 4px 8px;           /* Espaciado interno */
+    background: #fff6f6;        /* Fondo suave opcional */
+}
+QLabel[class="advertenciaLbl"] {
+    font-size: 10px;
+    color: #FF8F00; /* Rojo para errores */
+    font-family: Arial;
+    border: 2px solid #FF8F00; /* Borde rojo */
+    border-radius: 6px;         /* Esquinas redondeadas */
+    padding: 4px 8px;           /* Espaciado interno */
+    background: #fff6f6;        /* Fondo suave opcional */
+}
 QLabel[class="ventanasSecLabelDestacado"] {
     font-size: 10px;
     font-weight: bold;
