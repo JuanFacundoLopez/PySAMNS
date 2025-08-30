@@ -8,7 +8,7 @@ from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 class ConfigDispWin(QMainWindow):
     def __init__(self, vController, parent_cal_win=None):
         super().__init__()
-        self.setWindowTitle("Configuracion de Dispositivos")
+        self.setWindowTitle("Configuración de Dispositivos")
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -25,7 +25,7 @@ class ConfigDispWin(QMainWindow):
         mainLayout = QVBoxLayout(centralWidget)
 
         # Layout de selección de dispositivo Entrada
-        dispGroupEntrada = QGroupBox("Dispositivo de Entrada")
+        dispGroupEntrada = QGroupBox("Dispositivo de entrada")
         dispLayoutEntrada = QHBoxLayout()
         self.cmbDispositivosEntrada = QComboBox()
         # Obtener lista de dispositivos del modelo
@@ -55,7 +55,7 @@ class ConfigDispWin(QMainWindow):
         mainLayout.addWidget(dispGroupEntrada)
         
         # Layout de selección de dispositivo Salida
-        dispGroupSalida = QGroupBox("Dispositivo de Salida")
+        dispGroupSalida = QGroupBox("Dispositivo de salida")
         dispLayoutSalida = QHBoxLayout()
         self.cmbDispositivosSalida = QComboBox()
         # Obtener lista de dispositivos de salida del modelo
@@ -84,7 +84,7 @@ class ConfigDispWin(QMainWindow):
         mainLayout.addWidget(dispGroupSalida)
         
         # Layout de configuración de rate y chunk
-        rateChunkGroup = QGroupBox("Parámetros de Audio")
+        rateChunkGroup = QGroupBox("Parámetros de audio")
         rateChunkLayoutVert = QVBoxLayout()
         rateChunkLayoutH1 = QHBoxLayout()
         rateChunkLayoutH2 = QHBoxLayout()
@@ -94,7 +94,7 @@ class ConfigDispWin(QMainWindow):
         #self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
         self.cmbBuffer = QComboBox()
         self.cmbBuffer.addItems(["128","256", "512", "1024", "2048", "4096", "8192"])
-        self.lblRate = QLabel("Frecuencia de muestreo(Hz):")
+        self.lblRate = QLabel("Frecuencia de muestreo (Hz):")
         rateChunkLayoutH1.addWidget(self.lblRate)
         rateChunkLayoutH1.addWidget(self.cmbRate)
         self.lblChunk = QLabel("Buffer:")

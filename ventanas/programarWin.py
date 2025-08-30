@@ -2,7 +2,7 @@ from PyQt5.QtCore import QTime
 from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QSpinBox, QLabel, QPushButton, QApplication, QDateEdit, QMessageBox,
                             QTableWidget, QTableWidgetItem, QHeaderView, QGroupBox)
-from PyQt5.QtCore import QTime, pyqtSignal, QDate, QDateTime
+from PyQt5.QtCore import QTime, pyqtSignal, QDate, QDateTime, Qt
 from PyQt5.QtGui import QIcon
 from utils import norm
 from db import guardar_registro, leer_proximas_grabaciones, borrar_registro
@@ -32,13 +32,18 @@ class ProgramarWin(QMainWindow):
         layoutHorizontal = QVBoxLayout()
         layout = QVBoxLayout(central_widget)
         
-        # lbl_info = QLabel(
-        #     "Se programará la grabación automática de audio\n"
-        #     "para el día y rango de tiempo seleccionados"
-        # )
-        # lbl_info.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        # lbl_info.setWordWrap(True)
-        # layout.addWidget(lbl_info)
+        infoIconPath = "img/informacion.png"
+        texto = "Se programará la grabación automática de audio para el día y horario seleccionados."
+
+        self.lbl_info = QLabel("")
+        self.lbl_info.setTextFormat(Qt.RichText)
+        self.lbl_info.setAlignment(Qt.AlignCenter) 
+        self.lbl_info.setText(
+            f'<img src="{infoIconPath}" width="16" height="16" style="vertical-align:middle; margin-left:6px;"> {texto} '
+        )
+        self.lbl_info.setProperty("class", "infoLbl")
+        
+        layout.addWidget(self.lbl_info)
 
         # Selector de fecha Inicio
         group_box_inicio = QGroupBox("Inicio")
@@ -96,7 +101,7 @@ class ProgramarWin(QMainWindow):
         self.table = QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
-            "Fecha inicio", "Hora inicio", "Fecha fin", "Hora fin","Duracion", "Eliminar"
+            "Fecha inicio", "Hora inicio", "Fecha fin", "Hora fin","Duración", "Eliminar"
         ])
         self.table.setMinimumHeight(250)  # <-- Ajusta el valor según lo que necesites
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -207,7 +212,7 @@ class ProgramarWin(QMainWindow):
             f"Hora inicio: {inicio}\n"
             f"Fecha fin: {fechaFin}\n"
             f"Hora fin: {fin}\n"
-            f"Duracion: {duracion}"
+            f"Duración: {duracion}"
         )
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         ret = msg.exec_()
@@ -315,7 +320,7 @@ class CustomTimePicker(QWidget):
         #self.second_spin.valueChanged.connect(self.on_time_changed)
         
         if self.esDuracion:
-            time_layout.addWidget(QLabel("Dias:"))
+            time_layout.addWidget(QLabel("Días:"))
             time_layout.addWidget(self.days_spin)
             time_layout.addWidget(QLabel("Horas:"))
             time_layout.addWidget(self.hour_spin)

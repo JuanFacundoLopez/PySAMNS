@@ -43,7 +43,7 @@ class TimeAxisItem(pg.AxisItem):
         strings = []
         for val in values:
             # Formatea el valor como segundos con 2 decimales
-            strings.append(f"{val:.2f} s")
+            strings.append(f"{val:.2f}")
         return strings
 
 class FrequencyAxisItem(pg.AxisItem):
@@ -103,6 +103,8 @@ class FrequencyAxisItem(pg.AxisItem):
         """
         self.bandas = new_bandas
         self.update()
+
+
 class vista(QMainWindow):
 
     def resizeEvent(self, event):
@@ -191,7 +193,7 @@ class vista(QMainWindow):
         #variables para configuracion de grafico
         #self.var_logModeXTiempo = False
         self.var_logModeYTiempo = False
-        self.var_logModeXEspectro = False
+        self.var_logModeXEspectro = True
         self.var_logModeYEspectro = False
         self.var_logModeXNivel = False
         self.var_logModeYNivel = False
@@ -199,20 +201,20 @@ class vista(QMainWindow):
         self.var_xMaxTiempo = 1024
         self.var_yMinTiempo = -1
         self.var_yMaxTiempo = 1
-        self.var_xMinEspectro = 0
-        self.var_xMaxEspectro = 1024
-        self.var_yMinEspectro = -1
-        self.var_yMaxEspectro = 1
+        self.var_xMinEspectro = np.log10(20)
+        self.var_xMaxEspectro = np.log10(20000)
+        self.var_yMinEspectro = -120
+        self.var_yMaxEspectro = 0
         self.var_xMinNivel = 0
         self.var_xMaxNivel = 1024
-        self.var_yMinNivel = -1
-        self.var_yMaxNivel = 1
-        self.var_etiquetaXTiempo = "Tiempo"
+        self.var_yMinNivel = -150
+        self.var_yMaxNivel = 0
+        self.var_etiquetaXTiempo = "Tiempo (s)"
         self.var_etiquetaYTiempo = "Amplitud Normalizada"
-        self.var_etiquetaXEspectro = "Frecuencia"
-        self.var_etiquetaYEspectro = "Nivel (dB)"
-        self.var_etiquetaXNivel = "Tiempo"
-        self.var_etiquetaYNivel = "Amplitud Normalizada"
+        self.var_etiquetaXEspectro = "Frecuencia (Hz)"
+        self.var_etiquetaYEspectro = "Nivel (dBFS)"
+        self.var_etiquetaXNivel = "Tiempo (s)"
+        self.var_etiquetaYNivel = "Nivel fondo de escala (dB)"
         self.var_tipoLineaTiempo = ""
         self.var_tipoGraficoEspectro = ""
         self.var_tipoLineaNivel = ""
@@ -275,7 +277,7 @@ class vista(QMainWindow):
         self.btn.setToolTip("Importar señal de audio de un archivo .Wav")
         self.btn.clicked.connect(self.vController.importSignal)
         self.btngbr = QPushButton("Grabar")
-        self.btngbr.setToolTip("Iniciar o Pausa la Grabacion de audio")
+        self.btngbr.setToolTip("Iniciar o pausa la grabacion de audio")
         self.btngbr.setCheckable(True)
         self.btngbr.clicked.connect(self.grabar)
         
@@ -304,7 +306,7 @@ class vista(QMainWindow):
         self.rightLayout = QVBoxLayout(self.rightPanel)
         
         # Grupo de tipo de gráfico
-        tipoGraficoGroup = QGroupBox("Analisis")
+        tipoGraficoGroup = QGroupBox("Análisis")
         tipoGraficoLayout = QHBoxLayout()
         
         # Contenedor para los botones
@@ -480,7 +482,7 @@ class vista(QMainWindow):
 
 
         # Layout para Instantaneo
-        self.lblNivelesFast = QLabel("Rapido")
+        self.lblNivelesFast = QLabel("Rápido")
         self.cbNivFastA = QCheckBox("A")
         self.cbNivFastC = QCheckBox("C")
         self.cbNivFastZ = QCheckBox("Z")
@@ -605,7 +607,7 @@ class vista(QMainWindow):
 
         # Menú Calibración
         self.menuCalibracion = QMenu("Calibración", self)
-        calAct = QAction("Menu Calibración", self)
+        calAct = QAction("Menú calibración", self)
         calAct.triggered.connect(self.calibracionWin)
         self.menuCalibracion.addAction(calAct)
 
@@ -630,7 +632,7 @@ class vista(QMainWindow):
         self.menuAcerca_de = QMenu("Acerca de...", self)
         
         # Agregar acción para abrir el sitio web de CINTRA
-        acercaCintraAct = QAction("Sitio Web CINTRA", self)
+        acercaCintraAct = QAction("Sitio web CINTRA", self)
         acercaCintraAct.triggered.connect(self.abrirSitioCintra)
         self.menuAcerca_de.addAction(acercaCintraAct)
 
@@ -754,6 +756,37 @@ class vista(QMainWindow):
             self.btngbr.setText("Grabar")
             self.btngbr.setIcon(QIcon("img/boton-de-play.png"))
     
+    def _sync_vb_right(self):
+        if hasattr(self, 'vb_right'):
+            self.vb_right.setGeometry(self.waveform1.vb.sceneBoundingRect())
+            self.vb_right.linkedViewChanged(self.waveform1.vb, self.vb_right.XAxis)
+
+    def _ensure_right_axis(self):
+        if hasattr(self, 'vb_right'):
+            return
+        self.waveform1.showAxis('right')
+        self.vb_right = pg.ViewBox()
+        self.waveform1.scene().addItem(self.vb_right)
+        self.waveform1.getAxis('right').linkToView(self.vb_right)
+        self.vb_right.setXLink(self.waveform1.vb)   # comparte X
+        self.waveform1.vb.sigResized.connect(self._sync_vb_right)
+        self._sync_vb_right()
+
+    def _remove_right_axis(self):
+        axr = self.waveform1.getAxis('right')
+
+        if hasattr(self, 'vb_right'):
+            try:
+                self.waveform1.vb.sigResized.disconnect(self._sync_vb_right)
+            except Exception:
+                pass
+            # re-vincula a la vista principal para evitar weakref(None)
+            axr.linkToView(self.waveform1.vb)
+            self.waveform1.scene().removeItem(self.vb_right)
+            del self.vb_right
+
+        self.waveform1.hideAxis('right')
+        axr.setLabel('')  # opcional
     def ventanaTiempo(self):
         self.btnNivel.setChecked(False)
         self.btnFrecuencia.setChecked(False)
@@ -766,6 +799,8 @@ class vista(QMainWindow):
         
         # Limpiar el gráfico actual
         self.waveform1.clear()
+        self._remove_right_axis()
+        
         
         # Asegurar que se use el eje de tiempo personalizado
         if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
@@ -773,7 +808,8 @@ class vista(QMainWindow):
             self.waveform1.setAxisItems({'bottom': self.time_axis})
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
-        if hasattr(self, 'txtXMinTiempo') and hasattr(self, 'txtXMaxTiempo'):
+        #if hasattr(self, 'txtXMinTiempo') and hasattr(self, 'txtXMaxTiempo'):
+        if all(hasattr(self, a) for a in ("var_xMinTiempo", "var_xMaxTiempo")):
             self.aplicarConfiguracionTiempo()
         else:
             # Configuración por defecto para gráfico de tiempo
@@ -800,9 +836,13 @@ class vista(QMainWindow):
         
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
+        self._ensure_right_axis()
+        self.waveform1.getAxis('right').setLabel('Espectro (dB)')
+        self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
-        if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
+        #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
+        if all(hasattr(self, a) for a in ("var_xMinEspectro", "var_xMaxEspectro")):
             self.aplicarConfiguracionEspectro()
         else:
             # Configuración por defecto para gráfico de frecuencia
@@ -822,7 +862,7 @@ class vista(QMainWindow):
             
             self.waveform1.setLabel('left', 'Nivel (dB)')
             self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-            self.waveform1.setTitle('Espectro de Frecuencia (dB)')
+            self.waveform1.setTitle('Espectro de Frecuencia')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -842,12 +882,15 @@ class vista(QMainWindow):
             self.waveform1.clear()
             self.nivel_configured = True
         
+        self._remove_right_axis()
+        
         # Habilitar Z Slow por defecto para que se vea algo en el gráfico
         self.cbNivSlowZ.setChecked(True)
         print("DEBUG: Z Slow habilitado por defecto")
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
-        if hasattr(self, 'txtXMinNivel') and hasattr(self, 'txtXMaxNivel'):
+        #if hasattr(self, 'txtXMinNivel') and hasattr(self, 'txtXMaxNivel'):
+        if all(hasattr(self, a) for a in ("var_xMinNivel", "var_xMaxNivel")):
             self.aplicarConfiguracionNivel()
         else:
             # Configuración por defecto para gráfico de nivel
@@ -1152,8 +1195,9 @@ class vista(QMainWindow):
                         
                         for i, h in enumerate(niveles):
                             # Position the text slightly above the bar
-                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0)) # Center horizontally, align to bottom of text
-                            text_item.setPos(x_positions[i], h + 0.5) # Adjust 0.5 for desired offset
+                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
+                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
+                            text_item.setAngle(45)
                             self.waveform1.addItem(text_item)
                             
                         # Configurar rangos de ejes

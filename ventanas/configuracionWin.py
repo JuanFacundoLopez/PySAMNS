@@ -19,7 +19,7 @@ class ConfiguracionWin(QMainWindow):
         self.anchoX = self.vista.anchoX
         self.altoY = self.vista.altoY
         
-        self.setWindowTitle("Configuración de Gráficos")
+        self.setWindowTitle("Configuración de gráficos")
         self.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.2, 0.6, 0.6))
         
         self.initUI()
@@ -65,21 +65,21 @@ class ConfiguracionWin(QMainWindow):
     
     def crearGrupoTiempo(self):
         """Crea el grupo de configuración para gráficos de tiempo"""
-        self.ejesGroupTiempo = QGroupBox("Configuración de Ejes Tiempo")
+        self.ejesGroupTiempo = QGroupBox("Configuración de ejes tiempo")
         ejesLayoutTiempo = QVBoxLayout()
         
         # Escala
         escalaLayoutTiempo = QHBoxLayout()
         escalaLayoutTiempo.addWidget(QLabel("Escala:"))
         #self.cbEscalaXTiempo = QCheckBox("Eje X Logarítmico")
-        self.cbEscalaYTiempo = QCheckBox("Eje Y Logarítmico")
+        self.cbEscalaYTiempo = QCheckBox("Eje Y logarítmico")
         #escalaLayoutTiempo.addWidget(self.cbEscalaXTiempo)
         escalaLayoutTiempo.addWidget(self.cbEscalaYTiempo)
         escalaLayoutTiempo.addStretch()
         ejesLayoutTiempo.addLayout(escalaLayoutTiempo)
         
         # Límites X
-        ejeXGroupTiempo = QGroupBox("Límites del Eje X")
+        ejeXGroupTiempo = QGroupBox("Límites del eje X")
         ejeXLayoutTiempo = QGridLayout()
         ejeXLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinTiempo = QLineEdit()
@@ -95,7 +95,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addWidget(ejeXGroupTiempo)
         
         # Límites Y
-        ejeYGroupTiempo = QGroupBox("Límites del Eje Y")
+        ejeYGroupTiempo = QGroupBox("Límites del eje Y")
         ejeYLayoutTiempo = QGridLayout()
         ejeYLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinTiempo = QLineEdit()
@@ -111,7 +111,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addWidget(ejeYGroupTiempo)
         
         # Etiquetas
-        etiquetasGroupTiempo = QGroupBox("Etiquetas de Ejes")
+        etiquetasGroupTiempo = QGroupBox("Etiquetas de ejes")
         etiquetasLayoutTiempo = QGridLayout()
         etiquetasLayoutTiempo.addWidget(QLabel("Eje X:"), 0, 0)
         self.txtEtiquetaXTiempo = QLineEdit()
@@ -123,11 +123,11 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addWidget(etiquetasGroupTiempo)
         
         # Color
-        colorGroupTiempo = QGroupBox("Color de Línea")
+        colorGroupTiempo = QGroupBox("Color de línea")
         colorLayoutTiempo = QHBoxLayout()
         self.colorFrameTiempo = QFrame()
         self.colorFrameTiempo.setFixedSize(30, 20)
-        self.btnColorTiempo = QPushButton("Seleccionar Color")
+        self.btnColorTiempo = QPushButton("Seleccionar color")
         self.btnColorTiempo.clicked.connect(lambda: self.seleccionarColor(self.colorFrameTiempo, "tiempo"))
         colorLayoutTiempo.addWidget(QLabel("Color:"))
         colorLayoutTiempo.addWidget(self.colorFrameTiempo)
@@ -137,7 +137,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addWidget(colorGroupTiempo)
         
         # Tipo de línea
-        tipoLineaGroupTiempo = QGroupBox("Tipo de Línea")
+        tipoLineaGroupTiempo = QGroupBox("Tipo de línea")
         tipoLineaLayoutTiempo = QHBoxLayout()
         tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"))
         self.cmbTipoLineaTiempo = QComboBox()
@@ -151,21 +151,21 @@ class ConfiguracionWin(QMainWindow):
     
     def crearGrupoEspectro(self):
         """Crea el grupo de configuración para gráficos de espectro"""
-        self.ejesGroupEspectro = QGroupBox("Configuración de Ejes Espectro")
+        self.ejesGroupEspectro = QGroupBox("Configuración de ejes espectro")
         ejesLayoutEspectro = QVBoxLayout()
         
         # Escala
         escalaLayoutEspectro = QHBoxLayout()
         escalaLayoutEspectro.addWidget(QLabel("Escala:"))
-        self.cbEscalaXEspectro = QCheckBox("Eje X Logarítmico")
-        self.cbEscalaYEspectro = QCheckBox("Eje Y Logarítmico")
+        self.cbEscalaXEspectro = QCheckBox("Eje X logarítmico")
+        self.cbEscalaYEspectro = QCheckBox("Eje Y logarítmico")
         escalaLayoutEspectro.addWidget(self.cbEscalaXEspectro)
         escalaLayoutEspectro.addWidget(self.cbEscalaYEspectro)
         escalaLayoutEspectro.addStretch()
         ejesLayoutEspectro.addLayout(escalaLayoutEspectro)
         
         # Límites X
-        ejeXGroupEspectro = QGroupBox("Límites del Eje X")
+        ejeXGroupEspectro = QGroupBox("Límites del eje X")
         ejeXLayoutEspectro = QGridLayout()
         ejeXLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinEspectro = QLineEdit()
@@ -181,7 +181,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addWidget(ejeXGroupEspectro)
         
         # Límites Y
-        ejeYGroupEspectro = QGroupBox("Límites del Eje Y")
+        ejeYGroupEspectro = QGroupBox("Límites del eje Y")
         ejeYLayoutEspectro = QGridLayout()
         ejeYLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinEspectro = QLineEdit()
@@ -197,7 +197,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addWidget(ejeYGroupEspectro)
         
         # Etiquetas
-        etiquetasGroupEspectro = QGroupBox("Etiquetas de Ejes")
+        etiquetasGroupEspectro = QGroupBox("Etiquetas de ejes")
         etiquetasLayoutEspectro = QGridLayout()
         etiquetasLayoutEspectro.addWidget(QLabel("Eje X:"), 0, 0)
         self.txtEtiquetaXEspectro = QLineEdit()
@@ -209,11 +209,11 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addWidget(etiquetasGroupEspectro)
         
         # Color
-        colorGroupEspectro = QGroupBox("Color de Línea")
+        colorGroupEspectro = QGroupBox("Color de línea")
         colorLayoutEspectro = QHBoxLayout()
         self.colorFrameEspectro = QFrame()
         self.colorFrameEspectro.setFixedSize(30, 20)
-        self.btnColorEspectro = QPushButton("Seleccionar Color")
+        self.btnColorEspectro = QPushButton("Seleccionar color")
         self.btnColorEspectro.clicked.connect(lambda: self.seleccionarColor(self.colorFrameEspectro, "espectro"))
         colorLayoutEspectro.addWidget(QLabel("Color:"))
         colorLayoutEspectro.addWidget(self.colorFrameEspectro)
@@ -223,7 +223,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addWidget(colorGroupEspectro)
         
         # Tipo de gráfico
-        tipoGraficoGroupEspectro = QGroupBox("Tipo de Gráfico")
+        tipoGraficoGroupEspectro = QGroupBox("Tipo de gráfico")
         tipoGraficoLayoutEspectro = QHBoxLayout()
         tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
         self.cmbTipoGraficoEspectro = QComboBox()
@@ -237,19 +237,19 @@ class ConfiguracionWin(QMainWindow):
     
     def crearGrupoNivel(self):
         """Crea el grupo de configuración para gráficos de nivel"""
-        self.ejesGroupNivel = QGroupBox("Configuración de Ejes Nivel")
+        self.ejesGroupNivel = QGroupBox("Configuración de ejes nivel")
         ejesLayoutNivel = QVBoxLayout()
         
         # Escala
         escalaLayoutNivel = QHBoxLayout()
         escalaLayoutNivel.addWidget(QLabel("Escala:"))
-        self.cbEscalaYNivel = QCheckBox("Eje Y Logarítmico")
+        self.cbEscalaYNivel = QCheckBox("Eje Y logarítmico")
         escalaLayoutNivel.addWidget(self.cbEscalaYNivel)
         escalaLayoutNivel.addStretch()
         ejesLayoutNivel.addLayout(escalaLayoutNivel)
         
         # Límites X
-        ejeXGroupNivel = QGroupBox("Límites del Eje X")
+        ejeXGroupNivel = QGroupBox("Límites del eje X")
         ejeXLayoutNivel = QGridLayout()
         ejeXLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinNivel = QLineEdit()
@@ -265,7 +265,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addWidget(ejeXGroupNivel)
         
         # Límites Y
-        ejeYGroupNivel = QGroupBox("Límites del Eje Y")
+        ejeYGroupNivel = QGroupBox("Límites del eje Y")
         ejeYLayoutNivel = QGridLayout()
         ejeYLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinNivel = QLineEdit()
@@ -281,7 +281,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addWidget(ejeYGroupNivel)
         
         # Etiquetas
-        etiquetasGroupNivel = QGroupBox("Etiquetas de Ejes")
+        etiquetasGroupNivel = QGroupBox("Etiquetas de ejes")
         etiquetasLayoutNivel = QGridLayout()
         etiquetasLayoutNivel.addWidget(QLabel("Eje X:"), 0, 0)
         self.txtEtiquetaXNivel = QLineEdit()
@@ -293,11 +293,11 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addWidget(etiquetasGroupNivel)
         
         # Color
-        colorGroupNivel = QGroupBox("Color de Línea")
+        colorGroupNivel = QGroupBox("Color de línea")
         colorLayoutNivel = QHBoxLayout()
         self.colorFrameNivel = QFrame()
         self.colorFrameNivel.setFixedSize(30, 20)
-        self.btnColorNivel = QPushButton("Seleccionar Color")
+        self.btnColorNivel = QPushButton("Seleccionar color")
         self.btnColorNivel.clicked.connect(lambda: self.seleccionarColor(self.colorFrameNivel, "nivel"))
         colorLayoutNivel.addWidget(QLabel("Color:"))
         colorLayoutNivel.addWidget(self.colorFrameNivel)
@@ -307,7 +307,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addWidget(colorGroupNivel)
         
         # Tipo de línea
-        tipoLineaGroupNivel = QGroupBox("Tipo de Línea")
+        tipoLineaGroupNivel = QGroupBox("Tipo de línea")
         tipoLineaLayoutNivel = QHBoxLayout()
         tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"))
         self.cmbTipoLineaNivel = QComboBox()

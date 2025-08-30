@@ -56,7 +56,7 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.lblDurSig)
         configLayout.addWidget(self.dur_input)
 
-        self.lblDutyCicleSig = QLabel("Duty cicle (%):")
+        self.lblDutyCicleSig = QLabel("Duty cycle (%):")
         self.duty_input = QSpinBox()
         self.duty_input.setRange(0, 99)
         self.duty_input.setValue(50)  # Valor por defecto
