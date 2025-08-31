@@ -88,6 +88,8 @@ class GeneradorWin(QMainWindow):
             axisX.setRange(0, 10)
         self.chartGenSig.setTitle("Señal Generada")
         self.chartGenSig.legend().hide()
+        axisX.setTitleText("Tiempo (s)")
+        
 
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
