@@ -118,6 +118,11 @@ QLabel[class="ventanasSecLabelDestacado"] {
     text-decoration: underline;
     color: #000000;
 }
+QLabel[class="subscript"] {
+    font-size: 12px; /* Tamaño base más grande */
+    color: #333333;
+    font-family: Arial;
+}
 
         
 /* QPushButton */

@@ -8,7 +8,7 @@ from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 class ConfigDispWin(QMainWindow):
     def __init__(self, vController, parent_cal_win=None):
         super().__init__()
-        self.setWindowTitle("Configuración de Dispositivos")
+        self.setWindowTitle("Configuración de dispositivos")
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -97,7 +97,7 @@ class ConfigDispWin(QMainWindow):
         self.lblRate = QLabel("Frecuencia de muestreo (Hz):")
         rateChunkLayoutH1.addWidget(self.lblRate)
         rateChunkLayoutH1.addWidget(self.cmbRate)
-        self.lblChunk = QLabel("Buffer:")
+        self.lblChunk = QLabel("Buffer (samp):")
         rateChunkLayoutH1.addWidget(self.lblChunk)
         rateChunkLayoutH1.addWidget(self.cmbBuffer)
         self.lblLatenciaTitle = QLabel("Latencia dada:")
