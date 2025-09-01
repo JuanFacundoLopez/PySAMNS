@@ -402,24 +402,64 @@ class controlador():
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
         self.graficar()
+
+    def reset_all_data(self):
+        """Detiene los temporizadores, los flujos y restablece todos los datos en el controlador, el modelo y la vista."""
+        # Detener procesos
+        self.timer.stop()
+        if hasattr(self.cModel, 'stream') and self.cModel.stream.is_active():
+            self.cModel.stream.stop_stream()
+        
+        self.device_active = False
+
+        # Restablecer datos del controlador
+        self.setGainZero()
+        self.start_time = None
+        self.msCounter = 0
+
+        # Restablecer datos del modelo
+        self.cModel.setNivelesZ(mode='r')
+        self.cModel.setNivelesC(mode='r')
+        self.cModel.setNivelesA(mode='r')
+        self.cModel.buffer = []
+        self.cModel.normalized_all = []
+        self.cModel.times = []
+        self.cModel.start_time = None
+
+        # Restablecer vista
+        # Limpiar todos los gráficos estableciendo sus datos a vacío
+        plot_items = []
+        if hasattr(self.cVista, 'ptdomTiempo'):
+            plot_items.extend([
+                self.cVista.ptdomTiempo, self.cVista.ptdomEspect,
+                self.cVista.ptNivZSlow, self.cVista.ptNivZFast, self.cVista.ptNivZInst, self.cVista.ptNivZPico,
+                self.cVista.ptNivCSlow, self.cVista.ptNivCFast, self.cVista.ptNivCInst, self.cVista.ptNivCPico,
+                self.cVista.ptNivASlow, self.cVista.ptNivAFast, self.cVista.ptNivAInst, self.cVista.ptNivAPico
+            ])
+        if hasattr(self.cVista, 'plot_line'):
+            plot_items.append(self.cVista.plot_line)
+        if hasattr(self.cVista, 'plot_line_freq'):
+            plot_items.append(self.cVista.plot_line_freq)
+
+        for item in plot_items:
+            if hasattr(item, 'setData'):
+                try:
+                    item.setData([], [])
+                except Exception as e:
+                    print(f"No se pudo limpiar el gráfico: {e}")
+            
+        self.cVista.cronometroGrabacion.setText("0:00 s")
         
     def dalePlay(self):                            # Comunicacion con la Vista
         if self.cVista.btngbr.isChecked() == False:
-            self.timer.stop() 
-            self.cVista.btngbr.setText('Grabar')
-            self.cModel.stream.stop_stream()
-            # self.stream.close()
+            # Acción de DETENER: detiene todo y resetea.
+            self.reset_all_data()
         else:
-            self.setGainZero()
-            # Resetear los datos de nivel en el modelo
-            self.cModel.setNivelesZ(0, 0, 0, 0, mode='r')
-            self.cModel.setNivelesC(0, 0, 0, 0, mode='r')
-            self.cModel.setNivelesA(0, 0, 0, 0, mode='r')
-            self.cVista.btngbr.setText('Stop')  
-            self.msCounter = 0
+            # Acción de INICIAR: resetea todo y comienza de nuevo.
+            self.reset_all_data()
             self.timer.start(30) 
             self.device_active = True
-            self.cModel.stream.start_stream() #Verificar estas funciones
+            self.cModel.stream.start_stream()
 
     def update_view(self):                           # Cronometro
          # Actualizar dispositivo 1 si está activo
