@@ -511,7 +511,7 @@ class controlador():
         """
         Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
         captura de micrófono. La referencia (0 dBFS) se fija en la última
-        amplitud cuya THD < 1%.
+        amplitud cuya THD < 0.01%.
         """
         # Verificar dispositivos
         try:
@@ -532,7 +532,7 @@ class controlador():
 
         frecuencia = 1000
         fs = self.RATE
-        duracion = 1.0  # segundos por paso
+        duracion = 0.5  # segundos por paso
         frames_per_buffer = 1024
         paso_amp = 0.1
         amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
@@ -607,11 +607,11 @@ class controlador():
                 self.wf_data = segmento
                 grabacion(self)
 
-                if thd_pct < 1.0:
+                if thd_pct < 0.01:
                     ultima_amplitud_baja_thd = amp
                     continue
                 else:
-                    # Se superó 1% de THD -> detener barrido
+                    # Se superó 0.01% de THD -> detener barrido
                     break
 
         except Exception as e:
@@ -629,7 +629,7 @@ class controlador():
                 pass
 
         if ultima_amplitud_baja_thd is None:
-            error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
+            error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
             self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             self.cVista.calWin.txtValorRef.setText("Error")
