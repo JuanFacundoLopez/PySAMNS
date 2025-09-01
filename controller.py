@@ -318,6 +318,9 @@ class controlador():
         (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
         (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
         
+        # Calcular estadísticas
+        stats = self.cModel.calculate_leq_and_percentiles()
+        
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
             # Obtener el tiempo real transcurrido desde el inicio
@@ -329,10 +332,6 @@ class controlador():
                     tiempos = np.arange(len(pico_z)) * time_interval
                 else:
                     tiempos = np.array([elapsed_real_time])
-            else:
-                # Fallback al método basado en chunks
-                chunk_duration = self.cModel.chunk / self.cModel.rate
-                tiempos = np.arange(len(pico_z)) * chunk_duration
         except Exception as e:
             print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
             # Fallback al método anterior si hay error
@@ -344,21 +343,40 @@ class controlador():
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
-            'slow': slow_z
+            'slow': slow_z,
+            # Añadir niveles estadísticos
+            'leq': np.full_like(tiempos, stats.get('LeqZ', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99Z', 0.0)) if len(tiempos) > 0 else np.array([])
         }
         
         niveles_c = {
             'pico': pico_c,
             'inst': inst_c,
             'fast': fast_c,
-            'slow': slow_c
+            'slow': slow_c,
+            'leq': np.full_like(tiempos, stats.get('LeqC', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99C', 0.0)) if len(tiempos) > 0 else np.array([])
         }
         
         niveles_a = {
             'pico': pico_a,
             'inst': inst_a,
             'fast': fast_a,
-            'slow': slow_a
+            'slow': slow_a,
+            'leq': np.full_like(tiempos, stats.get('LeqA', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99A', 0.0)) if len(tiempos) > 0 else np.array([])
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a
@@ -389,7 +407,7 @@ class controlador():
         if self.cVista.btngbr.isChecked() == False:
             self.timer.stop() 
             self.cVista.btngbr.setText('Grabar')
-            self.cModel.stream.stop_stream() #Verificar estas funciones
+            self.cModel.stream.stop_stream()
             # self.stream.close()
         else:
             self.setGainZero()
