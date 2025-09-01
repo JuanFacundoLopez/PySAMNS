@@ -195,14 +195,9 @@ class controlador():
                         timeNivelData = np.arange(len(dataVectorPicoZ)) * time_interval
                     else:
                         timeNivelData = np.array([elapsed_real_time])
-                else:
-                    # Fallback al método basado en chunks
-                    chunk_duration = self.cModel.chunk / self.cModel.rate
-                    timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
-                    
             except Exception as e:
                 print(f"DEBUG: Error en cálculo de tiempo: {e}")
-                # Fallback al método anterior si hay error
+                # Fallback al método basado en chunks
                 chunk_duration = self.cModel.chunk / self.cModel.rate
                 timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
         
@@ -426,29 +421,9 @@ class controlador():
         self.cModel.times = []
         self.cModel.start_time = None
 
-        # Restablecer vista
-        # Limpiar todos los gráficos estableciendo sus datos a vacío
-        plot_items = []
-        if hasattr(self.cVista, 'ptdomTiempo'):
-            plot_items.extend([
-                self.cVista.ptdomTiempo, self.cVista.ptdomEspect,
-                self.cVista.ptNivZSlow, self.cVista.ptNivZFast, self.cVista.ptNivZInst, self.cVista.ptNivZPico,
-                self.cVista.ptNivCSlow, self.cVista.ptNivCFast, self.cVista.ptNivCInst, self.cVista.ptNivCPico,
-                self.cVista.ptNivASlow, self.cVista.ptNivAFast, self.cVista.ptNivAInst, self.cVista.ptNivAPico
-            ])
-        if hasattr(self.cVista, 'plot_line'):
-            plot_items.append(self.cVista.plot_line)
-        if hasattr(self.cVista, 'plot_line_freq'):
-            plot_items.append(self.cVista.plot_line_freq)
-
-        for item in plot_items:
-            if hasattr(item, 'setData'):
-                try:
-                    item.setData([], [])
-                except Exception as e:
-                    print(f"No se pudo limpiar el gráfico: {e}")
-            
+        # Actualizar la vista
         self.cVista.cronometroGrabacion.setText("0:00 s")
+        self.graficar()
         
     def dalePlay(self):                            # Comunicacion con la Vista
         if self.cVista.btngbr.isChecked() == False:

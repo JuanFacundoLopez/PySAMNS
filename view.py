@@ -780,6 +780,9 @@ class vista(QMainWindow):
     
     def grabar(self):
         self.editar_botonGrabar() 
+        if self.btngbr.isChecked():
+            # Reset everything when starting a new recording
+            self.vController.reset_all_data()
         self.vController.dalePlay() # conexion con el controlador
 
     def editar_botonGrabar(self):
@@ -1711,4 +1714,3 @@ class vista(QMainWindow):
         
         # Aceptar el evento de cierre
         event.accept()
-        
