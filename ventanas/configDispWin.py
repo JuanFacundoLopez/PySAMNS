@@ -108,7 +108,6 @@ class ConfigDispWin(QMainWindow):
         rateChunkLayoutVert.addLayout(rateChunkLayoutH2)
         rateChunkGroup.setLayout(rateChunkLayoutVert)
         mainLayout.addWidget(rateChunkGroup)
-        #self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada(self.cmbDispositivosEntrada.currentIndex()))
         self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciasEntrada)
         self.cmbBuffer.currentIndexChanged.connect(self.actualizarLatencia)
         self.cmbRate.currentIndexChanged.connect(self.actualizarLatencia)

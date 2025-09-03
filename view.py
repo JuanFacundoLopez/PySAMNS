@@ -5,6 +5,7 @@ from ventanas.programarWin import ProgramarWin
 from ventanas.calibracionWin import CalibracionWin
 from ventanas.configDispWin import ConfigDispWin
 from ventanas.configuracionWin import ConfiguracionWin
+from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
@@ -395,7 +396,7 @@ class vista(QMainWindow):
         
         # Layout para Pico
         self.lblNivelesPico = QLabel("Pico\n"
-                                     "(Pike)")
+                                     "(Peak)")
         self.cbNivPicoA_container, self.cbNivPicoA = self.create_checkbox_with_subscript("L<sub>APK</sub>", self.nivelesGroup)
         self.cbNivPicoC_container, self.cbNivPicoC = self.create_checkbox_with_subscript("L<sub>CPK</sub>", self.nivelesGroup)
         self.cbNivPicoZ_container, self.cbNivPicoZ = self.create_checkbox_with_subscript("L<sub>ZPK</sub>", self.nivelesGroup)
@@ -656,6 +657,10 @@ class vista(QMainWindow):
         configDispAct = QAction("Configuración de Dispositivo", self)
         configDispAct.triggered.connect(self.configuracionDispositivo)
         self.menuConfiguracion.addAction(configDispAct)
+        # Nueva acción para configuración de dispositivo
+        genSig = QAction("Generador de señales", self)
+        genSig.triggered.connect(self.GeneradorSenales)
+        self.menuConfiguracion.addAction(genSig)
        
         self.menuConfiguracion.setToolTip("Configuraciones de gráfico y dispositivos")
         
@@ -760,6 +765,10 @@ class vista(QMainWindow):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
 
+    def GeneradorSenales(self):
+        self.genSenalesWin = GeneradorWin(self.vController)
+        self.genSenalesWin.show()
+        
     def configuracionDispositivo(self):
         self.calWin = CalibracionWin(self.vController)
         self.configDispWin = ConfigDispWin(self.vController,self.calWin )
