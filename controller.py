@@ -185,15 +185,20 @@ class controlador():
             
             # Crear eje de tiempo real sincronizado
             # Usar el tiempo de inicio real pero con intervalos consistentes
+            timeNivelData = np.array([])  # Initialize timeNivelData as empty array
             try:
+                
                 # Obtener el tiempo real transcurrido desde el inicio
                 if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
+                    
                     elapsed_real_time = time.time() - self.cModel.start_time
                     # Calcular el intervalo de tiempo promedio por muestra de nivel
                     if len(dataVectorPicoZ) > 1:
+                        
                         time_interval = elapsed_real_time / len(dataVectorPicoZ)
                         timeNivelData = np.arange(len(dataVectorPicoZ)) * time_interval
                     else:
+                        
                         timeNivelData = np.array([elapsed_real_time])
             except Exception as e:
                 print(f"DEBUG: Error en cálculo de tiempo: {e}")
@@ -201,33 +206,7 @@ class controlador():
                 chunk_duration = self.cModel.chunk / self.cModel.rate
                 timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
         
-            print(f"DEBUG: Tiempo real usado - {len(timeNivelData)} puntos, rango: {timeNivelData[0]:.2f}s - {timeNivelData[-1]:.2f}s")
-            
-            # Solo limpiar los plots que no se van a usar (comentado temporalmente para debug)
-            # if not self.cVista.cbNivPicoZ.isChecked():
-            #     self.cVista.ptNivZPico.clear()
-            # if not self.cVista.cbNivInstZ.isChecked():
-            #     self.cVista.ptNivZInst.clear()
-            # if not self.cVista.cbNivFastZ.isChecked():
-            #     self.cVista.ptNivZFast.clear()
-            # if not self.cVista.cbNivSlowZ.isChecked():
-            #     self.cVista.ptNivZSlow.clear()
-            # if not self.cVista.cbNivPicoC.isChecked():
-            #     self.cVista.ptNivCPico.clear()
-            # if not self.cVista.cbNivInstC.isChecked():
-            #     self.cVista.ptNivCInst.clear()
-            # if not self.cVista.cbNivFastC.isChecked():
-            #     self.cVista.ptNivCFast.clear()
-            # if not self.cVista.cbNivSlowC.isChecked():
-            #     self.cVista.ptNivCSlow.clear()
-            # if not self.cVista.cbNivPicoA.isChecked():
-            #     self.cVista.ptNivAPico.clear()
-            # if not self.cVista.cbNivInstA.isChecked():
-            #     self.cVista.ptNivAInst.clear()
-            # if not self.cVista.cbNivFastA.isChecked():
-            #     self.cVista.ptNivAFast.clear()
-            # if not self.cVista.cbNivSlowA.isChecked():
-            #     self.cVista.ptNivASlow.clear()
+            #print(f"DEBUG: Tiempo real usado - {len(timeNivelData)} puntos, rango: {timeNivelData[0]:.2f}s - {timeNivelData[-1]:.2f}s" if len(timeNivelData) > 0 else "DEBUG: No hay datos de tiempo")
             
             # Solo graficar si hay datos
             if len(timeNivelData) > 0:
