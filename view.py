@@ -5,6 +5,7 @@ from ventanas.programarWin import ProgramarWin
 from ventanas.calibracionWin import CalibracionWin
 from ventanas.configDispWin import ConfigDispWin
 from ventanas.configuracionWin import ConfiguracionWin
+from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
@@ -141,7 +142,8 @@ class vista(QMainWindow):
         checkbox = QCheckBox(container)
         
         # Crear el label con formato HTML
-        label = QLabel(text, container)
+        styled_text = text.replace('<sub>', '<sub style="font-size: 14px;">').replace('</sub>', '</sub>')
+        label = QLabel(styled_text, container)
         label.setTextFormat(Qt.RichText)
         label.setProperty("class", "subscript")
         
@@ -154,10 +156,11 @@ class vista(QMainWindow):
         
         label.mousePressEvent = lambda event: toggle_checkbox()
         
-        # Almacenar referencia al checkbox para acceder a su estado
+        # Almacenar referencia al checkbox para acceso fácil
         container.checkbox = checkbox
         
-        return container
+        # Retornar tanto el contenedor como el checkbox para facilitar el uso
+        return container, checkbox
 
     def __init__(self, Controller):
         # Primero creamos la aplicación
@@ -177,6 +180,7 @@ class vista(QMainWindow):
 
         # Configuración de la ventana principal
         self.setWindowTitle("SAMNS")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         self.setGeometry(int(self.anchoX * 0.01), int(self.altoY * 0.025), 
                         int(self.anchoX * 0.95), int(self.altoY * 0.9))
         
@@ -384,195 +388,192 @@ class vista(QMainWindow):
         self.rightLayout.addWidget(self.filtrosGroup)
         
         # Niveles estadísticos
-        self.nivelesGroup = QGroupBox("Niveles estadísticos")
-                
-        layoutNivelesEsta = QGridLayout()
-        self.nivelesGroup.setLayout(layoutNivelesEsta)
-        
-        # Layout para filtro Z
-        self.cbEqZ = self.create_checkbox_with_subscript("L<sub>Zeq</sub>", self.nivelesGroup)
-        self.cb01Z = self.create_checkbox_with_subscript("L<sub>Z01</sub>", self.nivelesGroup)
-        self.cb10Z = self.create_checkbox_with_subscript("L<sub>Z10</sub>", self.nivelesGroup)
-        self.cb50Z = self.create_checkbox_with_subscript("L<sub>Z50</sub>", self.nivelesGroup)
-        self.cb90Z = self.create_checkbox_with_subscript("L<sub>Z90</sub>", self.nivelesGroup)
-        self.cb99Z = self.create_checkbox_with_subscript("L<sub>Z99</sub>", self.nivelesGroup)
-
-        # Layout para filtro C
-        self.cbEqC = self.create_checkbox_with_subscript("L<sub>Ceq</sub>", self.nivelesGroup)
-        self.cb01C = self.create_checkbox_with_subscript("L<sub>C01</sub>", self.nivelesGroup)
-        self.cb10C = self.create_checkbox_with_subscript("L<sub>C10</sub>", self.nivelesGroup)
-        self.cb50C = self.create_checkbox_with_subscript("L<sub>C50</sub>", self.nivelesGroup)
-        self.cb90C = self.create_checkbox_with_subscript("L<sub>C90</sub>", self.nivelesGroup)
-        self.cb99C = self.create_checkbox_with_subscript("L<sub>C99</sub>", self.nivelesGroup)
-
-        # Layout para filtro A
-        self.cbEqA = self.create_checkbox_with_subscript("L<sub>Aeq</sub>", self.nivelesGroup)
-        self.cb01A = self.create_checkbox_with_subscript("L<sub>A01</sub>", self.nivelesGroup)
-        self.cb10A = self.create_checkbox_with_subscript("L<sub>A10</sub>", self.nivelesGroup)
-        self.cb50A = self.create_checkbox_with_subscript("L<sub>A50</sub>", self.nivelesGroup)
-        self.cb90A = self.create_checkbox_with_subscript("L<sub>A90</sub>", self.nivelesGroup)
-        self.cb99A = self.create_checkbox_with_subscript("L<sub>A99</sub>", self.nivelesGroup)
-
-                
-        self.btnClearNEsta = QPushButton("Limpiar")
-        
-       
-        # Primera fila
-        layoutNivelesEsta.addWidget(self.cbEqZ, 0, 0)
-        layoutNivelesEsta.addWidget(self.cbEqC, 0, 1)
-        layoutNivelesEsta.addWidget(self.cbEqA, 0, 2)
-        
-        # Segunda fila
-        layoutNivelesEsta.addWidget(self.cb01Z, 1, 0)
-        layoutNivelesEsta.addWidget(self.cb01C, 1, 1)
-        layoutNivelesEsta.addWidget(self.cb01A, 1, 2)
-        
-        # Tercera fila
-        layoutNivelesEsta.addWidget(self.cb10Z, 2, 0)
-        layoutNivelesEsta.addWidget(self.cb10C, 2, 1)
-        layoutNivelesEsta.addWidget(self.cb10A, 2, 2)
-        
-        # Cuarta fila
-        layoutNivelesEsta.addWidget(self.cb50Z, 3, 0)
-        layoutNivelesEsta.addWidget(self.cb50C, 3, 1)
-        layoutNivelesEsta.addWidget(self.cb50A, 3, 2)
-        
-         # Quinta fila
-        layoutNivelesEsta.addWidget(self.cb90Z, 4, 0)
-        layoutNivelesEsta.addWidget(self.cb90C, 4, 1)
-        layoutNivelesEsta.addWidget(self.cb90A, 4, 2)
-        
-        # Sexta fila
-        layoutNivelesEsta.addWidget(self.cb99Z, 5, 0)
-        layoutNivelesEsta.addWidget(self.cb99C, 5, 1)
-        layoutNivelesEsta.addWidget(self.cb99A, 5, 2)
-        
-        layoutNivelesEsta.addWidget(self.btnClearNEsta, 6, 2, QtCore.Qt.AlignRight)
-        self.btnClearNEsta.clicked.connect(self.limpiarNivelesEstadisticos)
-        self.btnClearNEsta.setToolTip("Desmarca todos los niveles estadísticos")
-        self.btnClearNEsta.setProperty("class", "filtros")
-        
-        self.rightLayout.addWidget(self.nivelesGroup)
-        
-        # Ponderación temporal
-        self.ponderacionGroup = QGroupBox("Otros niveles")
+        self.nivelesGroup = QGroupBox("Niveles sonoros")        
+    
         nivelesLayout = QGridLayout()
         
-        self.ponderacionGroup.setLayout(nivelesLayout)
+        self.nivelesGroup.setLayout(nivelesLayout)
+        
+        # Layout para Pico
+        self.lblNivelesPico = QLabel("Pico\n"
+                                     "(Peak)")
+        self.cbNivPicoA_container, self.cbNivPicoA = self.create_checkbox_with_subscript("L<sub>APK</sub>", self.nivelesGroup)
+        self.cbNivPicoC_container, self.cbNivPicoC = self.create_checkbox_with_subscript("L<sub>CPK</sub>", self.nivelesGroup)
+        self.cbNivPicoZ_container, self.cbNivPicoZ = self.create_checkbox_with_subscript("L<sub>ZPK</sub>", self.nivelesGroup)
+        
+        nivelesLayout.addWidget(self.lblNivelesPico, 0, 0,QtCore.Qt.AlignCenter)
+        nivelesLayout.addWidget(self.cbNivPicoA_container,0,1)
+        nivelesLayout.addWidget(self.cbNivPicoC_container,0,2)
+        nivelesLayout.addWidget(self.cbNivPicoZ_container,0,3)
+        
         line1 = QFrame()
         line1.setFrameShape(QFrame.HLine)
         line1.setFrameShadow(QFrame.Sunken)
         nivelesLayout.addWidget(line1, 1, 0, 1, 4)
 
+
+        # Layout para Instantaneo
+        self.lblNivelesInst = QLabel("Impulsivo \n"
+                                     "(Impulsive)")
+        self.cbNivInstA_container, self.cbNivInstA = self.create_checkbox_with_subscript("L<sub>AI</sub>", self.nivelesGroup)
+        self.cbNivInstC_container, self.cbNivInstC = self.create_checkbox_with_subscript("L<sub>CI</sub>", self.nivelesGroup)
+        self.cbNivInstZ_container, self.cbNivInstZ = self.create_checkbox_with_subscript("L<sub>ZI</sub>", self.nivelesGroup)
+        self.cbNivInstMinA_container, self.cbNivInstMinA = self.create_checkbox_with_subscript("L<sub>AImin</sub>", self.nivelesGroup)
+        self.cbNivInstMinC_container, self.cbNivInstMinC = self.create_checkbox_with_subscript("L<sub>CImin</sub>", self.nivelesGroup)
+        self.cbNivInstMinZ_container, self.cbNivInstMinZ = self.create_checkbox_with_subscript("L<sub>ZImin</sub>", self.nivelesGroup)
+        self.cbNivInstMaxA_container, self.cbNivInstMaxA = self.create_checkbox_with_subscript("L<sub>AImax</sub>", self.nivelesGroup)
+        self.cbNivInstMaxC_container, self.cbNivInstMaxC = self.create_checkbox_with_subscript("L<sub>CImax</sub>", self.nivelesGroup)
+        self.cbNivInstMaxZ_container, self.cbNivInstMaxZ = self.create_checkbox_with_subscript("L<sub>ZImax</sub>", self.nivelesGroup)
+        
+        nivelesLayout.addWidget(self.lblNivelesInst, 2, 0,3,1,QtCore.Qt.AlignCenter)  
+        # Primera fila
+        nivelesLayout.addWidget(self.cbNivInstA_container, 2, 1)
+        nivelesLayout.addWidget(self.cbNivInstC_container, 3, 1)
+        nivelesLayout.addWidget(self.cbNivInstZ_container, 4, 1)
+        # Segunda fila
+        nivelesLayout.addWidget(self.cbNivInstMinA_container, 2, 2)
+        nivelesLayout.addWidget(self.cbNivInstMinC_container, 3, 2)
+        nivelesLayout.addWidget(self.cbNivInstMinZ_container, 4, 2)
+        # Tercera fila
+        nivelesLayout.addWidget(self.cbNivInstMaxA_container, 2, 3)
+        nivelesLayout.addWidget(self.cbNivInstMaxC_container, 3, 3)
+        nivelesLayout.addWidget(self.cbNivInstMaxZ_container, 4, 3)
+        
         line2 = QFrame()
         line2.setFrameShape(QFrame.HLine)
         line2.setFrameShadow(QFrame.Sunken)
         nivelesLayout.addWidget(line2, 5, 0, 1, 4)
+
+        # Layout para Instantaneo
+        self.lblNivelesFast = QLabel("Rápido \n"
+                                     "(Fast)")
+        self.cbNivFastA_container, self.cbNivFastA = self.create_checkbox_with_subscript("L<sub>AF</sub>", self.nivelesGroup)
+        self.cbNivFastC_container, self.cbNivFastC = self.create_checkbox_with_subscript("L<sub>CF</sub>", self.nivelesGroup)
+        self.cbNivFastZ_container, self.cbNivFastZ = self.create_checkbox_with_subscript("L<sub>ZF</sub>", self.nivelesGroup)
+        self.cbNivFastMinA_container, self.cbNivFastMinA = self.create_checkbox_with_subscript("L<sub>AFmin</sub>", self.nivelesGroup)
+        self.cbNivFastMinC_container, self.cbNivFastMinC = self.create_checkbox_with_subscript("L<sub>CFmin</sub>", self.nivelesGroup)
+        self.cbNivFastMinZ_container, self.cbNivFastMinZ = self.create_checkbox_with_subscript("L<sub>ZFmin</sub>", self.nivelesGroup)
+        self.cbNivFastMaxA_container, self.cbNivFastMaxA = self.create_checkbox_with_subscript("L<sub>AFmax</sub>", self.nivelesGroup)
+        self.cbNivFastMaxC_container, self.cbNivFastMaxC = self.create_checkbox_with_subscript("L<sub>CFmax</sub>", self.nivelesGroup)
+        self.cbNivFastMaxZ_container, self.cbNivFastMaxZ = self.create_checkbox_with_subscript("L<sub>ZFmax</sub>", self.nivelesGroup)
+        
+        nivelesLayout.addWidget(self.lblNivelesFast, 6, 0,3,1,QtCore.Qt.AlignCenter)  
+        # Primera fila
+        nivelesLayout.addWidget(self.cbNivFastA_container, 6, 1)
+        nivelesLayout.addWidget(self.cbNivFastC_container, 7, 1)
+        nivelesLayout.addWidget(self.cbNivFastZ_container, 8, 1)
+        # Segunda fila
+        nivelesLayout.addWidget(self.cbNivFastMinA_container, 6, 2)
+        nivelesLayout.addWidget(self.cbNivFastMinC_container, 7, 2)
+        nivelesLayout.addWidget(self.cbNivFastMinZ_container, 8, 2)
+        # Tercera fila
+        nivelesLayout.addWidget(self.cbNivFastMaxA_container, 6, 3)
+        nivelesLayout.addWidget(self.cbNivFastMaxC_container, 7, 3)
+        nivelesLayout.addWidget(self.cbNivFastMaxZ_container, 8, 3)
 
         line3 = QFrame()
         line3.setFrameShape(QFrame.HLine)
         line3.setFrameShadow(QFrame.Sunken)
         nivelesLayout.addWidget(line3, 9, 0, 1, 4)
         
-        # Layout para Pico
-        self.lblNivelesPico = QLabel("Pico\n"
-                                     "(Pike)")
-        self.cbNivPicoA = QCheckBox("A")
-        self.cbNivPicoC = QCheckBox("C")
-        self.cbNivPicoZ = QCheckBox("Z")
-        
-        nivelesLayout.addWidget(self.lblNivelesPico, 0, 0,QtCore.Qt.AlignCenter)
-        nivelesLayout.addWidget(self.cbNivPicoA,0,1)
-        nivelesLayout.addWidget(self.cbNivPicoC,0,2)
-        nivelesLayout.addWidget(self.cbNivPicoZ,0,3)
-        
-        # Layout para Instantaneo
-        self.lblNivelesInst = QLabel("Instantáneo \n"
-                                     "(Instant)")
-        self.cbNivInstA = QCheckBox("A")
-        self.cbNivInstC = QCheckBox("C")
-        self.cbNivInstZ = QCheckBox("Z")
-        self.cbNivInstMinA = QCheckBox("LAImin")
-        self.cbNivInstMinC = QCheckBox("LCImin")
-        self.cbNivInstMinZ = QCheckBox("LZImin")
-        self.cbNivInstMaxA = QCheckBox("LAImax")
-        self.cbNivInstMaxC = QCheckBox("LCImax")
-        self.cbNivInstMaxZ = QCheckBox("LZImax")
-        
-        nivelesLayout.addWidget(self.lblNivelesInst, 2, 0,3,1,QtCore.Qt.AlignCenter)  
-        # Primera fila
-        nivelesLayout.addWidget(self.cbNivInstA, 2, 1)
-        nivelesLayout.addWidget(self.cbNivInstC, 3, 1)
-        nivelesLayout.addWidget(self.cbNivInstZ, 4, 1)
-        # Segunda fila
-        nivelesLayout.addWidget(self.cbNivInstMinA, 2, 2)
-        nivelesLayout.addWidget(self.cbNivInstMinC, 3, 2)
-        nivelesLayout.addWidget(self.cbNivInstMinZ, 4, 2)
-        # Tercera fila
-        nivelesLayout.addWidget(self.cbNivInstMaxA, 2, 3)
-        nivelesLayout.addWidget(self.cbNivInstMaxC, 3, 3)
-        nivelesLayout.addWidget(self.cbNivInstMaxZ, 4, 3)
-
-
-        # Layout para Instantaneo
-        self.lblNivelesFast = QLabel("Rápido \n"
-                                     "(Fast)")
-        self.cbNivFastA = QCheckBox("A")
-        self.cbNivFastC = QCheckBox("C")
-        self.cbNivFastZ = QCheckBox("Z")
-        self.cbNivFastMinA = QCheckBox("LAFmin")
-        self.cbNivFastMinC = QCheckBox("LCFmin")
-        self.cbNivFastMinZ = QCheckBox("LZFmin")
-        self.cbNivFastMaxA = QCheckBox("LAFmax")
-        self.cbNivFastMaxC = QCheckBox("LCFmax")
-        self.cbNivFastMaxZ = QCheckBox("LZFmax")
-        
-        nivelesLayout.addWidget(self.lblNivelesFast, 6, 0,3,1,QtCore.Qt.AlignCenter)  
-        # Primera fila
-        nivelesLayout.addWidget(self.cbNivFastA, 6, 1)
-        nivelesLayout.addWidget(self.cbNivFastC, 7, 1)
-        nivelesLayout.addWidget(self.cbNivFastZ, 8, 1)
-        # Segunda fila
-        nivelesLayout.addWidget(self.cbNivFastMinA, 6, 2)
-        nivelesLayout.addWidget(self.cbNivFastMinC, 7, 2)
-        nivelesLayout.addWidget(self.cbNivFastMinZ, 8, 2)
-        # Tercera fila
-        nivelesLayout.addWidget(self.cbNivFastMaxA, 6, 3)
-        nivelesLayout.addWidget(self.cbNivFastMaxC, 7, 3)
-        nivelesLayout.addWidget(self.cbNivFastMaxZ, 8, 3)
-        
         # Layout para Slow
         self.lblNivelesPico = QLabel("Lento\n"
                                      "(Slow)")
-        self.cbNivSlowA = QCheckBox("A")
-        self.cbNivSlowC = QCheckBox("C")
-        self.cbNivSlowZ = QCheckBox("Z")
-        self.cbNivSlowMinA = QCheckBox("LASmin")
-        self.cbNivSlowMinC = QCheckBox("LCSmin")
-        self.cbNivSlowMinZ = QCheckBox("LZSmin")
-        self.cbNivSlowMaxA = QCheckBox("LASmax")
-        self.cbNivSlowMaxC = QCheckBox("LCSmax")
-        self.cbNivSlowMaxZ = QCheckBox("LZSmax")
+        self.cbNivSlowA_container, self.cbNivSlowA = self.create_checkbox_with_subscript("L<sub>AS</sub>", self.nivelesGroup)
+        self.cbNivSlowC_container, self.cbNivSlowC = self.create_checkbox_with_subscript("L<sub>CS</sub>", self.nivelesGroup)
+        self.cbNivSlowZ_container, self.cbNivSlowZ = self.create_checkbox_with_subscript("L<sub>ZS</sub>", self.nivelesGroup)
+        self.cbNivSlowMinA_container, self.cbNivSlowMinA = self.create_checkbox_with_subscript("L<sub>ASmin</sub>", self.nivelesGroup)
+        self.cbNivSlowMinC_container, self.cbNivSlowMinC = self.create_checkbox_with_subscript("L<sub>CSmin</sub>", self.nivelesGroup)
+        self.cbNivSlowMinZ_container, self.cbNivSlowMinZ = self.create_checkbox_with_subscript("L<sub>ZSmin</sub>", self.nivelesGroup)
+        self.cbNivSlowMaxA_container, self.cbNivSlowMaxA = self.create_checkbox_with_subscript("L<sub>ASmax</sub>", self.nivelesGroup)
+        self.cbNivSlowMaxC_container, self.cbNivSlowMaxC = self.create_checkbox_with_subscript("L<sub>CSmax</sub>", self.nivelesGroup)
+        self.cbNivSlowMaxZ_container, self.cbNivSlowMaxZ = self.create_checkbox_with_subscript("L<sub>ZSmax</sub>", self.nivelesGroup)
         
         nivelesLayout.addWidget(self.lblNivelesPico, 10, 0,3,1,QtCore.Qt.AlignCenter)  
         # Primera fila
-        nivelesLayout.addWidget(self.cbNivSlowA, 10, 1)
-        nivelesLayout.addWidget(self.cbNivSlowC, 11, 1)
-        nivelesLayout.addWidget(self.cbNivSlowZ, 12, 1)
+        nivelesLayout.addWidget(self.cbNivSlowA_container, 10, 1)
+        nivelesLayout.addWidget(self.cbNivSlowC_container, 11, 1)
+        nivelesLayout.addWidget(self.cbNivSlowZ_container, 12, 1)
         # Segunda fila
-        nivelesLayout.addWidget(self.cbNivSlowMinA, 10, 2)
-        nivelesLayout.addWidget(self.cbNivSlowMinC, 11, 2)
-        nivelesLayout.addWidget(self.cbNivSlowMinZ, 12, 2)
+        nivelesLayout.addWidget(self.cbNivSlowMinA_container, 10, 2)
+        nivelesLayout.addWidget(self.cbNivSlowMinC_container, 11, 2)
+        nivelesLayout.addWidget(self.cbNivSlowMinZ_container, 12, 2)
         # Tercera fila
-        nivelesLayout.addWidget(self.cbNivSlowMaxA, 10, 3)
-        nivelesLayout.addWidget(self.cbNivSlowMaxC, 11, 3)
-        nivelesLayout.addWidget(self.cbNivSlowMaxZ, 12, 3)
+        nivelesLayout.addWidget(self.cbNivSlowMaxA_container, 10, 3)
+        nivelesLayout.addWidget(self.cbNivSlowMaxC_container, 11, 3)
+        nivelesLayout.addWidget(self.cbNivSlowMaxZ_container, 12, 3)
         
+        line4 = QFrame()
+        line4.setFrameShape(QFrame.HLine)
+        line4.setFrameShadow(QFrame.Sunken)
+        nivelesLayout.addWidget(line4, 13, 0, 1, 4)
+        
+        # Layout para filtro Z
+        self.cbEqZ_container, self.cbEqZ = self.create_checkbox_with_subscript("L<sub>Zeq</sub>", self.nivelesGroup)
+        self.cb01Z_container, self.cb01Z = self.create_checkbox_with_subscript("L<sub>Z01</sub>", self.nivelesGroup)
+        self.cb10Z_container, self.cb10Z = self.create_checkbox_with_subscript("L<sub>Z10</sub>", self.nivelesGroup)
+        self.cb50Z_container, self.cb50Z = self.create_checkbox_with_subscript("L<sub>Z50</sub>", self.nivelesGroup)
+        self.cb90Z_container, self.cb90Z = self.create_checkbox_with_subscript("L<sub>Z90</sub>", self.nivelesGroup)
+        self.cb99Z_container, self.cb99Z = self.create_checkbox_with_subscript("L<sub>Z99</sub>", self.nivelesGroup)
+
+        # Layout para filtro C
+        self.cbEqC_container, self.cbEqC = self.create_checkbox_with_subscript("L<sub>Ceq</sub>", self.nivelesGroup)
+        self.cb01C_container, self.cb01C = self.create_checkbox_with_subscript("L<sub>C01</sub>", self.nivelesGroup)
+        self.cb10C_container, self.cb10C = self.create_checkbox_with_subscript("L<sub>C10</sub>", self.nivelesGroup)
+        self.cb50C_container, self.cb50C = self.create_checkbox_with_subscript("L<sub>C50</sub>", self.nivelesGroup)
+        self.cb90C_container, self.cb90C = self.create_checkbox_with_subscript("L<sub>C90</sub>", self.nivelesGroup)
+        self.cb99C_container, self.cb99C = self.create_checkbox_with_subscript("L<sub>C99</sub>", self.nivelesGroup)
+
+        # Layout para filtro A
+        self.cbEqA_container, self.cbEqA = self.create_checkbox_with_subscript("L<sub>Aeq</sub>", self.nivelesGroup)
+        self.cb01A_container, self.cb01A = self.create_checkbox_with_subscript("L<sub>A01</sub>", self.nivelesGroup)
+        self.cb10A_container, self.cb10A = self.create_checkbox_with_subscript("L<sub>A10</sub>", self.nivelesGroup)
+        self.cb50A_container, self.cb50A = self.create_checkbox_with_subscript("L<sub>A50</sub>", self.nivelesGroup)
+        self.cb90A_container, self.cb90A = self.create_checkbox_with_subscript("L<sub>A90</sub>", self.nivelesGroup)
+        self.cb99A_container, self.cb99A = self.create_checkbox_with_subscript("L<sub>A99</sub>", self.nivelesGroup)
+
+        
+        # Primera fila
+        nivelesLayout.addWidget(self.cbEqZ_container, 14, 0)
+        nivelesLayout.addWidget(self.cbEqC_container, 14, 1)
+        nivelesLayout.addWidget(self.cbEqA_container, 14, 2)
+        
+        line5 = QFrame()
+        line5.setFrameShape(QFrame.HLine)
+        line5.setFrameShadow(QFrame.Sunken)
+        nivelesLayout.addWidget(line5, 15, 0, 1, 4)
+        
+        # Segunda fila
+        nivelesLayout.addWidget(self.cb01Z_container, 16, 0)
+        nivelesLayout.addWidget(self.cb01C_container, 16, 1)
+        nivelesLayout.addWidget(self.cb01A_container, 16, 2)
+        
+        # Tercera fila
+        nivelesLayout.addWidget(self.cb10Z_container, 17, 0)
+        nivelesLayout.addWidget(self.cb10C_container, 17, 1)
+        nivelesLayout.addWidget(self.cb10A_container, 17, 2)
+        
+        # Cuarta fila
+        nivelesLayout.addWidget(self.cb50Z_container, 18, 0)
+        nivelesLayout.addWidget(self.cb50C_container, 18, 1)
+        nivelesLayout.addWidget(self.cb50A_container, 18, 2)
+        
+         # Quinta fila
+        nivelesLayout.addWidget(self.cb90Z_container, 19, 0)
+        nivelesLayout.addWidget(self.cb90C_container, 19, 1)
+        nivelesLayout.addWidget(self.cb90A_container, 19, 2)
+        
+        # Sexta fila
+        nivelesLayout.addWidget(self.cb99Z_container, 20, 0)
+        nivelesLayout.addWidget(self.cb99C_container, 20, 1)
+        nivelesLayout.addWidget(self.cb99A_container, 20, 2)
+    
         self.btnClearNIntegra = QPushButton("Limpiar")
-        self.btnClearNIntegra.clicked.connect(self.limpiarNivelesIntegrados)
-        self.btnClearNIntegra.setToolTip("Desmarca todos los niveles integrados")
+        self.btnClearNIntegra.clicked.connect(self.limpiarNiveles)
+        self.btnClearNIntegra.setToolTip("Desmarca todos los niveles")
         self.btnClearNIntegra.setProperty("class", "filtros")
-        nivelesLayout.addWidget(self.btnClearNIntegra, 13, 3, QtCore.Qt.AlignRight)
+        nivelesLayout.addWidget(self.btnClearNIntegra, 21, 3, QtCore.Qt.AlignRight)
+        
         
         # Conectar checkboxes de nivel para actualizar el gráfico
         self.cbNivPicoA.toggled.connect(self.actualizarGraficoNivel)
@@ -593,7 +594,7 @@ class vista(QMainWindow):
         # Debug para verificar el estado inicial de los checkboxes
         print(f"DEBUG: Estado inicial cbNivSlowZ: {self.cbNivSlowZ.isChecked()}")
         
-        self.rightLayout.addWidget(self.ponderacionGroup)
+        self.rightLayout.addWidget(self.nivelesGroup)
         
         self.rightLayout.addStretch()
         # Logos
@@ -617,6 +618,7 @@ class vista(QMainWindow):
         logosLayout.addWidget(self.logoCintra)
         logosLayout.addWidget(self.logoUTN)
         self.rightLayout.addLayout(logosLayout)
+        
         
         # Agregar stretch al final del panel derecho para empujar todo hacia arriba
         
@@ -655,6 +657,10 @@ class vista(QMainWindow):
         configDispAct = QAction("Configuración de Dispositivo", self)
         configDispAct.triggered.connect(self.configuracionDispositivo)
         self.menuConfiguracion.addAction(configDispAct)
+        # Nueva acción para configuración de dispositivo
+        genSig = QAction("Generador de señales", self)
+        genSig.triggered.connect(self.GeneradorSenales)
+        self.menuConfiguracion.addAction(genSig)
        
         self.menuConfiguracion.setToolTip("Configuraciones de gráfico y dispositivos")
         
@@ -685,7 +691,6 @@ class vista(QMainWindow):
         self.btnNivel.setChecked(False)
         self.filtrosGroup.setVisible(False)
         self.nivelesGroup.setVisible(False)
-        self.ponderacionGroup.setVisible(False)
         
         # Limpiar el gráfico actual
         self.waveform1.clear()
@@ -703,31 +708,10 @@ class vista(QMainWindow):
         with open("estilos.qss", "r", encoding='utf-8') as f:
             self.app.setStyleSheet(f.read())
             
-        self.show()
-
-    def limpiarNivelesEstadisticos(self):
-        """Desmarca todos los checkboxes de niveles estadísticos"""
-        self.cbEqZ.checkbox.setChecked(False)
-        self.cb01Z.checkbox.setChecked(False)
-        self.cb10Z.checkbox.setChecked(False)
-        self.cb50Z.checkbox.setChecked(False)
-        self.cb90Z.checkbox.setChecked(False)
-        self.cb99Z.checkbox.setChecked(False)
-        self.cbEqC.checkbox.setChecked(False)
-        self.cb01C.checkbox.setChecked(False)
-        self.cb10C.checkbox.setChecked(False)
-        self.cb50C.checkbox.setChecked(False)
-        self.cb90C.checkbox.setChecked(False)
-        self.cb99C.checkbox.setChecked(False)
-        self.cbEqA.checkbox.setChecked(False)
-        self.cb01A.checkbox.setChecked(False)
-        self.cb10A.checkbox.setChecked(False)
-        self.cb50A.checkbox.setChecked(False)
-        self.cb90A.checkbox.setChecked(False)
-        self.cb99A.checkbox.setChecked(False)
+        self.show()        
         
-    def limpiarNivelesIntegrados(self):
-        """Desmarca todos los checkboxes de niveles integrados"""
+    def limpiarNiveles(self):
+        """Desmarca todos los checkboxes de niveles"""
         self.cbNivPicoA.setChecked(False)
         self.cbNivPicoC.setChecked(False)
         self.cbNivPicoZ.setChecked(False)
@@ -758,11 +742,33 @@ class vista(QMainWindow):
         self.cbNivSlowMaxA.setChecked(False)
         self.cbNivSlowMaxC.setChecked(False)
         self.cbNivSlowMaxZ.setChecked(False)
+        self.cbEqZ.setChecked(False)
+        self.cb01Z.setChecked(False)
+        self.cb10Z.setChecked(False)
+        self.cb50Z.setChecked(False)
+        self.cb90Z.setChecked(False)
+        self.cb99Z.setChecked(False)
+        self.cbEqC.setChecked(False)
+        self.cb01C.setChecked(False)
+        self.cb10C.setChecked(False)
+        self.cb50C.setChecked(False)
+        self.cb90C.setChecked(False)
+        self.cb99C.setChecked(False)
+        self.cbEqA.setChecked(False)
+        self.cb01A.setChecked(False)
+        self.cb10A.setChecked(False)
+        self.cb50A.setChecked(False)
+        self.cb90A.setChecked(False)
+        self.cb99A.setChecked(False)
         
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
 
+    def GeneradorSenales(self):
+        self.genSenalesWin = GeneradorWin(self.vController)
+        self.genSenalesWin.show()
+        
     def configuracionDispositivo(self):
         self.calWin = CalibracionWin(self.vController)
         self.configDispWin = ConfigDispWin(self.vController,self.calWin )
@@ -830,7 +836,6 @@ class vista(QMainWindow):
         self.btnFrecuencia.setChecked(False)
         self.filtrosGroup.setVisible(False)
         self.nivelesGroup.setVisible(False)
-        self.ponderacionGroup.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -867,7 +872,6 @@ class vista(QMainWindow):
         self.btnTiempo.setChecked(False)
         self.filtrosGroup.setVisible(True)
         self.nivelesGroup.setVisible(False)
-        self.ponderacionGroup.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -911,7 +915,6 @@ class vista(QMainWindow):
         self.btnFrecuencia.setChecked(False)
         self.filtrosGroup.setVisible(False)
         self.nivelesGroup.setVisible(True)
-        self.ponderacionGroup.setVisible(True)
         
         print("DEBUG: Configurando ventana de nivel")
         
