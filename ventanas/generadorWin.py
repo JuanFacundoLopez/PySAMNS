@@ -3,12 +3,12 @@ import numpy as np
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QWidget, QMessageBox, QComboBox, QSpinBox)
 
-from PyQt5.QtGui import  QIcon, QPainter
+from PyQt5.QtGui import  QIcon, QPainter, QBrush
 from PyQt5.QtCore import QPointF
 
 
 # Imports para QChart (solo para la ventana de calibración)
-from PyQt5.QtChart import QChart, QChartView, QLineSeries
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
 from PyQt5.QtCore import Qt
 from utils import norm
 import time
@@ -88,9 +88,8 @@ class GeneradorWin(QMainWindow):
             axisX.setRange(0, 10)
         self.chartGenSig.setTitle("Señal Generada")
         self.chartGenSig.legend().hide()
-        axisX.setTitleText("Tiempo (s)")
         
-
+        
         self.chartGenSig_view = QChartView(self.chartGenSig)
         self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
         
@@ -249,12 +248,54 @@ class GeneradorWin(QMainWindow):
             self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
 
         self.chartGenSig.addSeries(self.seriesGenSig)
-        self.chartGenSig.createDefaultAxes()
+        # self.chartGenSig.createDefaultAxes()
 
-        # Eje X ajustado dinámicamente a la frecuencia
-        axisX = self.chartGenSig.axisX(self.seriesGenSig)
-        if axisX is not None:
-            axisX.setRange(0, duracion_visible)
+        # # Asegúrate de asignar títulos después de crear los ejes
+        # axisX = self.chartGenSig.axisX(self.seriesGenSig)
+        # axisY = self.chartGenSig.axisY(self.seriesGenSig)
+
+        # if isinstance(axisX, QValueAxis):
+        #     axisX.setRange(0, duracion_visible)
+        #     axisX.setTitleText("Tiempo (s)")
+        #     axisX.setTitleBrush(QBrush(Qt.white))
+        #     axisX.setTitleVisible(True)
+
+        # if isinstance(axisY, QValueAxis):
+        #     axisY.setTitleText("Amplitud relativa")
+        #     axisY.setTitleBrush(QBrush(Qt.white))
+        #     axisY.setTitleVisible(True)
+        # # Eje X ajustado dinámicamente a la frecuencia
+        # axisX = self.chartGenSig.axisX(self.seriesGenSig)
+        
+        # if axisX is not None:
+        #     axisX.setRange(0, duracion_visible)
+        
+        # Elimina cualquier eje anterior
+        self.chartGenSig.removeAxis(self.chartGenSig.axisX())
+        self.chartGenSig.removeAxis(self.chartGenSig.axisY())
+
+        # Crear ejes manualmente
+        axisX = QValueAxis()
+        axisX.setRange(0, duracion_visible)
+        axisX.setTitleText("Tiempo (s)")
+        axisX.setTitleVisible(True)
+        axisX.setTitleBrush(QBrush(Qt.black))
+        axisX.setLabelsBrush(QBrush(Qt.black))  # Etiquetas blancas también
+        axisX.setLinePenColor(Qt.black)
+
+        axisY = QValueAxis()
+        axisY.setTitleText("Amplitud relativa")
+        axisY.setTitleVisible(True)
+        axisY.setTitleBrush(QBrush(Qt.black))
+        axisY.setLabelsBrush(QBrush(Qt.black))
+        axisY.setLinePenColor(Qt.black)
+
+        # Agregar ejes al gráfico y asociar la serie
+        self.chartGenSig.addAxis(axisX, Qt.AlignBottom)
+        self.chartGenSig.addAxis(axisY, Qt.AlignLeft)
+        self.seriesGenSig.attachAxis(axisX)
+        self.seriesGenSig.attachAxis(axisY)
+
 
         
     
