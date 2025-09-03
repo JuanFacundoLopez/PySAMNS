@@ -195,14 +195,9 @@ class controlador():
                         timeNivelData = np.arange(len(dataVectorPicoZ)) * time_interval
                     else:
                         timeNivelData = np.array([elapsed_real_time])
-                else:
-                    # Fallback al método basado en chunks
-                    chunk_duration = self.cModel.chunk / self.cModel.rate
-                    timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
-                    
             except Exception as e:
                 print(f"DEBUG: Error en cálculo de tiempo: {e}")
-                # Fallback al método anterior si hay error
+                # Fallback al método basado en chunks
                 chunk_duration = self.cModel.chunk / self.cModel.rate
                 timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
         
@@ -318,6 +313,9 @@ class controlador():
         (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
         (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
         
+        # Calcular estadísticas
+        stats = self.cModel.calculate_leq_and_percentiles()
+        
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
             # Obtener el tiempo real transcurrido desde el inicio
@@ -329,10 +327,6 @@ class controlador():
                     tiempos = np.arange(len(pico_z)) * time_interval
                 else:
                     tiempos = np.array([elapsed_real_time])
-            else:
-                # Fallback al método basado en chunks
-                chunk_duration = self.cModel.chunk / self.cModel.rate
-                tiempos = np.arange(len(pico_z)) * chunk_duration
         except Exception as e:
             print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
             # Fallback al método anterior si hay error
@@ -344,21 +338,40 @@ class controlador():
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
-            'slow': slow_z
+            'slow': slow_z,
+            # Añadir niveles estadísticos
+            'leq': np.full_like(tiempos, stats.get('LeqZ', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90Z', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99Z', 0.0)) if len(tiempos) > 0 else np.array([])
         }
         
         niveles_c = {
             'pico': pico_c,
             'inst': inst_c,
             'fast': fast_c,
-            'slow': slow_c
+            'slow': slow_c,
+            'leq': np.full_like(tiempos, stats.get('LeqC', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90C', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99C', 0.0)) if len(tiempos) > 0 else np.array([])
         }
         
         niveles_a = {
             'pico': pico_a,
             'inst': inst_a,
             'fast': fast_a,
-            'slow': slow_a
+            'slow': slow_a,
+            'leq': np.full_like(tiempos, stats.get('LeqA', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l01': np.full_like(tiempos, stats.get('L01A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l10': np.full_like(tiempos, stats.get('L10A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l50': np.full_like(tiempos, stats.get('L50A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l90': np.full_like(tiempos, stats.get('L90A', 0.0)) if len(tiempos) > 0 else np.array([]),
+            'l99': np.full_like(tiempos, stats.get('L99A', 0.0)) if len(tiempos) > 0 else np.array([])
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a
@@ -384,24 +397,44 @@ class controlador():
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
         self.graficar()
+
+    def reset_all_data(self):
+        """Detiene los temporizadores, los flujos y restablece todos los datos en el controlador, el modelo y la vista."""
+        # Detener procesos
+        self.timer.stop()
+        if hasattr(self.cModel, 'stream') and self.cModel.stream.is_active():
+            self.cModel.stream.stop_stream()
+        
+        self.device_active = False
+
+        # Restablecer datos del controlador
+        self.setGainZero()
+        self.start_time = None
+        self.msCounter = 0
+
+        # Restablecer datos del modelo
+        self.cModel.setNivelesZ(mode='r')
+        self.cModel.setNivelesC(mode='r')
+        self.cModel.setNivelesA(mode='r')
+        self.cModel.buffer = []
+        self.cModel.normalized_all = []
+        self.cModel.times = []
+        self.cModel.start_time = None
+
+        # Actualizar la vista
+        self.cVista.cronometroGrabacion.setText("0:00 s")
+        self.graficar()
         
     def dalePlay(self):                            # Comunicacion con la Vista
         if self.cVista.btngbr.isChecked() == False:
-            self.timer.stop() 
-            self.cVista.btngbr.setText('Grabar')
-            self.cModel.stream.stop_stream() #Verificar estas funciones
-            # self.stream.close()
+            # Acción de DETENER: detiene todo y resetea.
+            self.reset_all_data()
         else:
-            self.setGainZero()
-            # Resetear los datos de nivel en el modelo
-            self.cModel.setNivelesZ(0, 0, 0, 0, mode='r')
-            self.cModel.setNivelesC(0, 0, 0, 0, mode='r')
-            self.cModel.setNivelesA(0, 0, 0, 0, mode='r')
-            self.cVista.btngbr.setText('Stop')  
-            self.msCounter = 0
+            # Acción de INICIAR: resetea todo y comienza de nuevo.
+            self.reset_all_data()
             self.timer.start(30) 
             self.device_active = True
-            self.cModel.stream.start_stream() #Verificar estas funciones
+            self.cModel.stream.start_stream()
 
     def update_view(self):                           # Cronometro
          # Actualizar dispositivo 1 si está activo
@@ -453,7 +486,7 @@ class controlador():
         """
         Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
         captura de micrófono. La referencia (0 dBFS) se fija en la última
-        amplitud cuya THD < 1%.
+        amplitud cuya THD < 0.01%.
         """
         # Verificar dispositivos
         try:
@@ -474,7 +507,7 @@ class controlador():
 
         frecuencia = 1000
         fs = self.RATE
-        duracion = 1.0  # segundos por paso
+        duracion = 0.5  # segundos por paso
         frames_per_buffer = 1024
         paso_amp = 0.1
         amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
@@ -549,11 +582,11 @@ class controlador():
                 self.wf_data = segmento
                 grabacion(self)
 
-                if thd_pct < 1.0:
+                if thd_pct < 0.01:
                     ultima_amplitud_baja_thd = amp
                     continue
                 else:
-                    # Se superó 1% de THD -> detener barrido
+                    # Se superó 0.01% de THD -> detener barrido
                     break
 
         except Exception as e:
@@ -571,7 +604,7 @@ class controlador():
                 pass
 
         if ultima_amplitud_baja_thd is None:
-            error_message = "No se pudo determinar una amplitud con THD < 1%. Verifique conexiones y niveles."
+            error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
             self.cVista.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
             self.cVista.calWin.txtValorRef.setText("Error")

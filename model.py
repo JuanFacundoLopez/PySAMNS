@@ -339,6 +339,103 @@ class modelo:
             return (pico, inst, fast, slow)
     def getCalibracionAutomatica(self):
         return self.cal
+        
+    # ====== Niveles Equivalentes (Leq) y Percentiles ======
+    def calculate_leq_and_percentiles(self):
+        """
+        Calcula los niveles equivalentes (Leq) y percentiles estadísticos
+        para los filtros A, C y Z usando los valores Fast.
+        
+        Returns:
+            dict: Diccionario con los resultados para cada filtro (A, C, Z)
+        """
+        results = {}
+        
+        # Para cada tipo de filtro (A, C, Z)
+        for filtro in ['A', 'C', 'Z']:
+            # Obtener los datos Fast del filtro correspondiente
+            fast_data = getattr(self, f'recorderFast{filtro}')
+            
+            # Si no hay datos, establecer valores por defecto
+            if len(fast_data) == 0:
+                results[f'Leq{filtro}'] = 0.0
+                results[f'L01{filtro}'] = 0.0
+                results[f'L10{filtro}'] = 0.0
+                results[f'L50{filtro}'] = 0.0
+                results[f'L90{filtro}'] = 0.0
+                results[f'L99{filtro}'] = 0.0
+                continue
+                
+            # Calcular Leq (RMS de los valores Fast)
+            leq = self._calculate_leq(fast_data)
+            
+            # Calcular percentiles
+            percentiles = self._calculate_percentiles(fast_data)
+            
+            # Aplicar calibración
+            leq_calibrado = self.aplicar_calibracion_spl(leq) if hasattr(self, 'aplicar_calibracion_spl') else leq
+            percentiles_calibrados = {k: self.aplicar_calibracion_spl(v) if hasattr(self, 'aplicar_calibracion_spl') else v 
+                                    for k, v in percentiles.items()}
+            
+            # Guardar resultados
+            results[f'Leq{filtro}'] = leq_calibrado
+            for p_name, p_value in percentiles_calibrados.items():
+                results[f'L{p_name}{filtro}'] = p_value
+            
+            # Guardar en atributos de la clase
+            setattr(self, f'Leq{filtro}', leq_calibrado)
+            for p_name, p_value in percentiles_calibrados.items():
+                setattr(self, f'L{p_name}{filtro}', p_value)
+        
+        return results
+    
+    def _calculate_leq(self, data):
+        """
+        Calcula el nivel equivalente (Leq) como el RMS de los datos.
+        
+        Args:
+            data (numpy.ndarray): Vector con los niveles de presión sonora.
+            
+        Returns:
+            float: Nivel equivalente en dB.
+        """
+        if len(data) == 0:
+            return 0.0
+            
+        # Convertir de dB a presión cuadrática
+        p_squared = 10 ** (data / 10)
+        
+        # Calcular media cuadrática
+        mean_p_squared = np.mean(p_squared)
+        
+        # Convertir de vuelta a dB
+        leq = 10 * np.log10(mean_p_squared) if mean_p_squared > 0 else -np.inf
+        
+        return leq if np.isfinite(leq) else 0.0
+    
+    def _calculate_percentiles(self, data):
+        """
+        Calcula los percentiles estadísticos L01, L10, L50, L90, L99.
+        
+        Args:
+            data (numpy.ndarray): Vector con los niveles de presión sonora.
+            
+        Returns:
+            dict: Diccionario con los percentiles calculados.
+        """
+        if len(data) == 0:
+            return {'01': 0.0, '10': 0.0, '50': 0.0, '90': 0.0, '99': 0.0}
+            
+        # Calcular percentiles usando numpy
+        percentiles = {
+            '01': float(np.percentile(data, 1)),
+            '10': float(np.percentile(data, 10)),
+            '50': float(np.percentile(data, 50)),  # Mediana
+            '90': float(np.percentile(data, 90)),
+            '99': float(np.percentile(data, 99))
+        }
+        
+        return percentiles
     
 # -------------- funcion codigo YAMILI-----------------
     def normalize_data(self, data):
