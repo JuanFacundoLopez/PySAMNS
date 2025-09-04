@@ -236,7 +236,7 @@ class vista(QMainWindow):
         self.var_yMaxTiempo = 1
         self.var_xMinEspectro = np.log10(20)
         self.var_xMaxEspectro = np.log10(20000)
-        self.var_yMinEspectro = -120
+        self.var_yMinEspectro = -140
         self.var_yMaxEspectro = 0
         self.var_xMinNivel = 0
         self.var_xMaxNivel = 1024
@@ -276,7 +276,7 @@ class vista(QMainWindow):
         self.ymin1 = -1.2
         self.ymax1 = 1.2
         # Inicializar límites de eje Y para el espectro de frecuencia
-        self.fft_ymin1 = -120
+        self.fft_ymin1 = -140
         self.fft_ymax1 = 0
 
         # Definir las líneas del gráfico
@@ -842,13 +842,11 @@ class vista(QMainWindow):
         
         # Limpiar el gráfico actual
         self.waveform1.clear()
-        self._remove_right_axis()
         
-        
-        # Asegurar que se use el eje de tiempo personalizado
-        if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
-            self.time_axis = TimeAxisItem(orientation='bottom')
-            self.waveform1.setAxisItems({'bottom': self.time_axis})
+        # Configuración del gráfico
+        # Crear eje de tiempo personalizado para mostrar segundos
+        self.time_axis = TimeAxisItem(orientation='bottom')
+        self.waveform1.setAxisItems({'bottom': self.time_axis})
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinTiempo') and hasattr(self, 'txtXMaxTiempo'):
@@ -890,7 +888,7 @@ class vista(QMainWindow):
             # Configuración por defecto para gráfico de frecuencia
             self.waveform1.setLogMode(x=True, y=False)     # Escala logarítmica en X, lineal en Y
             self.waveform1.setXRange(np.log10(20), np.log10(20000))  # Rango de frecuencia logarítmico
-            self.waveform1.setYRange(-120, 0)              # Rango de amplitud en dB
+            self.waveform1.setYRange(-140, 0)              # Rango de amplitud en dB
             
             # Configurar ticks del eje X para mostrar valores de frecuencia legibles
             ticks = [
@@ -1217,7 +1215,7 @@ class vista(QMainWindow):
                         x_positions = np.arange(len(bandas))
                         
                         # Calcular anchos de barras uniformes
-                        bar_width = 0.8  # Ancho fijo para todas las barras
+                        bar_width = 1.0  # Ancho fijo para todas las barras
                         
                         # Verificar que todos los arrays tengan la misma longitud
                         if len(x_positions) != len(niveles):
@@ -1225,60 +1223,28 @@ class vista(QMainWindow):
                             return
                         
                         # Crear el gráfico de barras
+                        # Calcular una altura base muy baja (casi -infinito)
+                        base_level = -140  # Un valor muy bajo que representa -infinito
+                        bar_heights = [level - base_level for level in niveles]
+                        
                         bar_item = pg.BarGraphItem(
                             x=x_positions, 
-                            height=niveles, 
+                            height=bar_heights,  
+                            y0=base_level,  # Establecer la base en -140 dB
                             width=bar_width, 
                             brush=color,
-                            pen=pg.mkPen(color='black', width=1)
+                            pen=pg.mkPen(color='black', width=0.5)  # Borde más delgado
                         )
                         self.waveform1.addItem(bar_item)
                         
+                        # Agregar etiquetas de valor encima de cada barra
                         for i, h in enumerate(niveles):
-                            # Position the text slightly above the bar
-                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                            text_item.setAngle(45)
+                            text_item = pg.TextItem(text=f"{h:.1f}", anchor=(0.5, 1), color='black')
+                            text_item.setPos(x_positions[i], h)
                             self.waveform1.addItem(text_item)
-                            
-                        # Configurar rangos de ejes
+                        
+                        # Ajustar el rango X para que las barras ocupen todo el ancho
                         self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
-                        
-                        # Rango Y dinámico basado en los niveles
-                        y_min = np.min(niveles) if len(niveles) > 0 else 0
-                        y_max = np.max(niveles) if len(niveles) > 0 else 1
-                        y_range = y_max - y_min
-                        if y_range == 0:
-                            y_range = 1
-                        
-                        # Usar el mismo sistema de rango Y fijo que el gráfico de línea
-                        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
-                            self.fft_ymin = y_min
-                            self.fft_ymax = y_max
-                        else:
-                            if y_min < self.fft_ymin:
-                                self.fft_ymin = y_min
-                            if y_max > self.fft_ymax:
-                                self.fft_ymax = y_max
-                        
-                        self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                        
-                        # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB)')
-                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                        
-                        # Configurar modo lineal para ambos ejes
-                        self.waveform1.setLogMode(x=False, y=False)
-                        
-                        # Limpiar línea de tiempo si existe
-                        if hasattr(self, 'plot_line'):
-                            self.plot_line.setData([], [])
-                        
-                        # Guardar referencia al item de barras para poder limpiarlo después
-                        self.current_bar_item = bar_item
-                        
-                        print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
                 else:
                     # Por defecto, línea
                     if device_num == 1 and len(fft_freqs) > 0:
@@ -1370,25 +1336,25 @@ class vista(QMainWindow):
                         print(f"DEBUG PICO Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.SolidLine), name='Z Pico')
                         print(f"DEBUG PICO Z: Plot creado")
-
+                    
                     if self.cbNivInstZ.isChecked() and len(niveles_Z.get('inst', [])) > 0:
                         ydata = np.array(niveles_Z['inst'])
                         print(f"DEBUG INST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DashLine), name='Z Inst')
                         print(f"DEBUG INST Z: Plot creado")
-
+                    
                     if self.cbNivFastZ.isChecked() and len(niveles_Z.get('fast', [])) > 0:
                         ydata = np.array(niveles_Z['fast'])
                         print(f"DEBUG FAST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DotLine), name='Z Fast')
                         print(f"DEBUG FAST Z: Plot creado")
-
+                    
                     if self.cbNivSlowZ.isChecked() and len(niveles_Z.get('slow', [])) > 0:
                         ydata = np.array(niveles_Z['slow'])
                         print(f"DEBUG SLOW Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=3, style=QtCore.Qt.SolidLine), name='Z Slow')
                         print(f"DEBUG SLOW Z: Plot creado")
-
+                    
                     # C Weighting (verde)
                     print(f"DEBUG: Checkboxes C - Pico: {self.cbNivPicoC.isChecked()}, Inst: {self.cbNivInstC.isChecked()}, Fast: {self.cbNivFastC.isChecked()}, Slow: {self.cbNivSlowC.isChecked()}")
                     print(f"DEBUG: Datos C lengths - Pico: {len(niveles_C.get('pico', []))}, Inst: {len(niveles_C.get('inst', []))}, Fast: {len(niveles_C.get('fast', []))}, Slow: {len(niveles_C.get('slow', []))}")
@@ -1515,8 +1481,6 @@ class vista(QMainWindow):
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C Leq: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C Leq: Línea añadida en {value:.1f} dB")
-                    
-                    # (Repite para l01C, l10C, l50C, l90C, l99C con prints similares)
                     
                     print(f"DEBUG Stats C - l01 checked: {self.cb01C.checkbox.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
                     if self.cb01C.checkbox.isChecked() and len(niveles_C.get('l01', [])) > 0:
