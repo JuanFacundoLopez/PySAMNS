@@ -21,6 +21,7 @@ class GeneradorWin(QMainWindow):
         self.vController = vController
         super().__init__()
         self.setWindowTitle("Generador de señales")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()

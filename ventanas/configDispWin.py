@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QGroupBox, QWidget, QMessageBox, QComboBox)
 
+from PyQt5.QtGui import QIcon
 from utils import norm
 from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 
@@ -9,6 +10,7 @@ class ConfigDispWin(QMainWindow):
     def __init__(self, vController, parent_cal_win=None):
         super().__init__()
         self.setWindowTitle("Configuración de dispositivos")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()

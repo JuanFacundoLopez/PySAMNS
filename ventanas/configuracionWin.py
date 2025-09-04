@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGr
                              QComboBox, QFrame, QColorDialog)
 from PyQt5.QtCore import Qt, pyqtSignal
 from utils import norm
+from PyQt5.QtGui import QIcon
 
 
 class ConfiguracionWin(QMainWindow):
@@ -20,6 +21,7 @@ class ConfiguracionWin(QMainWindow):
         self.altoY = self.vista.altoY
         
         self.setWindowTitle("Configuración de gráficos")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         self.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.2, 0.6, 0.6))
         
         self.initUI()
