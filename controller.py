@@ -411,6 +411,7 @@ class controlador():
 
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
+        self.get_nivel_data()
         self.graficar()
 
     def reset_all_data(self):
@@ -835,12 +836,17 @@ class controlador():
             # Convertir a array de numpy
             captured_audio = np.array(captured_audio)
             
-            # Calcular el nivel RMS en dBFS
+            # Calcular el nivel RMS en dBSPL
             rms = np.sqrt(np.mean(captured_audio**2))
             rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+            #calcular dBFS
+            rms_dbfs = 20 * np.log10(rms/1.0)
             
             # Calcular el factor de calibración
             cal = ref_level - rms_db
+
+            #calcular offset
+            offset = ref_level - rms_dbfs
             
             print(f"Nivel de referencia: {ref_level} dB")
             print(f"Nivel RMS medido: {rms_db:.2f} dB")
@@ -848,6 +854,9 @@ class controlador():
             
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
+
+            # Guardar el offset en el modelo
+            self.cModel.set_calibracion_offset_spl(offset)
             
             # # Actualizar la UI
             # self.cVista.txtValorRef.setText(f"{cal:.2f}")
@@ -909,3 +918,8 @@ class controlador():
         self.ventanas_abiertas["grabaciones"].showNormal()
         self.ventanas_abiertas["grabaciones"].raise_()
         self.ventanas_abiertas["grabaciones"].activateWindow()
+
+    def aceptar_calibracion(self):
+        self.cModel.activar_calibracion(True)
+        if self.cCalWin:
+            self.cCalWin.close()

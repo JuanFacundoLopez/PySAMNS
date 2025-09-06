@@ -114,6 +114,7 @@ class CalibracionWin(QMainWindow):
 
         # --- Botones ---
         self.btnAceptar = QPushButton("Aceptar")
+        self.btnAceptar.clicked.connect(self.vController.aceptar_calibracion)
         self.btnCalibrar = QPushButton("Calibrar")
         self.calibracion_realizada = False
         self.btnGenerador = QPushButton("Generador de señales")

@@ -967,7 +967,9 @@ class vista(QMainWindow):
         else:
             # Configuración por defecto para gráfico de nivel
             self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
-            self.waveform1.setYRange(-150, 0, padding=0)  # Rango de presión en dB (ajustado para mostrar datos más bajos)
+            self.waveform1.setYRange(-120, 0, padding=0)
+            # Invert the Y-axis to show negative values at the bottom
+            self.waveform1.invertY(False)  # This will invert the Y-axis
             self.waveform1.setXRange(0, 10, padding=0)  # Rango de tiempo en segundos
             self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
