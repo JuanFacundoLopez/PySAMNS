@@ -620,7 +620,10 @@ class controlador():
                 pass
 
         if ultima_amplitud_baja_thd is None:
-            error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
+            cal_db = 20 * np.log10(max(1e-6, 0.1))
+            error_message = f"No se pudo determinar una amplitud con THD < 0.01%. Aunque se utilizará como amplitud de referencia 0.1 y como offset de calibracion: {cal_db:.2f} .Verifique conexiones y niveles."
+            self.cModel.setCalibracionAutomatica(cal_db)
+            self.cModel.set_calibracion_offset_spl(cal_db)
             self.cCalWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             self.cCalWin.txtValorRef.setText("Error")
@@ -631,6 +634,7 @@ class controlador():
         # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
         cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
         self.cModel.setCalibracionAutomatica(cal_db)
+        self.cModel.set_calibracion_offset_spl(cal_db)
 
         # Actualizar UI
         self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
