@@ -266,4 +266,7 @@ class ConfigDispWin(QMainWindow):
         except Exception as e:
             print(f"Error al aplicar configuración: {e}")
             QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")
-        
+
+    def closeEvent(self, event):
+        self.vController.ventanas_abiertas["config_disp"] = None
+        event.accept()        

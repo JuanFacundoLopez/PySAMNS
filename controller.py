@@ -1,6 +1,11 @@
 from model import modelo
 from view import vista
 from ventanas.calibracionWin import CalibracionWin
+from ventanas.generadorWin import GeneradorWin
+from ventanas.configDispWin import ConfigDispWin
+from ventanas.configuracionWin import ConfiguracionWin
+from ventanas.programarWin import ProgramarWin
+from ventanas.grabacionesWin import GrabacionesWin
 
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
@@ -35,6 +40,15 @@ class controlador():
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
         self.cCalWin = CalibracionWin(self,self.cVista)         # Ventana de calibración
 
+        self.ventanas_abiertas = {
+            "calibracion": None,
+            "generador": None,
+            "config_disp": None,
+            "configuracion": None,
+            "programar": None,
+            "grabaciones": None,
+        }
+        
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
@@ -818,3 +832,45 @@ class controlador():
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
             QMessageBox.critical(self.cCalWin, "Error de Calibración", error_msg)
+
+    def abrir_calibracion(self):
+        if self.ventanas_abiertas["calibracion"] is None:
+            self.ventanas_abiertas["calibracion"] = CalibracionWin(self, self.cVista)
+        self.ventanas_abiertas["calibracion"].showNormal()
+        self.ventanas_abiertas["calibracion"].raise_()
+        self.ventanas_abiertas["calibracion"].activateWindow()
+
+    def abrir_generador(self):
+        if self.ventanas_abiertas["generador"] is None:
+            self.ventanas_abiertas["generador"] = GeneradorWin(self)
+        self.ventanas_abiertas["generador"].showNormal()
+        self.ventanas_abiertas["generador"].raise_()
+        self.ventanas_abiertas["generador"].activateWindow()
+
+    def abrir_config_disp(self):
+        if self.ventanas_abiertas["config_disp"] is None:
+            self.ventanas_abiertas["config_disp"] = ConfigDispWin(self, self.cCalWin)
+        self.ventanas_abiertas["config_disp"].showNormal()
+        self.ventanas_abiertas["config_disp"].raise_()
+        self.ventanas_abiertas["config_disp"].activateWindow()
+
+    def abrir_configuracion(self):
+        if self.ventanas_abiertas["configuracion"] is None:
+            self.ventanas_abiertas["configuracion"] = ConfiguracionWin(self.cVista, self)
+        self.ventanas_abiertas["configuracion"].showNormal()
+        self.ventanas_abiertas["configuracion"].raise_()
+        self.ventanas_abiertas["configuracion"].activateWindow()
+
+    def abrir_programar(self):
+        if self.ventanas_abiertas["programar"] is None:
+            self.ventanas_abiertas["programar"] = ProgramarWin(self)
+        self.ventanas_abiertas["programar"].showNormal()
+        self.ventanas_abiertas["programar"].raise_()
+        self.ventanas_abiertas["programar"].activateWindow()
+        
+    def abrir_grabaciones(self):
+        if self.ventanas_abiertas["grabaciones"] is None:
+            self.ventanas_abiertas["grabaciones"] = GrabacionesWin(self)
+        self.ventanas_abiertas["grabaciones"].showNormal()
+        self.ventanas_abiertas["grabaciones"].raise_()
+        self.ventanas_abiertas["grabaciones"].activateWindow()

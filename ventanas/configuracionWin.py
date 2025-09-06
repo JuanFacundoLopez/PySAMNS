@@ -12,9 +12,11 @@ class ConfiguracionWin(QMainWindow):
     # Señal para comunicar cambios a la ventana principal
     configuracionCambiada = pyqtSignal(dict)
     
-    def __init__(self, vista_principal):
+    def __init__(self, vista_principal, controller):
         super().__init__()
         self.vista = vista_principal  # Referencia a la vista principal
+        
+        self.vController = controller  # Referencia al controlador principal
         
         # Obtener dimensiones de la pantalla desde la vista principal
         self.anchoX = self.vista.anchoX
@@ -456,3 +458,7 @@ class ConfiguracionWin(QMainWindow):
 
         for combo in [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel]:
             combo.setProperty("class", "ventanasSec")
+            
+    def closeEvent(self, event):
+        self.vController.ventanas_abiertas["configuracion"] = None
+        event.accept()

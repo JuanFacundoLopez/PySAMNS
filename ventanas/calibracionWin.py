@@ -69,7 +69,7 @@ class CalibracionWin(QMainWindow):
         self.btnConfHard = QPushButton("Configurar dispositivo")
         confLayoutVer.addWidget(self.btnConfHard, alignment=Qt.AlignHCenter)
         confLayoutVer.addStretch()
-        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
+        self.btnConfHard.clicked.connect(self.vController.abrir_config_disp)
         gridHardLayout.addLayout(confLayoutVer, 0, 2, 2, 1)
 
         # --- Calibracion Relativa ---
@@ -109,7 +109,7 @@ class CalibracionWin(QMainWindow):
         self.btnCalibrar = QPushButton("Calibrar")
         self.calibracion_realizada = False
         self.btnGenerador = QPushButton("Generador de señales")
-        self.btnGenerador.clicked.connect(self.generadorWin)
+        self.btnGenerador.clicked.connect(self.vController.abrir_generador)
         self.btnCancel = QPushButton("Cancelar")
         self.btnCancel.clicked.connect(self.close)
         botonesLayout.addWidget(self.btnAceptar)
@@ -285,3 +285,7 @@ class CalibracionWin(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
             print(f"Error en importarSenalCalibracion: {e}")
+            
+    def closeEvent(self, event):
+        self.vController.ventanas_abiertas["calibracion"] = None
+        event.accept()
