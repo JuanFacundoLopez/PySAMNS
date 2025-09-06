@@ -1517,48 +1517,48 @@ class vista(QMainWindow):
                     style_map = QtCore.Qt.DashLine  # Dashed para todos los estadísticos
                     
                     # Z Statistical - Añadir debugs detallados
-                    print(f"DEBUG Stats Z - leq checked: {self.cbEqZ.checkbox.isChecked()}, len: {len(niveles_Z.get('leq', []))}, último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqZ.checkbox.isChecked() and len(niveles_Z.get('leq', [])) > 0:
+                    print(f"DEBUG Stats Z - leq checked: {self.cbEqZ.isChecked()}, len: {len(niveles_Z.get('leq', []))}, último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqZ.isChecked() and len(niveles_Z.get('leq', [])) > 0:
                         value = niveles_Z['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z Leq: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z Leq: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l01 checked: {self.cb01Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l01', []))}, último: {niveles_Z.get('l01', [0])[-1] if len(niveles_Z.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01Z.checkbox.isChecked() and len(niveles_Z.get('l01', [])) > 0:
+                    print(f"DEBUG Stats Z - l01 checked: {self.cb01Z.isChecked()}, len: {len(niveles_Z.get('l01', []))}, último: {niveles_Z.get('l01', [0])[-1] if len(niveles_Z.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01Z.isChecked() and len(niveles_Z.get('l01', [])) > 0:
                         value = niveles_Z['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l10 checked: {self.cb10Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l10', []))}, último: {niveles_Z.get('l10', [0])[-1] if len(niveles_Z.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10Z.checkbox.isChecked() and len(niveles_Z.get('l10', [])) > 0:
+                    print(f"DEBUG Stats Z - l10 checked: {self.cb10Z.isChecked()}, len: {len(niveles_Z.get('l10', []))}, último: {niveles_Z.get('l10', [0])[-1] if len(niveles_Z.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10Z.isChecked() and len(niveles_Z.get('l10', [])) > 0:
                         value = niveles_Z['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l50 checked: {self.cb50Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l50', []))}, último: {niveles_Z.get('l50', [0])[-1] if len(niveles_Z.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50Z.checkbox.isChecked() and len(niveles_Z.get('l50', [])) > 0:
+                    print(f"DEBUG Stats Z - l50 checked: {self.cb50Z.isChecked()}, len: {len(niveles_Z.get('l50', []))}, último: {niveles_Z.get('l50', [0])[-1] if len(niveles_Z.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50Z.isChecked() and len(niveles_Z.get('l50', [])) > 0:
                         value = niveles_Z['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l90 checked: {self.cb90Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l90', []))}, último: {niveles_Z.get('l90', [0])[-1] if len(niveles_Z.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90Z.checkbox.isChecked() and len(niveles_Z.get('l90', [])) > 0:
+                    print(f"DEBUG Stats Z - l90 checked: {self.cb90Z.isChecked()}, len: {len(niveles_Z.get('l90', []))}, último: {niveles_Z.get('l90', [0])[-1] if len(niveles_Z.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90Z.isChecked() and len(niveles_Z.get('l90', [])) > 0:
                         value = niveles_Z['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l99 checked: {self.cb99Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l99', []))}, último: {niveles_Z.get('l99', [0])[-1] if len(niveles_Z.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99Z.checkbox.isChecked() and len(niveles_Z.get('l99', [])) > 0:
+                    print(f"DEBUG Stats Z - l99 checked: {self.cb99Z.isChecked()}, len: {len(niveles_Z.get('l99', []))}, último: {niveles_Z.get('l99', [0])[-1] if len(niveles_Z.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99Z.isChecked() and len(niveles_Z.get('l99', [])) > 0:
                         value = niveles_Z['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L99: {value:.1f} dB')
@@ -1566,8 +1566,8 @@ class vista(QMainWindow):
                         print(f"DEBUG Stats Z L99: Línea añadida en {value:.1f} dB")
                     
                     # C Statistical - Añadir debugs similares
-                    print(f"DEBUG Stats C - leq checked: {self.cbEqC.checkbox.isChecked()}, len: {len(niveles_C.get('leq', []))}, último: {niveles_C.get('leq', [0])[-1] if len(niveles_C.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqC.checkbox.isChecked() and len(niveles_C.get('leq', [])) > 0:
+                    print(f"DEBUG Stats C - leq checked: {self.cbEqC.isChecked()}, len: {len(niveles_C.get('leq', []))}, último: {niveles_C.get('leq', [0])[-1] if len(niveles_C.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqC.isChecked() and len(niveles_C.get('leq', [])) > 0:
                         value = niveles_C['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C Leq: {value:.1f} dB')
@@ -1576,40 +1576,40 @@ class vista(QMainWindow):
                     
                     # (Repite para l01C, l10C, l50C, l90C, l99C con prints similares)
                     
-                    print(f"DEBUG Stats C - l01 checked: {self.cb01C.checkbox.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01C.checkbox.isChecked() and len(niveles_C.get('l01', [])) > 0:
+                    print(f"DEBUG Stats C - l01 checked: {self.cb01C.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01C.isChecked() and len(niveles_C.get('l01', [])) > 0:
                         value = niveles_C['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l10 checked: {self.cb10C.checkbox.isChecked()}, len: {len(niveles_C.get('l10', []))}, último: {niveles_C.get('l10', [0])[-1] if len(niveles_C.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10C.checkbox.isChecked() and len(niveles_C.get('l10', [])) > 0:
+                    print(f"DEBUG Stats C - l10 checked: {self.cb10C.isChecked()}, len: {len(niveles_C.get('l10', []))}, último: {niveles_C.get('l10', [0])[-1] if len(niveles_C.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10C.isChecked() and len(niveles_C.get('l10', [])) > 0:
                         value = niveles_C['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l50 checked: {self.cb50C.checkbox.isChecked()}, len: {len(niveles_C.get('l50', []))}, último: {niveles_C.get('l50', [0])[-1] if len(niveles_C.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50C.checkbox.isChecked() and len(niveles_C.get('l50', [])) > 0:
+                    print(f"DEBUG Stats C - l50 checked: {self.cb50C.isChecked()}, len: {len(niveles_C.get('l50', []))}, último: {niveles_C.get('l50', [0])[-1] if len(niveles_C.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50C.isChecked() and len(niveles_C.get('l50', [])) > 0:
                         value = niveles_C['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l90 checked: {self.cb90C.checkbox.isChecked()}, len: {len(niveles_C.get('l90', []))}, último: {niveles_C.get('l90', [0])[-1] if len(niveles_C.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90C.checkbox.isChecked() and len(niveles_C.get('l90', [])) > 0:
+                    print(f"DEBUG Stats C - l90 checked: {self.cb90C.isChecked()}, len: {len(niveles_C.get('l90', []))}, último: {niveles_C.get('l90', [0])[-1] if len(niveles_C.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90C.isChecked() and len(niveles_C.get('l90', [])) > 0:
                         value = niveles_C['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l99 checked: {self.cb99C.checkbox.isChecked()}, len: {len(niveles_C.get('l99', []))}, último: {niveles_C.get('l99', [0])[-1] if len(niveles_C.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99C.checkbox.isChecked() and len(niveles_C.get('l99', [])) > 0:
+                    print(f"DEBUG Stats C - l99 checked: {self.cb99C.isChecked()}, len: {len(niveles_C.get('l99', []))}, último: {niveles_C.get('l99', [0])[-1] if len(niveles_C.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99C.isChecked() and len(niveles_C.get('l99', [])) > 0:
                         value = niveles_C['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L99: {value:.1f} dB')
@@ -1617,48 +1617,48 @@ class vista(QMainWindow):
                         print(f"DEBUG Stats C L99: Línea añadida en {value:.1f} dB")
                     
                     # A Statistical - Similar debugs
-                    print(f"DEBUG Stats A - leq checked: {self.cbEqA.checkbox.isChecked()}, len: {len(niveles_A.get('leq', []))}, último: {niveles_A.get('leq', [0])[-1] if len(niveles_A.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqA.checkbox.isChecked() and len(niveles_A.get('leq', [])) > 0:
+                    print(f"DEBUG Stats A - leq checked: {self.cbEqA.isChecked()}, len: {len(niveles_A.get('leq', []))}, último: {niveles_A.get('leq', [0])[-1] if len(niveles_A.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqA.isChecked() and len(niveles_A.get('leq', [])) > 0:
                         value = niveles_A['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A Leq: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A Leq: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l01 checked: {self.cb01A.checkbox.isChecked()}, len: {len(niveles_A.get('l01', []))}, último: {niveles_A.get('l01', [0])[-1] if len(niveles_A.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01A.checkbox.isChecked() and len(niveles_A.get('l01', [])) > 0:
+                    print(f"DEBUG Stats A - l01 checked: {self.cb01A.isChecked()}, len: {len(niveles_A.get('l01', []))}, último: {niveles_A.get('l01', [0])[-1] if len(niveles_A.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01A.isChecked() and len(niveles_A.get('l01', [])) > 0:
                         value = niveles_A['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l10 checked: {self.cb10A.checkbox.isChecked()}, len: {len(niveles_A.get('l10', []))}, último: {niveles_A.get('l10', [0])[-1] if len(niveles_A.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10A.checkbox.isChecked() and len(niveles_A.get('l10', [])) > 0:
+                    print(f"DEBUG Stats A - l10 checked: {self.cb10A.isChecked()}, len: {len(niveles_A.get('l10', []))}, último: {niveles_A.get('l10', [0])[-1] if len(niveles_A.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10A.isChecked() and len(niveles_A.get('l10', [])) > 0:
                         value = niveles_A['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l50 checked: {self.cb50A.checkbox.isChecked()}, len: {len(niveles_A.get('l50', []))}, último: {niveles_A.get('l50', [0])[-1] if len(niveles_A.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50A.checkbox.isChecked() and len(niveles_A.get('l50', [])) > 0:
+                    print(f"DEBUG Stats A - l50 checked: {self.cb50A.isChecked()}, len: {len(niveles_A.get('l50', []))}, último: {niveles_A.get('l50', [0])[-1] if len(niveles_A.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50A.isChecked() and len(niveles_A.get('l50', [])) > 0:
                         value = niveles_A['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l90 checked: {self.cb90A.checkbox.isChecked()}, len: {len(niveles_A.get('l90', []))}, último: {niveles_A.get('l90', [0])[-1] if len(niveles_A.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90A.checkbox.isChecked() and len(niveles_A.get('l90', [])) > 0:
+                    print(f"DEBUG Stats A - l90 checked: {self.cb90A.isChecked()}, len: {len(niveles_A.get('l90', []))}, último: {niveles_A.get('l90', [0])[-1] if len(niveles_A.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90A.isChecked() and len(niveles_A.get('l90', [])) > 0:
                         value = niveles_A['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l99 checked: {self.cb99A.checkbox.isChecked()}, len: {len(niveles_A.get('l99', []))}, último: {niveles_A.get('l99', [0])[-1] if len(niveles_A.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99A.checkbox.isChecked() and len(niveles_A.get('l99', [])) > 0:
+                    print(f"DEBUG Stats A - l99 checked: {self.cb99A.isChecked()}, len: {len(niveles_A.get('l99', []))}, último: {niveles_A.get('l99', [0])[-1] if len(niveles_A.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99A.isChecked() and len(niveles_A.get('l99', [])) > 0:
                         value = niveles_A['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L99: {value:.1f} dB')
