@@ -309,6 +309,9 @@ class controlador():
         # Calcular estadísticas
         stats = self.cModel.calculate_leq_and_percentiles()
         
+        # Actualizar arrays históricos de niveles estadísticos
+        self.cModel.update_statistical_levels_history(stats)
+        
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
             # Obtener el tiempo real transcurrido desde el inicio
@@ -326,19 +329,36 @@ class controlador():
             chunk_duration = self.cModel.chunk / self.cModel.rate
             tiempos = np.arange(len(pico_z)) * chunk_duration
         
+        # Crear tiempos para los arrays históricos de niveles estadísticos
+        # Usar el mismo intervalo de tiempo que los otros niveles
+        if len(pico_z) > 1:
+            time_interval = tiempos[1] - tiempos[0] if len(tiempos) > 1 else 1.0
+        else:
+            time_interval = 1.0
+        
+        # Crear tiempos para arrays históricos (pueden tener diferente longitud)
+        def create_times_for_array(array, base_times, interval):
+            if len(array) == 0:
+                return np.array([])
+            elif len(array) == 1:
+                return np.array([base_times[-1] if len(base_times) > 0 else 0.0])
+            else:
+                # Crear tiempos basados en el intervalo y la longitud del array
+                return np.arange(len(array)) * interval
+        
         # Organizar datos en estructura para la vista
         niveles_z = {
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
             'slow': slow_z,
-            # Añadir niveles estadísticos
-            'leq': np.full_like(tiempos, stats.get('LeqZ', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99Z', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqZ,
+            'l01': self.cModel.recorderL01Z,
+            'l10': self.cModel.recorderL10Z,
+            'l50': self.cModel.recorderL50Z,
+            'l90': self.cModel.recorderL90Z,
+            'l99': self.cModel.recorderL99Z
         }
         
         niveles_c = {
@@ -346,12 +366,13 @@ class controlador():
             'inst': inst_c,
             'fast': fast_c,
             'slow': slow_c,
-            'leq': np.full_like(tiempos, stats.get('LeqC', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99C', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqC,
+            'l01': self.cModel.recorderL01C,
+            'l10': self.cModel.recorderL10C,
+            'l50': self.cModel.recorderL50C,
+            'l90': self.cModel.recorderL90C,
+            'l99': self.cModel.recorderL99C
         }
         
         niveles_a = {
@@ -359,12 +380,13 @@ class controlador():
             'inst': inst_a,
             'fast': fast_a,
             'slow': slow_a,
-            'leq': np.full_like(tiempos, stats.get('LeqA', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99A', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqA,
+            'l01': self.cModel.recorderL01A,
+            'l10': self.cModel.recorderL10A,
+            'l50': self.cModel.recorderL50A,
+            'l90': self.cModel.recorderL90A,
+            'l99': self.cModel.recorderL99A
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a

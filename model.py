@@ -40,6 +40,31 @@ class modelo:
         self.recorderFastA = np.empty(0)
         self.recorderSlowA = np.empty(0)
 
+        # Arrays para almacenar valores históricos de niveles estadísticos
+        # Filtro Z
+        self.recorderLeqZ = np.empty(0)
+        self.recorderL01Z = np.empty(0)
+        self.recorderL10Z = np.empty(0)
+        self.recorderL50Z = np.empty(0)
+        self.recorderL90Z = np.empty(0)
+        self.recorderL99Z = np.empty(0)
+        
+        # Filtro C
+        self.recorderLeqC = np.empty(0)
+        self.recorderL01C = np.empty(0)
+        self.recorderL10C = np.empty(0)
+        self.recorderL50C = np.empty(0)
+        self.recorderL90C = np.empty(0)
+        self.recorderL99C = np.empty(0)
+        
+        # Filtro A
+        self.recorderLeqA = np.empty(0)
+        self.recorderL01A = np.empty(0)
+        self.recorderL10A = np.empty(0)
+        self.recorderL50A = np.empty(0)
+        self.recorderL90A = np.empty(0)
+        self.recorderL99A = np.empty(0)
+
         self.SignalFrecA = np.empty(0)
         self.SignalFrecC = np.empty(0)
         self.SignalFrecZ = np.empty(0)
@@ -47,7 +72,7 @@ class modelo:
         self.signaldataC = np.empty(0)
         self.signaldataZ = np.empty(0)
 
-        self.Fs = 44100
+        self.Fs = rate
 
         # Atributos para calibración relativa
         self.ruta_archivo_calibracion = None
@@ -436,6 +461,62 @@ class modelo:
         }
         
         return percentiles
+    
+    def update_statistical_levels_history(self, stats):
+        """
+        Actualiza los arrays históricos de niveles estadísticos con los nuevos valores calculados.
+        
+        Args:
+            stats (dict): Diccionario con los niveles estadísticos calculados
+        """
+        # Función auxiliar para agregar valor a un array con límite de tamaño
+        def append_with_limit(array, value, max_size=1000):
+            new_array = np.append(array, value)
+            if len(new_array) > max_size:
+                new_array = new_array[-max_size:]  # Mantener solo los últimos max_size valores
+            return new_array
+        
+        # Actualizar arrays del filtro Z
+        if 'LeqZ' in stats:
+            self.recorderLeqZ = append_with_limit(self.recorderLeqZ, stats['LeqZ'])
+        if 'L01Z' in stats:
+            self.recorderL01Z = append_with_limit(self.recorderL01Z, stats['L01Z'])
+        if 'L10Z' in stats:
+            self.recorderL10Z = append_with_limit(self.recorderL10Z, stats['L10Z'])
+        if 'L50Z' in stats:
+            self.recorderL50Z = append_with_limit(self.recorderL50Z, stats['L50Z'])
+        if 'L90Z' in stats:
+            self.recorderL90Z = append_with_limit(self.recorderL90Z, stats['L90Z'])
+        if 'L99Z' in stats:
+            self.recorderL99Z = append_with_limit(self.recorderL99Z, stats['L99Z'])
+        
+        # Actualizar arrays del filtro C
+        if 'LeqC' in stats:
+            self.recorderLeqC = append_with_limit(self.recorderLeqC, stats['LeqC'])
+        if 'L01C' in stats:
+            self.recorderL01C = append_with_limit(self.recorderL01C, stats['L01C'])
+        if 'L10C' in stats:
+            self.recorderL10C = append_with_limit(self.recorderL10C, stats['L10C'])
+        if 'L50C' in stats:
+            self.recorderL50C = append_with_limit(self.recorderL50C, stats['L50C'])
+        if 'L90C' in stats:
+            self.recorderL90C = append_with_limit(self.recorderL90C, stats['L90C'])
+        if 'L99C' in stats:
+            self.recorderL99C = append_with_limit(self.recorderL99C, stats['L99C'])
+        
+        # Actualizar arrays del filtro A
+        if 'LeqA' in stats:
+            self.recorderLeqA = append_with_limit(self.recorderLeqA, stats['LeqA'])
+        if 'L01A' in stats:
+            self.recorderL01A = append_with_limit(self.recorderL01A, stats['L01A'])
+        if 'L10A' in stats:
+            self.recorderL10A = append_with_limit(self.recorderL10A, stats['L10A'])
+        if 'L50A' in stats:
+            self.recorderL50A = append_with_limit(self.recorderL50A, stats['L50A'])
+        if 'L90A' in stats:
+            self.recorderL90A = append_with_limit(self.recorderL90A, stats['L90A'])
+        if 'L99A' in stats:
+            self.recorderL99A = append_with_limit(self.recorderL99A, stats['L99A'])
     
 # -------------- funcion codigo YAMILI-----------------
     def normalize_data(self, data):
