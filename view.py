@@ -669,29 +669,32 @@ class vista(QMainWindow):
         # Menú Calibración
         self.menuCalibracion = QMenu("Calibración", self)
         calAct = QAction("Menú calibración", self)
-        calAct.triggered.connect(self.calibracionWin)
+        calAct.triggered.connect(self.vController.abrir_calibracion)
         self.menuCalibracion.addAction(calAct)
 
         # Otros menús
         self.menuConfiguracion = QMenu("Configuración", self)
         configAct = QAction("Configuración de gráficos", self)
-        configAct.triggered.connect(self.configuracion)
+        configAct.triggered.connect(self.vController.abrir_configuracion)
         self.menuConfiguracion.addAction(configAct)
         # Nueva acción para configuración de dispositivo
         configDispAct = QAction("Configuración de dispositivo", self)
-        configDispAct.triggered.connect(self.configuracionDispositivo)
+        configDispAct.triggered.connect(self.vController.abrir_config_disp)
         self.menuConfiguracion.addAction(configDispAct)
         # Nueva acción para configuración de dispositivo
         genSig = QAction("Generador de señales", self)
-        genSig.triggered.connect(self.GeneradorSenales)
+        genSig.triggered.connect(self.vController.abrir_generador)
         self.menuConfiguracion.addAction(genSig)
        
         self.menuConfiguracion.setToolTip("Configuraciones de gráfico y dispositivos")
         
         self.menuProgramacion = QMenu("Programación", self)
         progAct = QAction("Programar", self)
-        progAct.triggered.connect(self.abrirprogramarWin)
+        progAct.triggered.connect(self.vController.abrir_programar)
         self.menuProgramacion.addAction(progAct)
+        grab = QAction("Grabaciones", self)
+        grab.triggered.connect(self.vController.abrir_grabaciones)
+        self.menuProgramacion.addAction(grab)
         
         self.menuAyuda = QMenu("Ayuda", self)
         self.menuAcerca_de = QMenu("Acerca de...", self)
