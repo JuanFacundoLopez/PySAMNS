@@ -38,7 +38,7 @@ class controlador():
     def __init__(self):                             # Constructor del controlador
         self.cModel = modelo(self)                  # Conecto la referencia del modelo 
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
-        self.cCalWin = CalibracionWin(self,self.cVista)         # Ventana de calibración
+
 
         self.ventanas_abiertas = {
             "calibracion": None,
@@ -620,9 +620,9 @@ class controlador():
 
         if ultima_amplitud_baja_thd is None:
             error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
-            self.cCalWin.calWin.txtValorRef.setText("Error")
+            self.cCalWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            self.cCalWin.calWin.txtValorRef.setText("Error")
+            self.cCalWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
             return False
@@ -632,7 +632,7 @@ class controlador():
         self.cModel.setCalibracionAutomatica(cal_db)
 
         # Actualizar UI
-        self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
+        self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
         QMessageBox.information(
             self.cCalWin,
             "Calibración automática",
@@ -677,7 +677,7 @@ class controlador():
         """
         try:
             # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
+            ref_spl_text = self.cCalWin.txtValorRefExterna.text()
             if not ref_spl_text:
                 QMessageBox.warning(self.cCalWin, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
@@ -718,7 +718,7 @@ class controlador():
             medido_dbfs = self.cModel.calculate_db(audio_completo)
             
             # 4. Actualizar la interfaz con el valor medido
-            self.cVista.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
+            self.cCalWin.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
 
             # 5. Calcular el offset
             offset = ref_spl - medido_dbfs
@@ -727,7 +727,7 @@ class controlador():
             self.cModel.set_calibracion_offset_spl(offset)
             
             # 7. Actualizar la interfaz con el offset
-            self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
+            self.cCalWin.lblFactorAjuste.setText(f"{offset:.2f} dB")
 
             QMessageBox.information(self.cCalWin, "Calibración Completa", 
                                    f"Calibración finalizada con éxito.\n\n"
@@ -746,8 +746,20 @@ class controlador():
 
     def calFuenteCalibracionExterna(self):
         try:
-            ref_level = float(self.cVista.calWin.txtValorRef.text())
-        except (ValueError, AttributeError):
+            valor_ref_str = self.cCalWin.txtValorRef.text()
+            print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
+            valor_ref_str_cleaned = valor_ref_str.strip()
+            if not valor_ref_str_cleaned:
+                raise ValueError("El valor de referencia no puede estar vacío.")
+            
+            valor_para_float = valor_ref_str_cleaned.replace(',', '.')
+            print(f"DEBUG: Valor después de limpiar y reemplazar comas: '{valor_para_float}'")
+            
+            ref_level = float(valor_para_float)
+            print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+
+        except (ValueError, AttributeError) as e:
+            print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
             QMessageBox.warning(self.cCalWin, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
@@ -858,9 +870,10 @@ class controlador():
     def abrir_calibracion(self):
         if self.ventanas_abiertas["calibracion"] is None:
             self.ventanas_abiertas["calibracion"] = CalibracionWin(self, self.cVista)
-        self.ventanas_abiertas["calibracion"].showNormal()
-        self.ventanas_abiertas["calibracion"].raise_()
-        self.ventanas_abiertas["calibracion"].activateWindow()
+        self.cCalWin = self.ventanas_abiertas["calibracion"]
+        self.cCalWin.showNormal()
+        self.cCalWin.raise_()
+        self.cCalWin.activateWindow()
 
     def abrir_generador(self):
         if self.ventanas_abiertas["generador"] is None:
@@ -871,7 +884,7 @@ class controlador():
 
     def abrir_config_disp(self):
         if self.ventanas_abiertas["config_disp"] is None:
-            self.ventanas_abiertas["config_disp"] = ConfigDispWin(self, self.cCalWin)
+            self.ventanas_abiertas["config_disp"] = ConfigDispWin(self)
         self.ventanas_abiertas["config_disp"].showNormal()
         self.ventanas_abiertas["config_disp"].raise_()
         self.ventanas_abiertas["config_disp"].activateWindow()

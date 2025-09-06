@@ -288,16 +288,7 @@ class modelo:
             return self.dispSal
     
     def getDispositivoActual(self):
-        """Retorna el índice del dispositivo de entrada actualmente en uso"""
-        # Primero intentar obtener del stream si está activo
-        if hasattr(self, 'stream') and self.stream is not None and self.stream.is_active():
-            try:
-                # Intentar obtener el device_index del stream
-                return self.stream._device_index
-            except AttributeError:
-                # Si el stream no tiene el atributo _device_index, usar el almacenado
-                pass
-        # Usar el device_index almacenado en el modelo
+        """Retorna el índice del dispositivo de entrada actualmente configurado en el modelo."""
         if hasattr(self, 'device_index'):
             return self.device_index
         return None
