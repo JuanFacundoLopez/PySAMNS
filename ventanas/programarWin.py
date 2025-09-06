@@ -11,10 +11,12 @@ from datetime import timedelta
 
 
 
+
 class ProgramarWin(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Configuracion de medicion automática")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         screen = QApplication.primaryScreen().size()
         anchoX = screen.width()
         altoY = screen.height()

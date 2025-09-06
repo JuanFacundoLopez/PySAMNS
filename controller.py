@@ -33,7 +33,7 @@ class controlador():
     def __init__(self):                             # Constructor del controlador
         self.cModel = modelo(self)                  # Conecto la referencia del modelo 
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
-        self.cCalWin = CalibracionWin(self)         # Ventana de calibración
+        self.cCalWin = CalibracionWin(self,self.cVista)         # Ventana de calibración
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -584,9 +584,9 @@ class controlador():
 
         if ultima_amplitud_baja_thd is None:
             error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
-            self.cVista.calWin.txtValorRef.setText("Error")
-            QMessageBox.warning(self.cVista, "Error de Calibración", error_message)
-            self.cVista.calWin.txtValorRef.setText("Error")
+            self.cCalWin.calWin.txtValorRef.setText("Error")
+            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
+            self.cCalWin.calWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
             return False
@@ -712,7 +712,7 @@ class controlador():
         try:
             ref_level = float(self.cVista.calWin.txtValorRef.text())
         except (ValueError, AttributeError):
-            QMessageBox.warning(self.cVista, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
+            QMessageBox.warning(self.cCalWin, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
         # Obtener dispositivos de entrada y salida seleccionados
@@ -721,10 +721,10 @@ class controlador():
             output_device_index = self.cModel.getDispositivoSalidaActual()
             
             if output_device_index is None:
-                QMessageBox.warning(self.cVista, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return
         except Exception as e:
-            QMessageBox.warning(self.cVista, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
             return
 
         # Parámetros de la señal
@@ -806,7 +806,7 @@ class controlador():
             
             # Mostrar mensaje de éxito
             QMessageBox.information(
-                self.cVista,
+                self.cCalWin,
                 "Calibración Exitosa",
                 f"Calibración relativa completada.\n\n"
                 f"Nivel de referencia: {ref_level:.2f} dB\n"
@@ -817,4 +817,4 @@ class controlador():
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
-            QMessageBox.critical(self.cVista, "Error de Calibración", error_msg)
+            QMessageBox.critical(self.cCalWin, "Error de Calibración", error_msg)

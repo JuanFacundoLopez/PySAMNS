@@ -397,9 +397,9 @@ class vista(QMainWindow):
         # Layout para Pico
         self.lblNivelesPico = QLabel("Pico\n"
                                      "(Peak)")
-        self.cbNivPicoA_container, self.cbNivPicoA = self.create_checkbox_with_subscript("L<sub>APK</sub>", self.nivelesGroup)
-        self.cbNivPicoC_container, self.cbNivPicoC = self.create_checkbox_with_subscript("L<sub>CPK</sub>", self.nivelesGroup)
-        self.cbNivPicoZ_container, self.cbNivPicoZ = self.create_checkbox_with_subscript("L<sub>ZPK</sub>", self.nivelesGroup)
+        self.cbNivPicoA_container, self.cbNivPicoA = self.create_checkbox_with_subscript("L<sub>Apk</sub>", self.nivelesGroup)
+        self.cbNivPicoC_container, self.cbNivPicoC = self.create_checkbox_with_subscript("L<sub>Cpk</sub>", self.nivelesGroup)
+        self.cbNivPicoZ_container, self.cbNivPicoZ = self.create_checkbox_with_subscript("L<sub>Zpk</sub>", self.nivelesGroup)
         
         nivelesLayout.addWidget(self.lblNivelesPico, 0, 0,QtCore.Qt.AlignCenter)
         nivelesLayout.addWidget(self.cbNivPicoA_container,0,1)
@@ -534,9 +534,11 @@ class vista(QMainWindow):
 
         
         # Primera fila
-        nivelesLayout.addWidget(self.cbEqZ_container, 14, 0)
-        nivelesLayout.addWidget(self.cbEqC_container, 14, 1)
-        nivelesLayout.addWidget(self.cbEqA_container, 14, 2)
+        self.lblNivelesContinuaEq = QLabel("Continua equivalente")
+        nivelesLayout.addWidget(self.lblNivelesContinuaEq, 14, 0, QtCore.Qt.AlignCenter)
+        nivelesLayout.addWidget(self.cbEqZ_container, 14, 3)
+        nivelesLayout.addWidget(self.cbEqC_container, 14, 2)
+        nivelesLayout.addWidget(self.cbEqA_container, 14, 1)
         
         line5 = QFrame()
         line5.setFrameShape(QFrame.HLine)
@@ -544,29 +546,32 @@ class vista(QMainWindow):
         nivelesLayout.addWidget(line5, 15, 0, 1, 4)
         
         # Segunda fila
-        nivelesLayout.addWidget(self.cb01Z_container, 16, 0)
-        nivelesLayout.addWidget(self.cb01C_container, 16, 1)
-        nivelesLayout.addWidget(self.cb01A_container, 16, 2)
+        self.lblNivelesPercentiles = QLabel("Percentiles\n"
+                                            "(Percentile)")
+        nivelesLayout.addWidget(self.lblNivelesPercentiles, 16, 0,5,1,QtCore.Qt.AlignCenter)
+        nivelesLayout.addWidget(self.cb01Z_container, 16, 3)
+        nivelesLayout.addWidget(self.cb01C_container, 16, 2)
+        nivelesLayout.addWidget(self.cb01A_container, 16, 1)
         
         # Tercera fila
-        nivelesLayout.addWidget(self.cb10Z_container, 17, 0)
-        nivelesLayout.addWidget(self.cb10C_container, 17, 1)
-        nivelesLayout.addWidget(self.cb10A_container, 17, 2)
+        nivelesLayout.addWidget(self.cb10Z_container, 17, 3)
+        nivelesLayout.addWidget(self.cb10C_container, 17, 2)
+        nivelesLayout.addWidget(self.cb10A_container, 17, 1)
         
         # Cuarta fila
-        nivelesLayout.addWidget(self.cb50Z_container, 18, 0)
-        nivelesLayout.addWidget(self.cb50C_container, 18, 1)
-        nivelesLayout.addWidget(self.cb50A_container, 18, 2)
+        nivelesLayout.addWidget(self.cb50Z_container, 18, 3)
+        nivelesLayout.addWidget(self.cb50C_container, 18, 2)
+        nivelesLayout.addWidget(self.cb50A_container, 18, 1)
         
          # Quinta fila
-        nivelesLayout.addWidget(self.cb90Z_container, 19, 0)
-        nivelesLayout.addWidget(self.cb90C_container, 19, 1)
-        nivelesLayout.addWidget(self.cb90A_container, 19, 2)
+        nivelesLayout.addWidget(self.cb90Z_container, 19, 3)
+        nivelesLayout.addWidget(self.cb90C_container, 19, 2)
+        nivelesLayout.addWidget(self.cb90A_container, 19, 1)
         
         # Sexta fila
-        nivelesLayout.addWidget(self.cb99Z_container, 20, 0)
-        nivelesLayout.addWidget(self.cb99C_container, 20, 1)
-        nivelesLayout.addWidget(self.cb99A_container, 20, 2)
+        nivelesLayout.addWidget(self.cb99Z_container, 20, 3)
+        nivelesLayout.addWidget(self.cb99C_container, 20, 2)
+        nivelesLayout.addWidget(self.cb99A_container, 20, 1)
     
         self.btnClearNIntegra = QPushButton("Limpiar")
         self.btnClearNIntegra.clicked.connect(self.limpiarNiveles)
@@ -588,6 +593,25 @@ class vista(QMainWindow):
         self.cbNivSlowA.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowC.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowZ.toggled.connect(self.actualizarGraficoNivel)
+        
+        self.cbEqA.toggled.connect(self.actualizarGraficoNivel)
+        self.cb01A.toggled.connect(self.actualizarGraficoNivel)
+        self.cb10A.toggled.connect(self.actualizarGraficoNivel)
+        self.cb50A.toggled.connect(self.actualizarGraficoNivel)
+        self.cb90A.toggled.connect(self.actualizarGraficoNivel)
+        self.cb99A.toggled.connect(self.actualizarGraficoNivel)
+        self.cbEqC.toggled.connect(self.actualizarGraficoNivel)
+        self.cb01C.toggled.connect(self.actualizarGraficoNivel)
+        self.cb10C.toggled.connect(self.actualizarGraficoNivel)
+        self.cb50C.toggled.connect(self.actualizarGraficoNivel)
+        self.cb90C.toggled.connect(self.actualizarGraficoNivel)
+        self.cb99C.toggled.connect(self.actualizarGraficoNivel)
+        self.cbEqZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cb01Z.toggled.connect(self.actualizarGraficoNivel)
+        self.cb10Z.toggled.connect(self.actualizarGraficoNivel)
+        self.cb50Z.toggled.connect(self.actualizarGraficoNivel)
+        self.cb90Z.toggled.connect(self.actualizarGraficoNivel)
+        self.cb99Z.toggled.connect(self.actualizarGraficoNivel)
         
         
         
@@ -650,11 +674,11 @@ class vista(QMainWindow):
 
         # Otros menús
         self.menuConfiguracion = QMenu("Configuración", self)
-        configAct = QAction("Configuración de Gráficos", self)
+        configAct = QAction("Configuración de gráficos", self)
         configAct.triggered.connect(self.configuracion)
         self.menuConfiguracion.addAction(configAct)
         # Nueva acción para configuración de dispositivo
-        configDispAct = QAction("Configuración de Dispositivo", self)
+        configDispAct = QAction("Configuración de dispositivo", self)
         configDispAct.triggered.connect(self.configuracionDispositivo)
         self.menuConfiguracion.addAction(configDispAct)
         # Nueva acción para configuración de dispositivo
@@ -699,8 +723,10 @@ class vista(QMainWindow):
         self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
         self.waveform1.setYRange(-1, 1, padding=0)   # Amplitud normalizada
         self.waveform1.setXRange(0, 1024, padding=0) # Rango de tiempo
-        self.waveform1.setLabel('left', 'Amplitud Normalizada')
+        self._ejeY_titulo_base = "Amplitud Normalizada"
+        self.waveform1.setLabel('left', self._ejeY_titulo_base)
         self.waveform1.setLabel('bottom', 'Tiempo (s)')
+        self.actualizar_badge_calibracion_pyqtgraph()
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -775,7 +801,7 @@ class vista(QMainWindow):
         self.configDispWin.show()
         
     def calibracionWin(self):
-        self.calWin = CalibracionWin(self.vController)
+        self.calWin = CalibracionWin(self.vController,self)
         self.calWin.show()
         
     # CODIGO configuracion del graficos
@@ -831,6 +857,7 @@ class vista(QMainWindow):
 
         self.waveform1.hideAxis('right')
         axr.setLabel('')  # opcional
+    
     def ventanaTiempo(self):
         self.btnNivel.setChecked(False)
         self.btnFrecuencia.setChecked(False)
@@ -879,7 +906,8 @@ class vista(QMainWindow):
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
         self._ensure_right_axis()
-        self.waveform1.getAxis('right').setLabel('Nivel (dB)')
+        self._ejeYDer_titulo_base = "Nivel (dB)"
+        self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
         self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
@@ -948,6 +976,30 @@ class vista(QMainWindow):
         print("DEBUG: Gráfico actualizado")
         self.vController.graficar()
 
+    def esta_calibrado(self) -> bool:
+        m = self.vController.cModel
+        cal_auto = False
+        if hasattr(m, "getCalibracionAutomatica"):
+            try:
+                cal_auto = bool(m.getCalibracionAutomatica())
+            except Exception:
+                cal_auto = bool(getattr(m, "cal", False))
+        ruta_ext = getattr(m, "get_ruta_archivo_calibracion", lambda: None)()
+        offset  = float(getattr(m, "get_calibracion_offset_spl", lambda: 0.0)())
+        return cal_auto or (ruta_ext is not None) or (abs(offset) > 1e-9)
+
+    def actualizar_badge_calibracion_pyqtgraph(self):
+        if self.esta_calibrado():
+            # Sin badge
+            self.waveform1.setLabel('left', self._ejeY_titulo_base)
+            if self.btnFrecuencia.isChecked():
+                self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
+        else:
+            # Sufijo naranja "(sin calibrar)"
+            self.waveform1.setLabel('left', f"{self._ejeY_titulo_base} <span style='color:#ff9800'>(sin calibrar)</span>")
+            if self.btnFrecuencia.isChecked():
+                self.waveform1.getAxis('right').setLabel(f"{self._ejeYDer_titulo_base} <span style='color:#ff9800'>(sin calibrar)</span>")
+        
     def graficar(self):
         self.vController.graficar()
 
@@ -984,8 +1036,9 @@ class vista(QMainWindow):
             self.waveform1.setXRange(self.var_xMinTiempo, self.var_xMaxTiempo, padding=0)
             self.waveform1.setYRange(self.var_yMinTiempo, self.var_yMaxTiempo, padding=0)
             # # Etiquetas
+            self._ejeY_titulo_base = self.var_etiquetaYTiempo
             self.waveform1.setLabel('bottom', self.var_etiquetaXTiempo)
-            self.waveform1.setLabel('left', self.var_etiquetaYTiempo)
+            self.waveform1.setLabel('left', self._ejeY_titulo_base)
             # Color y tipo de línea
             if hasattr(self, 'colorTiempo'):
                 color = self.get_color_str(self.colorTiempo)
@@ -993,6 +1046,7 @@ class vista(QMainWindow):
                 color = self.default_color_tiempo  # Color por defecto centralizado
             tipoLinea = self.obtenerTipoLinea("tiempo")
             self.actualizarEstiloLinea(color, tipoLinea)
+            self.actualizar_badge_calibracion_pyqtgraph()
         except Exception as e:
             print(f"Error al aplicar configuración de tiempo: {e}")
 
@@ -1009,8 +1063,9 @@ class vista(QMainWindow):
             self.waveform1.setXRange(self.var_xMinEspectro, self.var_xMaxEspectro, padding=0)
             self.waveform1.setYRange(self.var_yMinEspectro, self.var_yMaxEspectro, padding=0)
             # Etiquetas
+            self._ejeY_titulo_base = self.var_etiquetaYEspectro
             self.waveform1.setLabel('bottom', self.var_etiquetaXEspectro)
-            self.waveform1.setLabel('left', self.var_etiquetaYEspectro)
+            self.waveform1.setLabel('left', self._ejeY_titulo_base)
             # Color y tipo de gráfico
             if hasattr(self, 'colorEspectro'):
                 color = self.get_color_str(self.colorEspectro)
@@ -1018,6 +1073,7 @@ class vista(QMainWindow):
                 color = self.default_color_espectro  # Color por defecto centralizado
             tipoGrafico = self.obtenerTipoGraficoEspectro()
             self.actualizarEstiloGraficoEspectro(color, tipoGrafico)
+            self.actualizar_badge_calibracion_pyqtgraph()
         except Exception as e:
             print(f"Error al aplicar configuración de espectro: {e}")
 
@@ -1030,8 +1086,9 @@ class vista(QMainWindow):
             self.waveform1.setXRange(self.var_xMinNivel, self.var_xMaxNivel, padding=0)
             self.waveform1.setYRange(self.var_yMinNivel, self.var_yMaxNivel, padding=0)
             # Etiquetas
+            self._ejeY_titulo_base = self.var_etiquetaYNivel
             self.waveform1.setLabel('bottom', self.var_etiquetaXNivel)
-            self.waveform1.setLabel('left', self.var_etiquetaYNivel)
+            self.waveform1.setLabel('left', self._ejeY_titulo_base)
             # Color y tipo de línea
             if hasattr(self, 'colorNivel'):
                 color = self.get_color_str(self.colorNivel)
@@ -1039,6 +1096,7 @@ class vista(QMainWindow):
                 color = self.default_color_nivel  # Color por defecto centralizado
             tipoLinea = self.obtenerTipoLinea("nivel")
             self.actualizarEstiloLinea(color, tipoLinea)
+            self.actualizar_badge_calibracion_pyqtgraph()
         except Exception as e:
             print(f"Error al aplicar configuración de nivel: {e}")
 
@@ -1459,48 +1517,48 @@ class vista(QMainWindow):
                     style_map = QtCore.Qt.DashLine  # Dashed para todos los estadísticos
                     
                     # Z Statistical - Añadir debugs detallados
-                    print(f"DEBUG Stats Z - leq checked: {self.cbEqZ.checkbox.isChecked()}, len: {len(niveles_Z.get('leq', []))}, último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqZ.checkbox.isChecked() and len(niveles_Z.get('leq', [])) > 0:
+                    print(f"DEBUG Stats Z - leq checked: {self.cbEqZ.isChecked()}, len: {len(niveles_Z.get('leq', []))}, último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqZ.isChecked() and len(niveles_Z.get('leq', [])) > 0:
                         value = niveles_Z['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z Leq: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z Leq: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l01 checked: {self.cb01Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l01', []))}, último: {niveles_Z.get('l01', [0])[-1] if len(niveles_Z.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01Z.checkbox.isChecked() and len(niveles_Z.get('l01', [])) > 0:
+                    print(f"DEBUG Stats Z - l01 checked: {self.cb01Z.isChecked()}, len: {len(niveles_Z.get('l01', []))}, último: {niveles_Z.get('l01', [0])[-1] if len(niveles_Z.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01Z.isChecked() and len(niveles_Z.get('l01', [])) > 0:
                         value = niveles_Z['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l10 checked: {self.cb10Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l10', []))}, último: {niveles_Z.get('l10', [0])[-1] if len(niveles_Z.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10Z.checkbox.isChecked() and len(niveles_Z.get('l10', [])) > 0:
+                    print(f"DEBUG Stats Z - l10 checked: {self.cb10Z.isChecked()}, len: {len(niveles_Z.get('l10', []))}, último: {niveles_Z.get('l10', [0])[-1] if len(niveles_Z.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10Z.isChecked() and len(niveles_Z.get('l10', [])) > 0:
                         value = niveles_Z['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l50 checked: {self.cb50Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l50', []))}, último: {niveles_Z.get('l50', [0])[-1] if len(niveles_Z.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50Z.checkbox.isChecked() and len(niveles_Z.get('l50', [])) > 0:
+                    print(f"DEBUG Stats Z - l50 checked: {self.cb50Z.isChecked()}, len: {len(niveles_Z.get('l50', []))}, último: {niveles_Z.get('l50', [0])[-1] if len(niveles_Z.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50Z.isChecked() and len(niveles_Z.get('l50', [])) > 0:
                         value = niveles_Z['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l90 checked: {self.cb90Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l90', []))}, último: {niveles_Z.get('l90', [0])[-1] if len(niveles_Z.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90Z.checkbox.isChecked() and len(niveles_Z.get('l90', [])) > 0:
+                    print(f"DEBUG Stats Z - l90 checked: {self.cb90Z.isChecked()}, len: {len(niveles_Z.get('l90', []))}, último: {niveles_Z.get('l90', [0])[-1] if len(niveles_Z.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90Z.isChecked() and len(niveles_Z.get('l90', [])) > 0:
                         value = niveles_Z['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats Z L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats Z - l99 checked: {self.cb99Z.checkbox.isChecked()}, len: {len(niveles_Z.get('l99', []))}, último: {niveles_Z.get('l99', [0])[-1] if len(niveles_Z.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99Z.checkbox.isChecked() and len(niveles_Z.get('l99', [])) > 0:
+                    print(f"DEBUG Stats Z - l99 checked: {self.cb99Z.isChecked()}, len: {len(niveles_Z.get('l99', []))}, último: {niveles_Z.get('l99', [0])[-1] if len(niveles_Z.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99Z.isChecked() and len(niveles_Z.get('l99', [])) > 0:
                         value = niveles_Z['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L99: {value:.1f} dB')
@@ -1508,8 +1566,8 @@ class vista(QMainWindow):
                         print(f"DEBUG Stats Z L99: Línea añadida en {value:.1f} dB")
                     
                     # C Statistical - Añadir debugs similares
-                    print(f"DEBUG Stats C - leq checked: {self.cbEqC.checkbox.isChecked()}, len: {len(niveles_C.get('leq', []))}, último: {niveles_C.get('leq', [0])[-1] if len(niveles_C.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqC.checkbox.isChecked() and len(niveles_C.get('leq', [])) > 0:
+                    print(f"DEBUG Stats C - leq checked: {self.cbEqC.isChecked()}, len: {len(niveles_C.get('leq', []))}, último: {niveles_C.get('leq', [0])[-1] if len(niveles_C.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqC.isChecked() and len(niveles_C.get('leq', [])) > 0:
                         value = niveles_C['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C Leq: {value:.1f} dB')
@@ -1518,40 +1576,40 @@ class vista(QMainWindow):
                     
                     # (Repite para l01C, l10C, l50C, l90C, l99C con prints similares)
                     
-                    print(f"DEBUG Stats C - l01 checked: {self.cb01C.checkbox.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01C.checkbox.isChecked() and len(niveles_C.get('l01', [])) > 0:
+                    print(f"DEBUG Stats C - l01 checked: {self.cb01C.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01C.isChecked() and len(niveles_C.get('l01', [])) > 0:
                         value = niveles_C['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l10 checked: {self.cb10C.checkbox.isChecked()}, len: {len(niveles_C.get('l10', []))}, último: {niveles_C.get('l10', [0])[-1] if len(niveles_C.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10C.checkbox.isChecked() and len(niveles_C.get('l10', [])) > 0:
+                    print(f"DEBUG Stats C - l10 checked: {self.cb10C.isChecked()}, len: {len(niveles_C.get('l10', []))}, último: {niveles_C.get('l10', [0])[-1] if len(niveles_C.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10C.isChecked() and len(niveles_C.get('l10', [])) > 0:
                         value = niveles_C['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l50 checked: {self.cb50C.checkbox.isChecked()}, len: {len(niveles_C.get('l50', []))}, último: {niveles_C.get('l50', [0])[-1] if len(niveles_C.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50C.checkbox.isChecked() and len(niveles_C.get('l50', [])) > 0:
+                    print(f"DEBUG Stats C - l50 checked: {self.cb50C.isChecked()}, len: {len(niveles_C.get('l50', []))}, último: {niveles_C.get('l50', [0])[-1] if len(niveles_C.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50C.isChecked() and len(niveles_C.get('l50', [])) > 0:
                         value = niveles_C['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l90 checked: {self.cb90C.checkbox.isChecked()}, len: {len(niveles_C.get('l90', []))}, último: {niveles_C.get('l90', [0])[-1] if len(niveles_C.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90C.checkbox.isChecked() and len(niveles_C.get('l90', [])) > 0:
+                    print(f"DEBUG Stats C - l90 checked: {self.cb90C.isChecked()}, len: {len(niveles_C.get('l90', []))}, último: {niveles_C.get('l90', [0])[-1] if len(niveles_C.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90C.isChecked() and len(niveles_C.get('l90', [])) > 0:
                         value = niveles_C['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats C L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats C - l99 checked: {self.cb99C.checkbox.isChecked()}, len: {len(niveles_C.get('l99', []))}, último: {niveles_C.get('l99', [0])[-1] if len(niveles_C.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99C.checkbox.isChecked() and len(niveles_C.get('l99', [])) > 0:
+                    print(f"DEBUG Stats C - l99 checked: {self.cb99C.isChecked()}, len: {len(niveles_C.get('l99', []))}, último: {niveles_C.get('l99', [0])[-1] if len(niveles_C.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99C.isChecked() and len(niveles_C.get('l99', [])) > 0:
                         value = niveles_C['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L99: {value:.1f} dB')
@@ -1559,48 +1617,48 @@ class vista(QMainWindow):
                         print(f"DEBUG Stats C L99: Línea añadida en {value:.1f} dB")
                     
                     # A Statistical - Similar debugs
-                    print(f"DEBUG Stats A - leq checked: {self.cbEqA.checkbox.isChecked()}, len: {len(niveles_A.get('leq', []))}, último: {niveles_A.get('leq', [0])[-1] if len(niveles_A.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqA.checkbox.isChecked() and len(niveles_A.get('leq', [])) > 0:
+                    print(f"DEBUG Stats A - leq checked: {self.cbEqA.isChecked()}, len: {len(niveles_A.get('leq', []))}, último: {niveles_A.get('leq', [0])[-1] if len(niveles_A.get('leq', [])) > 0 else 'N/A'}")
+                    if self.cbEqA.isChecked() and len(niveles_A.get('leq', [])) > 0:
                         value = niveles_A['leq'][-1]
                         pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A Leq: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A Leq: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l01 checked: {self.cb01A.checkbox.isChecked()}, len: {len(niveles_A.get('l01', []))}, último: {niveles_A.get('l01', [0])[-1] if len(niveles_A.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01A.checkbox.isChecked() and len(niveles_A.get('l01', [])) > 0:
+                    print(f"DEBUG Stats A - l01 checked: {self.cb01A.isChecked()}, len: {len(niveles_A.get('l01', []))}, último: {niveles_A.get('l01', [0])[-1] if len(niveles_A.get('l01', [])) > 0 else 'N/A'}")
+                    if self.cb01A.isChecked() and len(niveles_A.get('l01', [])) > 0:
                         value = niveles_A['l01'][-1]
                         pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L01: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L01: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l10 checked: {self.cb10A.checkbox.isChecked()}, len: {len(niveles_A.get('l10', []))}, último: {niveles_A.get('l10', [0])[-1] if len(niveles_A.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10A.checkbox.isChecked() and len(niveles_A.get('l10', [])) > 0:
+                    print(f"DEBUG Stats A - l10 checked: {self.cb10A.isChecked()}, len: {len(niveles_A.get('l10', []))}, último: {niveles_A.get('l10', [0])[-1] if len(niveles_A.get('l10', [])) > 0 else 'N/A'}")
+                    if self.cb10A.isChecked() and len(niveles_A.get('l10', [])) > 0:
                         value = niveles_A['l10'][-1]
                         pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L10: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L10: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l50 checked: {self.cb50A.checkbox.isChecked()}, len: {len(niveles_A.get('l50', []))}, último: {niveles_A.get('l50', [0])[-1] if len(niveles_A.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50A.checkbox.isChecked() and len(niveles_A.get('l50', [])) > 0:
+                    print(f"DEBUG Stats A - l50 checked: {self.cb50A.isChecked()}, len: {len(niveles_A.get('l50', []))}, último: {niveles_A.get('l50', [0])[-1] if len(niveles_A.get('l50', [])) > 0 else 'N/A'}")
+                    if self.cb50A.isChecked() and len(niveles_A.get('l50', [])) > 0:
                         value = niveles_A['l50'][-1]
                         pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L50: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L50: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l90 checked: {self.cb90A.checkbox.isChecked()}, len: {len(niveles_A.get('l90', []))}, último: {niveles_A.get('l90', [0])[-1] if len(niveles_A.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90A.checkbox.isChecked() and len(niveles_A.get('l90', [])) > 0:
+                    print(f"DEBUG Stats A - l90 checked: {self.cb90A.isChecked()}, len: {len(niveles_A.get('l90', []))}, último: {niveles_A.get('l90', [0])[-1] if len(niveles_A.get('l90', [])) > 0 else 'N/A'}")
+                    if self.cb90A.isChecked() and len(niveles_A.get('l90', [])) > 0:
                         value = niveles_A['l90'][-1]
                         pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L90: {value:.1f} dB')
                         self.waveform1.addItem(line)
                         print(f"DEBUG Stats A L90: Línea añadida en {value:.1f} dB")
                     
-                    print(f"DEBUG Stats A - l99 checked: {self.cb99A.checkbox.isChecked()}, len: {len(niveles_A.get('l99', []))}, último: {niveles_A.get('l99', [0])[-1] if len(niveles_A.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99A.checkbox.isChecked() and len(niveles_A.get('l99', [])) > 0:
+                    print(f"DEBUG Stats A - l99 checked: {self.cb99A.isChecked()}, len: {len(niveles_A.get('l99', []))}, último: {niveles_A.get('l99', [0])[-1] if len(niveles_A.get('l99', [])) > 0 else 'N/A'}")
+                    if self.cb99A.isChecked() and len(niveles_A.get('l99', [])) > 0:
                         value = niveles_A['l99'][-1]
                         pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
                         line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L99: {value:.1f} dB')

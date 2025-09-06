@@ -5,7 +5,7 @@ from ventanas.configDispWin import ConfigDispWin
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QGroupBox, QRadioButton, QWidget, QGridLayout, QMessageBox, QFileDialog)
 
-from PyQt5.QtGui import  QPainter
+from PyQt5.QtGui import  QPainter, QIcon
 
 # Imports para QChart (solo para la ventana de calibración)
 from PyQt5.QtChart import QChart, QChartView
@@ -16,9 +16,10 @@ import os
 
 
 class CalibracionWin(QMainWindow):
-    def __init__(self, vController):
+    def __init__(self, vController, vVista):
         super().__init__()
         self.setWindowTitle("Calibración")
+        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -28,7 +29,7 @@ class CalibracionWin(QMainWindow):
             QApplication.instance().setStyleSheet(f.read())
           
         self.vController = vController
-
+        self.vVista = vVista
         # Widget central y layout principal
         centralWidget = QWidget()
         mainLayout = QVBoxLayout(centralWidget)
@@ -148,9 +149,10 @@ class CalibracionWin(QMainWindow):
             # Llama al nuevo método de calibración externa en el controlador
             exito=self.vController.calFuenteReferenciaInterna()
         
-        if exito and not self.calibracion_realizada:
+        if self.vVista.esta_calibrado and not self.calibracion_realizada:
             self.btnCalibrar.setText("Repetir calibración")
-            self.calibracion_realizada = True          
+            self.calibracion_realizada = True
+        self.vVista.actualizar_badge_calibracion_pyqtgraph()          
     
     def actualizar_vista_calibracion(self):
         relativa_checked = self.radioBtnRelativa.isChecked()
