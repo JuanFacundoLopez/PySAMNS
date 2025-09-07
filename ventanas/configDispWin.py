@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QGroupBox, QWidget, QMessageBox, QComboBox)
-
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QIcon
 from utils import norm
 from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
@@ -21,6 +21,7 @@ class ConfigDispWin(QMainWindow):
         
         self.vController = vController
         self.parent_cal_win = parent_cal_win
+        self.frecuenciaMuestreoCambiada = pyqtSignal(int)
         
         # Widget central y layout principal
         centralWidget = QWidget()
@@ -147,9 +148,14 @@ class ConfigDispWin(QMainWindow):
             rate = int(rate_text)
             latencia_ms = buffer / rate * 1000
             self.lblLatencia.setText(f"{latencia_ms:.2f} ms")
+
+            # Emitir señal
+            self.frecuenciaMuestreoCambiada.emit(rate)
+
         except Exception as e:
             print(f"Error al calcular latencia: {e}")
-            self.lblLatencia.setText("Error") 
+            self.lblLatencia.setText("Error")
+            
     def actualizarFrecuenciaMuestreoEntrada(self, idx):
         # Obtener la frecuencia de muestreo predeterminada del dispositivo seleccionado
         frec_muestreo = self.vController.cModel.getDispositivosEntradaRate()

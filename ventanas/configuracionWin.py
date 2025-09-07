@@ -456,3 +456,8 @@ class ConfiguracionWin(QMainWindow):
 
         for combo in [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel]:
             combo.setProperty("class", "ventanasSec")
+            
+    def actualizarLimiteXMaxEspectro(self, nueva_fs):
+        nuevo_limite = nueva_fs / 2
+        self.txtXMaxEspectro.setText(str(nuevo_limite))
+        self.vista.var_xMaxEspectro = nuevo_limite
