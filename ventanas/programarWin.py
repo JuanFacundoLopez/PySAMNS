@@ -1,7 +1,7 @@
 from PyQt5.QtCore import QTime
 from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QSpinBox, QLabel, QPushButton, QApplication, QDateEdit, QMessageBox,
-                            QTableWidget, QTableWidgetItem, QHeaderView, QGroupBox)
+                            QComboBox,QTableWidget, QTableWidgetItem, QHeaderView, QGroupBox, QLineEdit,QFileDialog )
 from PyQt5.QtCore import QTime, pyqtSignal, QDate, QDateTime, Qt
 from PyQt5.QtGui import QIcon
 from utils import norm
@@ -13,7 +13,7 @@ from datetime import timedelta
 
 
 class ProgramarWin(QMainWindow):
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
         self.setWindowTitle("Configuracion de medicion automática")
         self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
@@ -22,6 +22,8 @@ class ProgramarWin(QMainWindow):
         altoY = screen.height()
         self.setGeometry(norm(anchoX, altoY, 0.35, 0.15, 0.3, 0.4))
 
+        self.vController = controller
+        
         with open("estilos.qss", "r", encoding='utf-8') as f:
             QApplication.instance().setStyleSheet(f.read())
             
@@ -88,6 +90,18 @@ class ProgramarWin(QMainWindow):
         self.duracion_picker = CustomTimePicker(esDuracion=True)
         layoutVDuracion.addWidget(self.duracion_picker)
 
+        group_box_config = QGroupBox("Configuración")
+        layoutHConfig = QHBoxLayout()
+        group_box_config.setLayout(layoutHConfig)
+        self.lbl_extencion = QLabel("Extención:")
+        self.cmb_extencion = QComboBox()
+        self.cmb_extencion.addItems(["wav", "mp3"])
+        self.lbl_ruta = QLabel("Ruta de guardado:")
+        self.txt_ruta = RutaSelector()
+        layoutHConfig.addWidget(self.lbl_extencion)
+        layoutHConfig.addWidget(self.cmb_extencion)
+        layoutHConfig.addWidget(self.lbl_ruta)
+        layoutHConfig.addWidget(self.txt_ruta)
 
         
         # Botón para guardar la programación 
@@ -96,7 +110,6 @@ class ProgramarWin(QMainWindow):
         self.save_btn.setIcon(QIcon(mas_img_path))
         self.save_btn.clicked.connect(self.guardar_registro)
         
-        borrar_img_path = "img/borrar.png"
         
         # Tabla de registros
         self.lbl_table_title = QLabel("Próximas grabaciones programadas:")
@@ -111,6 +124,8 @@ class ProgramarWin(QMainWindow):
         layoutHorizontal.addWidget(group_box_inicio)
         layoutHorizontal.addWidget(group_box_fin)
         layoutHorizontal.addWidget(group_box_duracion)
+        layoutHorizontal.addWidget(group_box_duracion)
+        layoutHorizontal.addWidget(group_box_config)
         layout.addLayout(layoutHorizontal)
         layout.addWidget(self.save_btn)
         layout.addWidget(self.lbl_table_title)
@@ -160,6 +175,8 @@ class ProgramarWin(QMainWindow):
         ahora = QDate.currentDate().toString("yyyy-MM-dd") + " " + QTime.currentTime().toString("HH:mm:ss")
         inicio = datos["fecha_inicio"] + " " + datos["inicio"]
         fin = datos["fecha_fin"] + " " + datos["fin"]
+        ruta = datos["ruta"]
+        ext = datos["extencion"]
         
         # Validar que inicio sea mayor al actual
         from datetime import datetime
@@ -172,10 +189,17 @@ class ProgramarWin(QMainWindow):
             QMessageBox.warning(self, "Error", "La fecha y hora de fin deben ser posteriores a la fecha y hora de inicio.")
             return
         
-        guardar_registro(datos["fecha_inicio"], datos["inicio"],datos["fecha_fin"], datos["fin"], datos["duracion"])
+        if ext == None or ext == "":
+            QMessageBox.warning(self, "Error", "Debe definir una extención para el archivo de grabación.")
+            return
+        
+        if ruta == None or ruta == "":
+            QMessageBox.warning(self, "Error", "Debe seleccionar una ruta para guardar la grabación.")
+            return
+            
+        guardar_registro(datos["fecha_inicio"], datos["inicio"],datos["fecha_fin"], datos["fin"], datos["duracion"],datos["extencion"],datos["ruta"])
         QMessageBox.information(self, "Éxito", "Registro guardado correctamente.")
         self.cargar_registros()
-
 
     def get_programacion(self):
         return {
@@ -183,7 +207,9 @@ class ProgramarWin(QMainWindow):
             "inicio": self.start_picker.get_time().toString("HH:mm:ss"),
             "fecha_fin": self.date_end_picker.date().toString("yyyy-MM-dd"),
             "fin": self.end_picker.get_time().toString("HH:mm:ss"),
-            "duracion": f"{self.duracion_picker.days_spin.value()}d {self.duracion_picker.hour_spin.value():02d}:{self.duracion_picker.minute_spin.value():02d}:{self.duracion_picker.second_spin.value():02d}"
+            "duracion": f"{self.duracion_picker.days_spin.value()}d {self.duracion_picker.hour_spin.value():02d}:{self.duracion_picker.minute_spin.value():02d}:{self.duracion_picker.second_spin.value():02d}",
+            "extencion": self.cmb_extencion.currentText(),
+            "ruta": self.txt_ruta.text()
         }
     
     def cargar_registros(self):
@@ -281,6 +307,10 @@ class ProgramarWin(QMainWindow):
         self.end_picker.hour_spin.blockSignals(False)
         self.end_picker.minute_spin.blockSignals(False)
         self.end_picker.second_spin.blockSignals(False)
+        
+    def closeEvent(self, event):
+        self.vController.ventanas_abiertas["programar"] = None
+        event.accept()
 
 class CustomTimePicker(QWidget):
     """TimePicker personalizado con SpinBoxes"""
@@ -372,3 +402,15 @@ class CustomTimePicker(QWidget):
     
     def reset_time(self):
         self.set_time(QTime(0, 0, 0))
+
+class RutaSelector(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setPlaceholderText("Haz clic para seleccionar una carpeta")
+        self.setReadOnly(True)
+
+    def mousePressEvent(self, event):
+        # Abrir el diálogo para seleccionar carpeta
+        carpeta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta")
+        if carpeta:
+            self.setText(carpeta)  # Mostrar la ruta en el QLineEdit

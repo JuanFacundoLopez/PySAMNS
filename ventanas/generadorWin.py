@@ -285,6 +285,7 @@ class GeneradorWin(QMainWindow):
         axisX.setLinePenColor(Qt.black)
 
         axisY = QValueAxis()
+        axisY.setRange(-1, 1)
         axisY.setTitleText("Amplitud relativa")
         axisY.setTitleVisible(True)
         axisY.setTitleBrush(QBrush(Qt.black))
@@ -297,9 +298,6 @@ class GeneradorWin(QMainWindow):
         self.seriesGenSig.attachAxis(axisX)
         self.seriesGenSig.attachAxis(axisY)
 
-
-        
-    
     def play_signal(self):
         """Play the generated signal through the selected output device"""
         self.btn_generar.setVisible(False)
@@ -326,3 +324,7 @@ class GeneradorWin(QMainWindow):
         except Exception as e:
             print(f"Error al reproducir la señal: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo reproducir la señal: {str(e)}")
+            
+    def closeEvent(self, event):
+        self.vController.ventanas_abiertas["generador"] = None
+        event.accept()
