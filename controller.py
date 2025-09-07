@@ -48,6 +48,8 @@ class controlador():
             "programar": None,
             "grabaciones": None,
         }
+        self.signal_frec_muestreo = None
+        self.frecuencia_muestreo_actual = 8000
         
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -833,6 +835,15 @@ class controlador():
             print(error_msg)
             QMessageBox.critical(self.cCalWin, "Error de Calibración", error_msg)
 
+    def actualizar_limite_desde_fs(self, fs):
+        self.frecuencia_muestreo_actual = fs
+    
+    def set_frecuencia_muestreo_actual(self, fs):
+        self.frecuencia_muestreo_actual = fs
+    
+    def get_frecuencia_muestreo_actual(self):
+        return self.frecuencia_muestreo_actual
+    
     def abrir_calibracion(self):
         if self.ventanas_abiertas["calibracion"] is None:
             self.ventanas_abiertas["calibracion"] = CalibracionWin(self, self.cVista)
@@ -849,14 +860,28 @@ class controlador():
 
     def abrir_config_disp(self):
         if self.ventanas_abiertas["config_disp"] is None:
-            self.ventanas_abiertas["config_disp"] = ConfigDispWin(self, self.cCalWin)
+            config_disp = ConfigDispWin(self, self.cCalWin)
+            self.ventanas_abiertas["config_disp"] = config_disp
+
+            # ✅ Guardamos la instancia, no la señal
+            self.config_disp_instancia = config_disp
+            self.config_disp_instancia.frecuenciaMuestreoCambiada.connect(self.set_frecuencia_muestreo_actual)
+
         self.ventanas_abiertas["config_disp"].showNormal()
         self.ventanas_abiertas["config_disp"].raise_()
         self.ventanas_abiertas["config_disp"].activateWindow()
 
     def abrir_configuracion(self):
         if self.ventanas_abiertas["configuracion"] is None:
-            self.ventanas_abiertas["configuracion"] = ConfiguracionWin(self.cVista, self)
+            config_win = ConfiguracionWin(self.cVista, self)
+            self.ventanas_abiertas["configuracion"] = config_win
+
+            # ✅ Conectamos desde la instancia real, no señal suelta
+            if hasattr(self, "config_disp_instancia"):
+                self.config_disp_instancia.frecuenciaMuestreoCambiada.connect(
+                    config_win.actualizarLimiteXMaxEspectro
+                )
+
         self.ventanas_abiertas["configuracion"].showNormal()
         self.ventanas_abiertas["configuracion"].raise_()
         self.ventanas_abiertas["configuracion"].activateWindow()

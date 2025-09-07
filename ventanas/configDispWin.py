@@ -7,6 +7,8 @@ from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 
 
 class ConfigDispWin(QMainWindow):
+    frecuenciaMuestreoCambiada = pyqtSignal(int)
+    
     def __init__(self, vController, parent_cal_win=None):
         super().__init__()
         self.setWindowTitle("Configuración de dispositivos")
@@ -21,7 +23,7 @@ class ConfigDispWin(QMainWindow):
         
         self.vController = vController
         self.parent_cal_win = parent_cal_win
-        self.frecuenciaMuestreoCambiada = pyqtSignal(int)
+        
         
         # Widget central y layout principal
         centralWidget = QWidget()
