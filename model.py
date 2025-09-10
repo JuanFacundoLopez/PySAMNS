@@ -40,6 +40,31 @@ class modelo:
         self.recorderFastA = np.empty(0)
         self.recorderSlowA = np.empty(0)
 
+        # Arrays para almacenar valores históricos de niveles estadísticos
+        # Filtro Z
+        self.recorderLeqZ = np.empty(0)
+        self.recorderL01Z = np.empty(0)
+        self.recorderL10Z = np.empty(0)
+        self.recorderL50Z = np.empty(0)
+        self.recorderL90Z = np.empty(0)
+        self.recorderL99Z = np.empty(0)
+        
+        # Filtro C
+        self.recorderLeqC = np.empty(0)
+        self.recorderL01C = np.empty(0)
+        self.recorderL10C = np.empty(0)
+        self.recorderL50C = np.empty(0)
+        self.recorderL90C = np.empty(0)
+        self.recorderL99C = np.empty(0)
+        
+        # Filtro A
+        self.recorderLeqA = np.empty(0)
+        self.recorderL01A = np.empty(0)
+        self.recorderL10A = np.empty(0)
+        self.recorderL50A = np.empty(0)
+        self.recorderL90A = np.empty(0)
+        self.recorderL99A = np.empty(0)
+
         self.SignalFrecA = np.empty(0)
         self.SignalFrecC = np.empty(0)
         self.SignalFrecZ = np.empty(0)
@@ -47,11 +72,12 @@ class modelo:
         self.signaldataC = np.empty(0)
         self.signaldataZ = np.empty(0)
 
-        self.Fs = 44100
+        self.Fs = rate
 
         # Atributos para calibración relativa
         self.ruta_archivo_calibracion = None
         self.offset_calibracion_spl = 0.0
+        self.calibracion_activa = False
 
         # --------------------Codigo Yamili-------------------------
         self.rate = rate
@@ -172,10 +198,10 @@ class modelo:
         
     def setNivelesZ(self, recorderPicoZ=0, recorderInstZ=0, recorderFastZ=0, recorderSlowZ=0, mode='a'):
         if mode == 'a': # voy concatenando los vectores
-            self.recorderPicoZ = np.append(self.recorderPicoZ, recorderPicoZ)
-            self.recorderInstZ = np.append(self.recorderInstZ, recorderInstZ)
-            self.recorderFastZ = np.append(self.recorderFastZ, recorderFastZ)
-            self.recorderSlowZ = np.append(self.recorderSlowZ, recorderSlowZ)
+            self.recorderPicoZ = np.append(self.recorderPicoZ, self.aplicar_calibracion_spl(recorderPicoZ))
+            self.recorderInstZ = np.append(self.recorderInstZ, self.aplicar_calibracion_spl(recorderInstZ))
+            self.recorderFastZ = np.append(self.recorderFastZ, self.aplicar_calibracion_spl(recorderFastZ))
+            self.recorderSlowZ = np.append(self.recorderSlowZ, self.aplicar_calibracion_spl(recorderSlowZ))
 
         if mode == 'r': # reseteo los vectores a 0
             self.recorderPicoZ = np.empty(0)
@@ -184,10 +210,10 @@ class modelo:
             self.recorderSlowZ = np.empty(0)
     def setNivelesC(self, recorderPicoC=0, recorderInstC=0, recorderFastC=0, recorderSlowC=0, mode='a'):
         if mode == 'a':
-            self.recorderPicoC = np.append(self.recorderPicoC, recorderPicoC)
-            self.recorderInstC = np.append(self.recorderInstC, recorderInstC)
-            self.recorderFastC = np.append(self.recorderFastC, recorderFastC)
-            self.recorderSlowC = np.append(self.recorderSlowC, recorderSlowC)
+            self.recorderPicoC = np.append(self.recorderPicoC, self.aplicar_calibracion_spl(recorderPicoC))
+            self.recorderInstC = np.append(self.recorderInstC, self.aplicar_calibracion_spl(recorderInstC))
+            self.recorderFastC = np.append(self.recorderFastC, self.aplicar_calibracion_spl(recorderFastC))
+            self.recorderSlowC = np.append(self.recorderSlowC, self.aplicar_calibracion_spl(recorderSlowC))
 
         if mode == 'r':
             self.recorderPicoC = np.empty(0)
@@ -196,10 +222,10 @@ class modelo:
             self.recorderSlowC = np.empty(0)
     def setNivelesA(self, recorderPicoA = 0, recorderInstA = 0, recorderFastA = 0, recorderSlowA = 0, mode='a'):
         if mode == 'a':
-            self.recorderPicoA = np.append(self.recorderPicoA, recorderPicoA)
-            self.recorderInstA = np.append(self.recorderInstA, recorderInstA)
-            self.recorderFastA = np.append(self.recorderFastA, recorderFastA)
-            self.recorderSlowA = np.append(self.recorderSlowA, recorderSlowA)
+            self.recorderPicoA = np.append(self.recorderPicoA, self.aplicar_calibracion_spl(recorderPicoA))
+            self.recorderInstA = np.append(self.recorderInstA, self.aplicar_calibracion_spl(recorderInstA))
+            self.recorderFastA = np.append(self.recorderFastA, self.aplicar_calibracion_spl(recorderFastA))
+            self.recorderSlowA = np.append(self.recorderSlowA, self.aplicar_calibracion_spl(recorderSlowA))
 
         if mode == 'r':
             self.recorderPicoA = np.empty(0)
@@ -214,7 +240,7 @@ class modelo:
         self.SignalFrecC = SignalFrecC
         self.SignalFrecZ = SignalFrec
     def setCalibracionAutomatica(self, k):
-        self.cal=k
+        self.offset_calibracion_spl = k
 
     def set_ruta_archivo_calibracion(self, ruta):
         self.ruta_archivo_calibracion = ruta
@@ -229,7 +255,9 @@ class modelo:
         return self.offset_calibracion_spl
 
     def aplicar_calibracion_spl(self, valor_dbfs):
-        return valor_dbfs + self.offset_calibracion_spl
+        if hasattr(self, 'calibracion_activa') and self.calibracion_activa:
+            return valor_dbfs + self.offset_calibracion_spl
+        return valor_dbfs
 
     def getDispositivosEntradaRate(self):
         return self.dispEnRate
@@ -245,12 +273,25 @@ class modelo:
         if Mode == 'A':
             return self.signaldataA
     def getSignalFrec(self, Mode='Z'):
-        if Mode=='Z':
-            return self.SignalFrecZ
-        if Mode=='C':
-            return self.SignalFrecC
-        if Mode=='A':
-            return self.SignalFrecA
+        if Mode == 'Z':
+            mag_spec = self.SignalFrecZ
+        elif Mode == 'C':
+            mag_spec = self.SignalFrecC
+        elif Mode == 'A':
+            mag_spec = self.SignalFrecA
+        else:
+            mag_spec = np.array([])
+
+        if mag_spec.size == 0:
+            return np.array([])
+
+        # Convert magnitude to dB, avoiding log(0)
+        db_spec = 20 * np.log10(np.maximum(mag_spec, 1e-9))
+
+        # Apply calibration
+        calibrated_db_spec = self.aplicar_calibracion_spl(db_spec)
+        
+        return calibrated_db_spec
     def getDispositivosEntrada(self, mode):
         if mode == 'indice':
             return self.dispEnIndice
@@ -263,16 +304,7 @@ class modelo:
             return self.dispSal
     
     def getDispositivoActual(self):
-        """Retorna el índice del dispositivo de entrada actualmente en uso"""
-        # Primero intentar obtener del stream si está activo
-        if hasattr(self, 'stream') and self.stream is not None and self.stream.is_active():
-            try:
-                # Intentar obtener el device_index del stream
-                return self.stream._device_index
-            except AttributeError:
-                # Si el stream no tiene el atributo _device_index, usar el almacenado
-                pass
-        # Usar el device_index almacenado en el modelo
+        """Retorna el índice del dispositivo de entrada actualmente configurado en el modelo."""
         if hasattr(self, 'device_index'):
             return self.device_index
         return None
@@ -288,10 +320,10 @@ class modelo:
         """Establece el dispositivo de salida"""
         self.device_index_salida = device_index_salida
     def getNivelesA(self, NP='A'):
-        pico = self.aplicar_calibracion_spl(self.recorderPicoA)
-        inst = self.aplicar_calibracion_spl(self.recorderInstA)
-        fast = self.aplicar_calibracion_spl(self.recorderFastA)
-        slow = self.aplicar_calibracion_spl(self.recorderSlowA)
+        pico = self.recorderPicoA
+        inst = self.recorderInstA
+        fast = self.recorderFastA
+        slow = self.recorderSlowA
         
         if NP == 'P':
             return pico
@@ -305,10 +337,10 @@ class modelo:
             return (pico, inst, fast, slow)
             
     def getNivelesC(self, NP='A'):
-        pico = self.aplicar_calibracion_spl(self.recorderPicoC)
-        inst = self.aplicar_calibracion_spl(self.recorderInstC)
-        fast = self.aplicar_calibracion_spl(self.recorderFastC)
-        slow = self.aplicar_calibracion_spl(self.recorderSlowC)
+        pico = self.recorderPicoC
+        inst = self.recorderInstC
+        fast = self.recorderFastC
+        slow = self.recorderSlowC
 
         if NP == 'P':
             return pico
@@ -322,10 +354,10 @@ class modelo:
             return (pico, inst, fast, slow)
 
     def getNivelesZ(self, NP='A'):
-        pico = self.aplicar_calibracion_spl(self.recorderPicoZ)
-        inst = self.aplicar_calibracion_spl(self.recorderInstZ)
-        fast = self.aplicar_calibracion_spl(self.recorderFastZ)
-        slow = self.aplicar_calibracion_spl(self.recorderSlowZ)
+        pico = self.recorderPicoZ
+        inst = self.recorderInstZ
+        fast = self.recorderFastZ
+        slow = self.recorderSlowZ
 
         if NP == 'P':
             return pico
@@ -337,8 +369,8 @@ class modelo:
             return slow
         if NP == 'A':
             return (pico, inst, fast, slow)
-    def getCalibracionAutomatica(self):
-        return self.cal
+    def activar_calibracion(self, activar=True):
+        self.calibracion_activa = activar
         
     # ====== Niveles Equivalentes (Leq) y Percentiles ======
     def calculate_leq_and_percentiles(self):
@@ -372,10 +404,9 @@ class modelo:
             # Calcular percentiles
             percentiles = self._calculate_percentiles(fast_data)
             
-            # Aplicar calibración
-            leq_calibrado = self.aplicar_calibracion_spl(leq) if hasattr(self, 'aplicar_calibracion_spl') else leq
-            percentiles_calibrados = {k: self.aplicar_calibracion_spl(v) if hasattr(self, 'aplicar_calibracion_spl') else v 
-                                    for k, v in percentiles.items()}
+            # Los datos ya están calibrados, no se aplica de nuevo
+            leq_calibrado = leq
+            percentiles_calibrados = percentiles
             
             # Guardar resultados
             results[f'Leq{filtro}'] = leq_calibrado
@@ -437,6 +468,62 @@ class modelo:
         
         return percentiles
     
+    def update_statistical_levels_history(self, stats):
+        """
+        Actualiza los arrays históricos de niveles estadísticos con los nuevos valores calculados.
+        
+        Args:
+            stats (dict): Diccionario con los niveles estadísticos calculados
+        """
+        # Función auxiliar para agregar valor a un array con límite de tamaño
+        def append_with_limit(array, value, max_size=1000):
+            new_array = np.append(array, value)
+            if len(new_array) > max_size:
+                new_array = new_array[-max_size:]  # Mantener solo los últimos max_size valores
+            return new_array
+        
+        # Actualizar arrays del filtro Z
+        if 'LeqZ' in stats:
+            self.recorderLeqZ = append_with_limit(self.recorderLeqZ, stats['LeqZ'])
+        if 'L01Z' in stats:
+            self.recorderL01Z = append_with_limit(self.recorderL01Z, stats['L01Z'])
+        if 'L10Z' in stats:
+            self.recorderL10Z = append_with_limit(self.recorderL10Z, stats['L10Z'])
+        if 'L50Z' in stats:
+            self.recorderL50Z = append_with_limit(self.recorderL50Z, stats['L50Z'])
+        if 'L90Z' in stats:
+            self.recorderL90Z = append_with_limit(self.recorderL90Z, stats['L90Z'])
+        if 'L99Z' in stats:
+            self.recorderL99Z = append_with_limit(self.recorderL99Z, stats['L99Z'])
+        
+        # Actualizar arrays del filtro C
+        if 'LeqC' in stats:
+            self.recorderLeqC = append_with_limit(self.recorderLeqC, stats['LeqC'])
+        if 'L01C' in stats:
+            self.recorderL01C = append_with_limit(self.recorderL01C, stats['L01C'])
+        if 'L10C' in stats:
+            self.recorderL10C = append_with_limit(self.recorderL10C, stats['L10C'])
+        if 'L50C' in stats:
+            self.recorderL50C = append_with_limit(self.recorderL50C, stats['L50C'])
+        if 'L90C' in stats:
+            self.recorderL90C = append_with_limit(self.recorderL90C, stats['L90C'])
+        if 'L99C' in stats:
+            self.recorderL99C = append_with_limit(self.recorderL99C, stats['L99C'])
+        
+        # Actualizar arrays del filtro A
+        if 'LeqA' in stats:
+            self.recorderLeqA = append_with_limit(self.recorderLeqA, stats['LeqA'])
+        if 'L01A' in stats:
+            self.recorderL01A = append_with_limit(self.recorderL01A, stats['L01A'])
+        if 'L10A' in stats:
+            self.recorderL10A = append_with_limit(self.recorderL10A, stats['L10A'])
+        if 'L50A' in stats:
+            self.recorderL50A = append_with_limit(self.recorderL50A, stats['L50A'])
+        if 'L90A' in stats:
+            self.recorderL90A = append_with_limit(self.recorderL90A, stats['L90A'])
+        if 'L99A' in stats:
+            self.recorderL99A = append_with_limit(self.recorderL99A, stats['L99A'])
+    
 # -------------- funcion codigo YAMILI-----------------
     def normalize_data(self, data):
         """Normaliza los datos a un rango de -1 a 1"""
@@ -475,7 +562,11 @@ class modelo:
         
         # Filtrar frecuencias positivas
         valid = fft_freqs > 0
-        return fft_freqs[valid], fft_magnitude_db[valid]
+        
+        # Aplicar calibración
+        calibrated_fft_db = self.aplicar_calibracion_spl(fft_magnitude_db[valid])
+        
+        return fft_freqs[valid], calibrated_fft_db
 
     def calcular_tercios_octava(self, fft_freqs, fft_magnitude_db):
         """

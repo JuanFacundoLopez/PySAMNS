@@ -38,7 +38,7 @@ class controlador():
     def __init__(self):                             # Constructor del controlador
         self.cModel = modelo(self)                  # Conecto la referencia del modelo 
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
-        self.cCalWin = CalibracionWin(self,self.cVista)         # Ventana de calibración
+
 
         self.ventanas_abiertas = {
             "calibracion": None,
@@ -311,6 +311,9 @@ class controlador():
         # Calcular estadísticas
         stats = self.cModel.calculate_leq_and_percentiles()
         
+        # Actualizar arrays históricos de niveles estadísticos
+        self.cModel.update_statistical_levels_history(stats)
+        
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
             # Obtener el tiempo real transcurrido desde el inicio
@@ -328,19 +331,36 @@ class controlador():
             chunk_duration = self.cModel.chunk / self.cModel.rate
             tiempos = np.arange(len(pico_z)) * chunk_duration
         
+        # Crear tiempos para los arrays históricos de niveles estadísticos
+        # Usar el mismo intervalo de tiempo que los otros niveles
+        if len(pico_z) > 1:
+            time_interval = tiempos[1] - tiempos[0] if len(tiempos) > 1 else 1.0
+        else:
+            time_interval = 1.0
+        
+        # Crear tiempos para arrays históricos (pueden tener diferente longitud)
+        def create_times_for_array(array, base_times, interval):
+            if len(array) == 0:
+                return np.array([])
+            elif len(array) == 1:
+                return np.array([base_times[-1] if len(base_times) > 0 else 0.0])
+            else:
+                # Crear tiempos basados en el intervalo y la longitud del array
+                return np.arange(len(array)) * interval
+        
         # Organizar datos en estructura para la vista
         niveles_z = {
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
             'slow': slow_z,
-            # Añadir niveles estadísticos
-            'leq': np.full_like(tiempos, stats.get('LeqZ', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99Z', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqZ,
+            'l01': self.cModel.recorderL01Z,
+            'l10': self.cModel.recorderL10Z,
+            'l50': self.cModel.recorderL50Z,
+            'l90': self.cModel.recorderL90Z,
+            'l99': self.cModel.recorderL99Z
         }
         
         niveles_c = {
@@ -348,12 +368,13 @@ class controlador():
             'inst': inst_c,
             'fast': fast_c,
             'slow': slow_c,
-            'leq': np.full_like(tiempos, stats.get('LeqC', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99C', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqC,
+            'l01': self.cModel.recorderL01C,
+            'l10': self.cModel.recorderL10C,
+            'l50': self.cModel.recorderL50C,
+            'l90': self.cModel.recorderL90C,
+            'l99': self.cModel.recorderL99C
         }
         
         niveles_a = {
@@ -361,12 +382,13 @@ class controlador():
             'inst': inst_a,
             'fast': fast_a,
             'slow': slow_a,
-            'leq': np.full_like(tiempos, stats.get('LeqA', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99A', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Usar arrays históricos de niveles estadísticos
+            'leq': self.cModel.recorderLeqA,
+            'l01': self.cModel.recorderL01A,
+            'l10': self.cModel.recorderL10A,
+            'l50': self.cModel.recorderL50A,
+            'l90': self.cModel.recorderL90A,
+            'l99': self.cModel.recorderL99A
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a
@@ -391,6 +413,7 @@ class controlador():
 
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
+        self.get_nivel_data()
         self.graficar()
 
     def reset_all_data(self):
@@ -599,10 +622,13 @@ class controlador():
                 pass
 
         if ultima_amplitud_baja_thd is None:
-            error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
-            self.cCalWin.calWin.txtValorRef.setText("Error")
+            cal_db = 20 * np.log10(max(1e-6, 0.1))
+            error_message = f"No se pudo determinar una amplitud con THD < 0.01%. Aunque se utilizará como amplitud de referencia 0.1 y como offset de calibracion: {cal_db:.2f} .Verifique conexiones y niveles."
+            self.cModel.setCalibracionAutomatica(cal_db)
+            self.cModel.set_calibracion_offset_spl(cal_db)
+            self.cCalWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            self.cCalWin.calWin.txtValorRef.setText("Error")
+            self.cCalWin.txtValorRef.setText("Error")
             QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
             print(error_message)
             return False
@@ -610,9 +636,10 @@ class controlador():
         # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
         cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
         self.cModel.setCalibracionAutomatica(cal_db)
+        self.cModel.set_calibracion_offset_spl(cal_db)
 
         # Actualizar UI
-        self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
+        self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
         QMessageBox.information(
             self.cCalWin,
             "Calibración automática",
@@ -657,7 +684,7 @@ class controlador():
         """
         try:
             # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
+            ref_spl_text = self.cCalWin.txtValorRefExterna.text()
             if not ref_spl_text:
                 QMessageBox.warning(self.cCalWin, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
@@ -698,7 +725,7 @@ class controlador():
             medido_dbfs = self.cModel.calculate_db(audio_completo)
             
             # 4. Actualizar la interfaz con el valor medido
-            self.cVista.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
+            self.cCalWin.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
 
             # 5. Calcular el offset
             offset = ref_spl - medido_dbfs
@@ -707,7 +734,7 @@ class controlador():
             self.cModel.set_calibracion_offset_spl(offset)
             
             # 7. Actualizar la interfaz con el offset
-            self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
+            self.cCalWin.lblFactorAjuste.setText(f"{offset:.2f} dB")
 
             QMessageBox.information(self.cCalWin, "Calibración Completa", 
                                    f"Calibración finalizada con éxito.\n\n"
@@ -726,8 +753,20 @@ class controlador():
 
     def calFuenteCalibracionExterna(self):
         try:
-            ref_level = float(self.cVista.calWin.txtValorRef.text())
-        except (ValueError, AttributeError):
+            valor_ref_str = self.cCalWin.txtValorRef.text()
+            print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
+            valor_ref_str_cleaned = valor_ref_str.strip()
+            if not valor_ref_str_cleaned:
+                raise ValueError("El valor de referencia no puede estar vacío.")
+            
+            valor_para_float = valor_ref_str_cleaned.replace(',', '.')
+            print(f"DEBUG: Valor después de limpiar y reemplazar comas: '{valor_para_float}'")
+            
+            ref_level = float(valor_para_float)
+            print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+
+        except (ValueError, AttributeError) as e:
+            print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
             QMessageBox.warning(self.cCalWin, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
@@ -803,12 +842,17 @@ class controlador():
             # Convertir a array de numpy
             captured_audio = np.array(captured_audio)
             
-            # Calcular el nivel RMS en dBFS
+            # Calcular el nivel RMS en dBSPL
             rms = np.sqrt(np.mean(captured_audio**2))
             rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+            #calcular dBFS
+            rms_dbfs = 20 * np.log10(rms/1.0)
             
             # Calcular el factor de calibración
             cal = ref_level - rms_db
+
+            #calcular offset
+            offset = ref_level - rms_dbfs
             
             print(f"Nivel de referencia: {ref_level} dB")
             print(f"Nivel RMS medido: {rms_db:.2f} dB")
@@ -816,6 +860,9 @@ class controlador():
             
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
+
+            # Guardar el offset en el modelo
+            self.cModel.set_calibracion_offset_spl(offset)
             
             # # Actualizar la UI
             # self.cVista.txtValorRef.setText(f"{cal:.2f}")
@@ -847,9 +894,10 @@ class controlador():
     def abrir_calibracion(self):
         if self.ventanas_abiertas["calibracion"] is None:
             self.ventanas_abiertas["calibracion"] = CalibracionWin(self, self.cVista)
-        self.ventanas_abiertas["calibracion"].showNormal()
-        self.ventanas_abiertas["calibracion"].raise_()
-        self.ventanas_abiertas["calibracion"].activateWindow()
+        self.cCalWin = self.ventanas_abiertas["calibracion"]
+        self.cCalWin.showNormal()
+        self.cCalWin.raise_()
+        self.cCalWin.activateWindow()
 
     def abrir_generador(self):
         if self.ventanas_abiertas["generador"] is None:
@@ -899,3 +947,8 @@ class controlador():
         self.ventanas_abiertas["grabaciones"].showNormal()
         self.ventanas_abiertas["grabaciones"].raise_()
         self.ventanas_abiertas["grabaciones"].activateWindow()
+
+    def aceptar_calibracion(self):
+        self.cModel.activar_calibracion(True)
+        if self.cCalWin:
+            self.cCalWin.close()

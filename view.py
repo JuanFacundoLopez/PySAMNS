@@ -969,7 +969,9 @@ class vista(QMainWindow):
         else:
             # Configuración por defecto para gráfico de nivel
             self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
-            self.waveform1.setYRange(-150, 0, padding=0)  # Rango de presión en dB (ajustado para mostrar datos más bajos)
+            self.waveform1.setYRange(-120, 0, padding=0)
+            # Invert the Y-axis to show negative values at the bottom
+            self.waveform1.invertY(False)  # This will invert the Y-axis
             self.waveform1.setXRange(0, 10, padding=0)  # Rango de tiempo en segundos
             self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
@@ -1173,6 +1175,35 @@ class vista(QMainWindow):
         if hasattr(color, 'name'):
             return color.name()
         return color
+    
+    def configure_bar_chart_y_range(self, niveles):
+        """
+        Configura el rango Y para el gráfico de barras.
+        Va desde -120 dB (piso de ruido) hasta el valor máximo capturado.
+        Las barras se extienden desde -120 dB hacia arriba hasta el valor capturado.
+        """
+        # Piso de ruido típico en dB (equivalente a -infinito para efectos prácticos)
+        y_min = -120.0
+        
+        # Valor máximo de los niveles capturados (menos negativo, que es el "techo" del gráfico)
+        y_max = np.max(niveles) if len(niveles) > 0 else -20.0
+        
+        # Asegurar que el rango máximo sea al menos 20 dB por encima del piso
+        if y_max < y_min + 20:
+            y_max = y_min + 20
+        
+        # Inicializar o actualizar el rango Y fijo
+        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
+            self.fft_ymin = y_min
+            self.fft_ymax = y_max
+        else:
+            # Mantener el piso fijo en -120 dB
+            self.fft_ymin = -120.0
+            # Actualizar solo el máximo si es mayor (menos negativo)
+            if y_max > self.fft_ymax:
+                self.fft_ymax = y_max
+        
+        return self.fft_ymin, self.fft_ymax
 
 # CODIGO YAMILI
 
@@ -1287,15 +1318,48 @@ class vista(QMainWindow):
                             print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
                             return
                         
-                        # Crear el gráfico de barras
-                        bar_item = pg.BarGraphItem(
-                            x=x_positions, 
-                            height=niveles, 
-                            width=bar_width, 
-                            brush=color,
-                            pen=pg.mkPen(color='black', width=1)
-                        )
-                        self.waveform1.addItem(bar_item)
+                        # Calcular la altura de las barras desde -120 dB hasta el valor capturado
+                        piso_ruido = -120.0
+                        bar_heights = niveles - piso_ruido  # Altura = valor_capturado - (-120) = valor_capturado + 120
+                        bar_bottoms = np.full_like(niveles, piso_ruido)  # Base de las barras en -120 dB
+                        
+                        # Debug: mostrar el color que se está usando
+                        print(f"Color de las barras: {color}")
+                        print(f"Tipo de color: {type(color)}")
+                        
+                        # Crear barras individuales usando PlotDataItem
+                        print("Creando barras individuales...")
+                        
+                        # Calcular el ancho de cada barra para que se toquen (sin espacios)
+                        total_width = len(bandas)  # Ancho total disponible
+                        bar_width = total_width / len(bandas)  # Ancho de cada barra
+                        
+                        for i, (x, height, nivel) in enumerate(zip(x_positions, bar_heights, niveles)):
+                            if height > 0:  # Solo crear barras con altura positiva
+                                # Calcular los límites de la barra (sin espacios)
+                                x_left = x - bar_width/2
+                                x_right = x + bar_width/2
+                                
+                                # Crear puntos para la barra: base y cima
+                                x_vals = [x_left, x_right, x_right, x_left, x_left]
+                                y_vals = [piso_ruido, piso_ruido, nivel, nivel, piso_ruido]
+                                
+                                # Usar el color de la configuración
+                                bar_color = self.get_color_str(color)
+                                print(f"Usando color: {bar_color}")
+                                
+                                # Crear la barra como un PlotDataItem
+                                bar_item = pg.PlotDataItem(
+                                    x_vals, y_vals, 
+                                    pen=pg.mkPen('black', width=1),
+                                    brush=pg.mkBrush(bar_color),
+                                    fillLevel=piso_ruido,
+                                    fillBrush=pg.mkBrush(bar_color)
+                                )
+                                self.waveform1.addItem(bar_item)
+                                print(f"Barra {i}: x={x:.1f}, ancho={bar_width:.2f}, altura={height:.1f}, nivel={nivel:.1f} dB")
+                        
+                        print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
                         
                         if self.var_valoresOctavas:
                             for i, h in enumerate(niveles):
@@ -1305,30 +1369,24 @@ class vista(QMainWindow):
                                 text_item.setAngle(45)
                                 self.waveform1.addItem(text_item)
                             
-                        # Configurar rangos de ejes
+                        # Configurar rangos de ejes - ajustar para barras sin espacios
                         self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
                         
-                        # Rango Y dinámico basado en los niveles
-                        y_min = np.min(niveles) if len(niveles) > 0 else 0
-                        y_max = np.max(niveles) if len(niveles) > 0 else 1
-                        y_range = y_max - y_min
-                        if y_range == 0:
-                            y_range = 1
+                        # Configurar rango Y usando la función auxiliar
+                        y_min, y_max = self.configure_bar_chart_y_range(niveles)
+                        self.waveform1.setYRange(y_min, y_max)
                         
-                        # Usar el mismo sistema de rango Y fijo que el gráfico de línea
-                        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
-                            self.fft_ymin = y_min
-                            self.fft_ymax = y_max
-                        else:
-                            if y_min < self.fft_ymin:
-                                self.fft_ymin = y_min
-                            if y_max > self.fft_ymax:
-                                self.fft_ymax = y_max
-                        
-                        self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
+                        # Debug: mostrar información del rango Y
+                        print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
+                        print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
+                        print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
+                        print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
+                        print(f"Posiciones X: {x_positions[:5]}...")
+                        print(f"Ancho de barras: {bar_width}")
+                        print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB)')
+                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
@@ -1509,9 +1567,9 @@ class vista(QMainWindow):
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=3, style=QtCore.Qt.SolidLine), name='A Slow')
                         print(f"DEBUG SLOW A: Plot creado")
 
-                    # --- Ploteo de niveles estadísticos (horizontales constantes) ---
+                    # --- Ploteo de niveles estadísticos (evolución temporal) ---
                     # Colores fijos por tipo de Ln (para parecerse al ejemplo: L10 rojo, L50 verde, L90 naranja)
-                    # Usamos InfiniteLine en el último valor (asumiendo que es el percentile cumulativo actual)
+                    # Ahora usamos PlotDataItem para mostrar evolución temporal
                     color_map = {
                         'leq': 'purple',   # Leq: morado
                         'l01': 'yellow',   # L01: amarillo
@@ -1522,154 +1580,52 @@ class vista(QMainWindow):
                     }
                     style_map = QtCore.Qt.DashLine  # Dashed para todos los estadísticos
                     
-                    # Z Statistical - Añadir debugs detallados
-                    print(f"DEBUG Stats Z - leq checked: {self.cbEqZ.isChecked()}, len: {len(niveles_Z.get('leq', []))}, último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqZ.isChecked() and len(niveles_Z.get('leq', [])) > 0:
-                        value = niveles_Z['leq'][-1]
-                        pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z Leq: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z Leq: Línea añadida en {value:.1f} dB")
+                    # Función auxiliar para crear gráfico temporal de nivel estadístico
+                    def plot_statistical_level(niveles_data, tiempos_data, color, label, checkbox_checked):
+                        if checkbox_checked and len(niveles_data) > 0:
+                            # Crear tiempos para el array histórico si no existen
+                            if len(tiempos_data) == 0 or len(tiempos_data) != len(niveles_data):
+                                if len(niveles_data) > 1:
+                                    # Crear tiempos basados en el intervalo promedio
+                                    interval = 1.0  # 1 segundo por defecto
+                                    tiempos_hist = np.arange(len(niveles_data)) * interval
+                                else:
+                                    tiempos_hist = np.array([0.0])
+                            else:
+                                tiempos_hist = tiempos_data
+                            
+                            # Crear el gráfico temporal
+                            pen = pg.mkPen(color=color, width=2, style=style_map)
+                            plot = self.waveform1.plot(tiempos_hist, niveles_data, pen=pen, name=label)
+                            print(f"DEBUG Stats: Gráfico temporal creado para {label} con {len(niveles_data)} puntos")
+                            return plot
+                        return None
                     
-                    print(f"DEBUG Stats Z - l01 checked: {self.cb01Z.isChecked()}, len: {len(niveles_Z.get('l01', []))}, último: {niveles_Z.get('l01', [0])[-1] if len(niveles_Z.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01Z.isChecked() and len(niveles_Z.get('l01', [])) > 0:
-                        value = niveles_Z['l01'][-1]
-                        pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L01: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z L01: Línea añadida en {value:.1f} dB")
+                    # Z Statistical - Gráficos temporales
+                    plot_statistical_level(niveles_Z.get('leq', []), xdata, color_map['leq'], 'Z Leq', self.cbEqZ.isChecked())
                     
-                    print(f"DEBUG Stats Z - l10 checked: {self.cb10Z.isChecked()}, len: {len(niveles_Z.get('l10', []))}, último: {niveles_Z.get('l10', [0])[-1] if len(niveles_Z.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10Z.isChecked() and len(niveles_Z.get('l10', [])) > 0:
-                        value = niveles_Z['l10'][-1]
-                        pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L10: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z L10: Línea añadida en {value:.1f} dB")
+                    # Z Statistical - Todos los niveles
+                    plot_statistical_level(niveles_Z.get('l01', []), xdata, color_map['l01'], 'Z L01', self.cb01Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l10', []), xdata, color_map['l10'], 'Z L10', self.cb10Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l50', []), xdata, color_map['l50'], 'Z L50', self.cb50Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l90', []), xdata, color_map['l90'], 'Z L90', self.cb90Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l99', []), xdata, color_map['l99'], 'Z L99', self.cb99Z.isChecked())
                     
-                    print(f"DEBUG Stats Z - l50 checked: {self.cb50Z.isChecked()}, len: {len(niveles_Z.get('l50', []))}, último: {niveles_Z.get('l50', [0])[-1] if len(niveles_Z.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50Z.isChecked() and len(niveles_Z.get('l50', [])) > 0:
-                        value = niveles_Z['l50'][-1]
-                        pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L50: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z L50: Línea añadida en {value:.1f} dB")
+                    # C Statistical - Gráficos temporales
+                    plot_statistical_level(niveles_C.get('leq', []), xdata, color_map['leq'], 'C Leq', self.cbEqC.isChecked())
+                    plot_statistical_level(niveles_C.get('l01', []), xdata, color_map['l01'], 'C L01', self.cb01C.isChecked())
+                    plot_statistical_level(niveles_C.get('l10', []), xdata, color_map['l10'], 'C L10', self.cb10C.isChecked())
+                    plot_statistical_level(niveles_C.get('l50', []), xdata, color_map['l50'], 'C L50', self.cb50C.isChecked())
+                    plot_statistical_level(niveles_C.get('l90', []), xdata, color_map['l90'], 'C L90', self.cb90C.isChecked())
+                    plot_statistical_level(niveles_C.get('l99', []), xdata, color_map['l99'], 'C L99', self.cb99C.isChecked())
                     
-                    print(f"DEBUG Stats Z - l90 checked: {self.cb90Z.isChecked()}, len: {len(niveles_Z.get('l90', []))}, último: {niveles_Z.get('l90', [0])[-1] if len(niveles_Z.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90Z.isChecked() and len(niveles_Z.get('l90', [])) > 0:
-                        value = niveles_Z['l90'][-1]
-                        pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L90: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z L90: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats Z - l99 checked: {self.cb99Z.isChecked()}, len: {len(niveles_Z.get('l99', []))}, último: {niveles_Z.get('l99', [0])[-1] if len(niveles_Z.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99Z.isChecked() and len(niveles_Z.get('l99', [])) > 0:
-                        value = niveles_Z['l99'][-1]
-                        pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'Z L99: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats Z L99: Línea añadida en {value:.1f} dB")
-                    
-                    # C Statistical - Añadir debugs similares
-                    print(f"DEBUG Stats C - leq checked: {self.cbEqC.isChecked()}, len: {len(niveles_C.get('leq', []))}, último: {niveles_C.get('leq', [0])[-1] if len(niveles_C.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqC.isChecked() and len(niveles_C.get('leq', [])) > 0:
-                        value = niveles_C['leq'][-1]
-                        pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C Leq: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C Leq: Línea añadida en {value:.1f} dB")
-                    
-                    # (Repite para l01C, l10C, l50C, l90C, l99C con prints similares)
-                    
-                    print(f"DEBUG Stats C - l01 checked: {self.cb01C.isChecked()}, len: {len(niveles_C.get('l01', []))}, último: {niveles_C.get('l01', [0])[-1] if len(niveles_C.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01C.isChecked() and len(niveles_C.get('l01', [])) > 0:
-                        value = niveles_C['l01'][-1]
-                        pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L01: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C L01: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats C - l10 checked: {self.cb10C.isChecked()}, len: {len(niveles_C.get('l10', []))}, último: {niveles_C.get('l10', [0])[-1] if len(niveles_C.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10C.isChecked() and len(niveles_C.get('l10', [])) > 0:
-                        value = niveles_C['l10'][-1]
-                        pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L10: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C L10: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats C - l50 checked: {self.cb50C.isChecked()}, len: {len(niveles_C.get('l50', []))}, último: {niveles_C.get('l50', [0])[-1] if len(niveles_C.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50C.isChecked() and len(niveles_C.get('l50', [])) > 0:
-                        value = niveles_C['l50'][-1]
-                        pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L50: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C L50: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats C - l90 checked: {self.cb90C.isChecked()}, len: {len(niveles_C.get('l90', []))}, último: {niveles_C.get('l90', [0])[-1] if len(niveles_C.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90C.isChecked() and len(niveles_C.get('l90', [])) > 0:
-                        value = niveles_C['l90'][-1]
-                        pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L90: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C L90: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats C - l99 checked: {self.cb99C.isChecked()}, len: {len(niveles_C.get('l99', []))}, último: {niveles_C.get('l99', [0])[-1] if len(niveles_C.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99C.isChecked() and len(niveles_C.get('l99', [])) > 0:
-                        value = niveles_C['l99'][-1]
-                        pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'C L99: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats C L99: Línea añadida en {value:.1f} dB")
-                    
-                    # A Statistical - Similar debugs
-                    print(f"DEBUG Stats A - leq checked: {self.cbEqA.isChecked()}, len: {len(niveles_A.get('leq', []))}, último: {niveles_A.get('leq', [0])[-1] if len(niveles_A.get('leq', [])) > 0 else 'N/A'}")
-                    if self.cbEqA.isChecked() and len(niveles_A.get('leq', [])) > 0:
-                        value = niveles_A['leq'][-1]
-                        pen = pg.mkPen(color=color_map['leq'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A Leq: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A Leq: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats A - l01 checked: {self.cb01A.isChecked()}, len: {len(niveles_A.get('l01', []))}, último: {niveles_A.get('l01', [0])[-1] if len(niveles_A.get('l01', [])) > 0 else 'N/A'}")
-                    if self.cb01A.isChecked() and len(niveles_A.get('l01', [])) > 0:
-                        value = niveles_A['l01'][-1]
-                        pen = pg.mkPen(color=color_map['l01'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L01: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A L01: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats A - l10 checked: {self.cb10A.isChecked()}, len: {len(niveles_A.get('l10', []))}, último: {niveles_A.get('l10', [0])[-1] if len(niveles_A.get('l10', [])) > 0 else 'N/A'}")
-                    if self.cb10A.isChecked() and len(niveles_A.get('l10', [])) > 0:
-                        value = niveles_A['l10'][-1]
-                        pen = pg.mkPen(color=color_map['l10'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L10: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A L10: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats A - l50 checked: {self.cb50A.isChecked()}, len: {len(niveles_A.get('l50', []))}, último: {niveles_A.get('l50', [0])[-1] if len(niveles_A.get('l50', [])) > 0 else 'N/A'}")
-                    if self.cb50A.isChecked() and len(niveles_A.get('l50', [])) > 0:
-                        value = niveles_A['l50'][-1]
-                        pen = pg.mkPen(color=color_map['l50'], width=1.5, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L50: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A L50: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats A - l90 checked: {self.cb90A.isChecked()}, len: {len(niveles_A.get('l90', []))}, último: {niveles_A.get('l90', [0])[-1] if len(niveles_A.get('l90', [])) > 0 else 'N/A'}")
-                    if self.cb90A.isChecked() and len(niveles_A.get('l90', [])) > 0:
-                        value = niveles_A['l90'][-1]
-                        pen = pg.mkPen(color=color_map['l90'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L90: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A L90: Línea añadida en {value:.1f} dB")
-                    
-                    print(f"DEBUG Stats A - l99 checked: {self.cb99A.isChecked()}, len: {len(niveles_A.get('l99', []))}, último: {niveles_A.get('l99', [0])[-1] if len(niveles_A.get('l99', [])) > 0 else 'N/A'}")
-                    if self.cb99A.isChecked() and len(niveles_A.get('l99', [])) > 0:
-                        value = niveles_A['l99'][-1]
-                        pen = pg.mkPen(color=color_map['l99'], width=1, style=style_map)
-                        line = pg.InfiniteLine(pos=value, angle=0, pen=pen, label=f'A L99: {value:.1f} dB')
-                        self.waveform1.addItem(line)
-                        print(f"DEBUG Stats A L99: Línea añadida en {value:.1f} dB")
+                    # A Statistical - Gráficos temporales
+                    plot_statistical_level(niveles_A.get('leq', []), xdata, color_map['leq'], 'A Leq', self.cbEqA.isChecked())
+                    plot_statistical_level(niveles_A.get('l01', []), xdata, color_map['l01'], 'A L01', self.cb01A.isChecked())
+                    plot_statistical_level(niveles_A.get('l10', []), xdata, color_map['l10'], 'A L10', self.cb10A.isChecked())
+                    plot_statistical_level(niveles_A.get('l50', []), xdata, color_map['l50'], 'A L50', self.cb50A.isChecked())
+                    plot_statistical_level(niveles_A.get('l90', []), xdata, color_map['l90'], 'A L90', self.cb90A.isChecked())
+                    plot_statistical_level(niveles_A.get('l99', []), xdata, color_map['l99'], 'A L99', self.cb99A.isChecked())
                     
                     # Ajustar rango X para mostrar los últimos 10 segundos
                     if len(xdata) > 0:
