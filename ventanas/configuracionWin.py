@@ -83,7 +83,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addLayout(escalaLayoutTiempo)
         
         # Límites X
-        ejeXGroupTiempo = QGroupBox("Límites del eje X")
+        ejeXGroupTiempo = QGroupBox("Eje X")
         ejeXLayoutTiempo = QGridLayout()
         ejeXLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinTiempo = QLineEdit()
@@ -99,7 +99,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutTiempo.addWidget(ejeXGroupTiempo)
         
         # Límites Y
-        ejeYGroupTiempo = QGroupBox("Límites del eje Y")
+        ejeYGroupTiempo = QGroupBox("Eje Y")
         ejeYLayoutTiempo = QGridLayout()
         ejeYLayoutTiempo.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinTiempo = QLineEdit()
@@ -169,7 +169,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addLayout(escalaLayoutEspectro)
         
         # Límites X
-        ejeXGroupEspectro = QGroupBox("Límites del eje X")
+        ejeXGroupEspectro = QGroupBox("Eje X")
         ejeXLayoutEspectro = QGridLayout()
         ejeXLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinEspectro = QLineEdit()
@@ -186,18 +186,21 @@ class ConfiguracionWin(QMainWindow):
         self.txtXMaxEspectro.editingFinished.connect(self.validarLimiteXMaxEspectro)
         
         # Límites Y
-        ejeYGroupEspectro = QGroupBox("Límites del eje Y")
+        ejeYGroupEspectro = QGroupBox("Eje Y")
         ejeYLayoutEspectro = QGridLayout()
         ejeYLayoutEspectro.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinEspectro = QLineEdit()
         self.txtYMinEspectro.setMaximumWidth(100)
+        self.txtYMaxEspectro = QLineEdit()
+        self.txtYMaxEspectro.setMaximumWidth(100)
+        self.chkEjeY2 = QCheckBox("Eje Y secundario visible")
+        self.chkEjeY2.setChecked(True)
         ejeYLayoutEspectro.addWidget(self.txtYMinEspectro, 0, 1)
         ejeYLayoutEspectro.addWidget(QLabel("[dB]"), 0, 2)
         ejeYLayoutEspectro.addWidget(QLabel("Máximo:"), 0, 3)
-        ejeYLayoutEspectro.addWidget(QLabel("[dB]"), 0, 5)
-        self.txtYMaxEspectro = QLineEdit()
-        self.txtYMaxEspectro.setMaximumWidth(100)
         ejeYLayoutEspectro.addWidget(self.txtYMaxEspectro, 0, 4)
+        ejeYLayoutEspectro.addWidget(QLabel("[dB]"), 0, 5)
+        ejeYLayoutEspectro.addWidget(self.chkEjeY2, 1, 0, 1, 6, Qt.AlignCenter)        
         ejeYGroupEspectro.setLayout(ejeYLayoutEspectro)
         ejesLayoutEspectro.addWidget(ejeYGroupEspectro)
         
@@ -233,10 +236,15 @@ class ConfiguracionWin(QMainWindow):
         tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
         self.cmbTipoGraficoEspectro = QComboBox()
         self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras-octavas", "Barras-tercios"])
+        self.chkValoresColumna = QCheckBox("Agregar detalle a nivel")
+        self.chkValoresColumna.setChecked(True)
+        self.chkValoresColumna.setVisible(False)
         tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro)
+        tipoGraficoLayoutEspectro.addWidget(self.chkValoresColumna)
         tipoGraficoLayoutEspectro.addStretch()
         tipoGraficoGroupEspectro.setLayout(tipoGraficoLayoutEspectro)
         ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
+        self.cmbTipoGraficoEspectro.currentIndexChanged.connect(self.mostrarchkValores)
         
         self.ejesGroupEspectro.setLayout(ejesLayoutEspectro)
     
@@ -254,7 +262,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addLayout(escalaLayoutNivel)
         
         # Límites X
-        ejeXGroupNivel = QGroupBox("Límites del eje X")
+        ejeXGroupNivel = QGroupBox("Eje X")
         ejeXLayoutNivel = QGridLayout()
         ejeXLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtXMinNivel = QLineEdit()
@@ -270,7 +278,7 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutNivel.addWidget(ejeXGroupNivel)
         
         # Límites Y
-        ejeYGroupNivel = QGroupBox("Límites del eje Y")
+        ejeYGroupNivel = QGroupBox("Eje Y")
         ejeYLayoutNivel = QGridLayout()
         ejeYLayoutNivel.addWidget(QLabel("Mínimo:"), 0, 0)
         self.txtYMinNivel = QLineEdit()
@@ -324,6 +332,13 @@ class ConfiguracionWin(QMainWindow):
         
         self.ejesGroupNivel.setLayout(ejesLayoutNivel)
     
+    def mostrarchkValores(self):
+        if self.cmbTipoGraficoEspectro.currentText() in ["Barras-octavas", "Barras-tercios"]:
+            self.chkValoresColumna.setVisible((True))
+            return
+        self.chkValoresColumna.setVisible((False))
+        return
+    
     def cargarValoresActuales(self):
         """Carga los valores actuales desde la vista principal"""
         # Valores de tiempo
@@ -343,6 +358,7 @@ class ConfiguracionWin(QMainWindow):
         self.txtXMaxEspectro.setText(str(getattr(self.vista, 'var_xMaxEspectro', 1024)))
         self.txtYMinEspectro.setText(str(getattr(self.vista, 'var_yMinEspectro', -1)))
         self.txtYMaxEspectro.setText(str(getattr(self.vista, 'var_yMaxEspectro', 1)))
+        self.chkEjeY2.setChecked(getattr(self.vista, 'var_eje2Visible', True))
         self.txtEtiquetaXEspectro.setText(getattr(self.vista, 'var_etiquetaXEspectro', 'Tiempo'))
         self.txtEtiquetaYEspectro.setText(getattr(self.vista, 'var_etiquetaYEspectro', 'Amplitud Normalizada'))
         
@@ -381,6 +397,8 @@ class ConfiguracionWin(QMainWindow):
             idx = self.cmbTipoGraficoEspectro.findText(self.vista.var_tipoGraficoEspectro)
             if idx >= 0:
                 self.cmbTipoGraficoEspectro.setCurrentIndex(idx)
+        
+        self.chkValoresColumna.setChecked(getattr(self.vista, 'var_valoresOctavas', True))
                 
         if hasattr(self.vista, 'var_tipoLineaNivel') and self.vista.var_tipoLineaNivel:
             idx = self.cmbTipoLineaNivel.findText(self.vista.var_tipoLineaNivel)
@@ -425,7 +443,9 @@ class ConfiguracionWin(QMainWindow):
                     'yMax': float(self.txtYMaxEspectro.text()),
                     'etiquetaX': self.txtEtiquetaXEspectro.text(),
                     'etiquetaY': self.txtEtiquetaYEspectro.text(),
-                    'tipoGrafico': self.cmbTipoGraficoEspectro.currentText()
+                    'eje2':self.chkEjeY2.isChecked(),
+                    'tipoGrafico': self.cmbTipoGraficoEspectro.currentText(),
+                    'valoresOcta': self.chkValoresColumna.isChecked()
                 },
                 'nivel': {
                     'logModeY': self.cbEscalaYNivel.isChecked(),

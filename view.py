@@ -105,7 +105,6 @@ class FrequencyAxisItem(pg.AxisItem):
         self.bandas = new_bandas
         self.update()
 
-
 class vista(QMainWindow):
 
     def resizeEvent(self, event):
@@ -236,6 +235,8 @@ class vista(QMainWindow):
         self.var_yMaxTiempo = 1
         self.var_xMinEspectro = np.log10(20)
         self.var_xMaxEspectro = np.log10(20000)
+        self.var_eje2Visible = True
+        self.var_valoresOctavas = True
         self.var_yMinEspectro = -120
         self.var_yMaxEspectro = 0
         self.var_xMinNivel = 0
@@ -908,10 +909,11 @@ class vista(QMainWindow):
         
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
-        self._ensure_right_axis()
-        self._ejeYDer_titulo_base = "Nivel (dB)"
-        self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
-        self.vb_right.setYRange(0, 120, padding=0)
+        if self.var_eje2Visible:
+            self._ensure_right_axis()
+            self._ejeYDer_titulo_base = "Nivel (dB)"
+            self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
+            self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
@@ -992,7 +994,7 @@ class vista(QMainWindow):
         return cal_auto or (ruta_ext is not None) or (abs(offset) > 1e-9)
 
     def actualizar_badge_calibracion_pyqtgraph(self):
-        if self.esta_calibrado():
+        if self.esta_calibrado() or self.btnTiempo.isChecked:
             # Sin badge
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
             if self.btnFrecuencia.isChecked():
@@ -1295,12 +1297,13 @@ class vista(QMainWindow):
                         )
                         self.waveform1.addItem(bar_item)
                         
-                        for i, h in enumerate(niveles):
-                            # Position the text slightly above the bar
-                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                            text_item.setAngle(45)
-                            self.waveform1.addItem(text_item)
+                        if self.var_valoresOctavas:
+                            for i, h in enumerate(niveles):
+                                # Position the text slightly above the bar
+                                text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
+                                text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
+                                text_item.setAngle(45)
+                                self.waveform1.addItem(text_item)
                             
                         # Configurar rangos de ejes
                         self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
@@ -1729,9 +1732,11 @@ class vista(QMainWindow):
             self.var_xMaxEspectro = config['espectro']['xMax']
             self.var_yMinEspectro = config['espectro']['yMin']
             self.var_yMaxEspectro = config['espectro']['yMax']
+            self.var_eje2Visible = config['espectro']['eje2']
             self.var_etiquetaXEspectro = config['espectro']['etiquetaX']
             self.var_etiquetaYEspectro = config['espectro']['etiquetaY']
             self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
+            self.var_valoresOctavas = config['espectro']['valoresOcta']
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']
