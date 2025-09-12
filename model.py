@@ -186,16 +186,36 @@ class modelo:
     def setFs(self,Fs):
         self.Fs = Fs
     def setSignalData(self, signaldata):
-        signaldataA = filtA(signaldata, self.Fs)
-        signaldataC = filtC(signaldata, self.Fs)
-        self.signaldataZ = signaldata   
-        self.signaldataA = signaldataA
-        self.signaldataC = signaldataC
-            # Forma de onda en frecuencia
-        yf = fft(signaldata)
-        yf = np.abs(yf[0:int(self.chunk/2)])
-        self.setSignalFrec(yf) #Guardo en modelo
+        print("\n=== setSignalData llamado ===")
+        print(f"Tipo de signaldata: {type(signaldata)}")
+        print(f"Tamaño de signaldata: {len(signaldata) if hasattr(signaldata, '__len__') else 'No tiene longitud'}")
         
+        try:
+            signaldataA = filtA(signaldata, self.Fs)
+            signaldataC = filtC(signaldata, self.Fs)
+            self.signaldataZ = signaldata   
+            self.signaldataA = signaldataA
+            self.signaldataC = signaldataC
+            
+            print("Filtros aplicados correctamente")
+            print(f"Tamaños - A: {len(signaldataA)}, C: {len(signaldataC)}, Z: {len(signaldata)}")
+            
+            # Forma de onda en frecuencia
+            print("\nCalculando FFT...")
+            yf = fft(signaldata)
+            print(f"Tamaño de yf: {len(yf)}")
+            yf = np.abs(yf[0:int(self.chunk/2)])
+            print(f"Tamaño de yf después de recorte: {len(yf)}")
+            
+            print("\nLlamando a setSignalFrec...")
+            self.setSignalFrec(yf)  # Guardo en modelo
+            print("setSignalFrec llamado exitosamente")
+            
+        except Exception as e:
+            print(f"Error en setSignalData: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
     def setNivelesZ(self, recorderPicoZ=0, recorderInstZ=0, recorderFastZ=0, recorderSlowZ=0, mode='a'):
         if mode == 'a': # voy concatenando los vectores
             self.recorderPicoZ = np.append(self.recorderPicoZ, self.aplicar_calibracion_spl(recorderPicoZ))
@@ -233,12 +253,27 @@ class modelo:
             self.recorderFastA = np.empty(0)
             self.recorderSlowA = np.empty(0)    
     def setSignalFrec(self, SignalFrec):
-
-        SignalFrecC = filtFrecC(SignalFrec, self.Fs)
-        SignalFrecA = filtFrecA(SignalFrec, self.Fs)
-        self.SignalFrecA = SignalFrecA
-        self.SignalFrecC = SignalFrecC
-        self.SignalFrecZ = SignalFrec
+        print("\n=== setSignalFrec llamado ===")
+        print(f"Tipo de SignalFrec: {type(SignalFrec)}")
+        print(f"Tamaño de SignalFrec: {len(SignalFrec) if hasattr(SignalFrec, '__len__') else 'No tiene longitud'}")
+        
+        try:
+            SignalFrecC = filtFrecC(SignalFrec, self.Fs)
+            SignalFrecA = filtFrecA(SignalFrec, self.Fs)
+            self.SignalFrecA = SignalFrecA
+            self.SignalFrecC = SignalFrecC
+            self.SignalFrecZ = SignalFrec
+            
+            # Debug: Verificar tamaños
+            print(f"Tamaños - A: {len(SignalFrecA)}, C: {len(SignalFrecC)}, Z: {len(SignalFrec)}")
+            
+            # Verificar algunos valores
+            if len(SignalFrec) > 100:
+                print(f"Valor en 1kHz (Z): {SignalFrec[100]}")
+                print(f"Valor en 1kHz (A): {SignalFrecA[100]}")
+                print(f"Valor en 1kHz (C): {SignalFrecC[100]}")
+        except Exception as e:
+            print(f"Error en setSignalFrec: {str(e)}")
     def setCalibracionAutomatica(self, k):
         self.offset_calibracion_spl = k
 
@@ -273,6 +308,9 @@ class modelo:
         if Mode == 'A':
             return self.signaldataA
     def getSignalFrec(self, Mode='Z'):
+        print(f"\n=== Llamada a getSignalFrec con Mode={Mode} ===")
+        
+        # Obtener el espectro según el modo
         if Mode == 'Z':
             mag_spec = self.SignalFrecZ
         elif Mode == 'C':
@@ -281,17 +319,31 @@ class modelo:
             mag_spec = self.SignalFrecA
         else:
             mag_spec = np.array([])
-
-        if mag_spec.size == 0:
-            return np.array([])
-
-        # Convert magnitude to dB, avoiding log(0)
-        db_spec = 20 * np.log10(np.maximum(mag_spec, 1e-9))
-
-        # Apply calibration
-        calibrated_db_spec = self.aplicar_calibracion_spl(db_spec)
         
-        return calibrated_db_spec
+        # Debug detallado
+        print(f"Tipo de mag_spec: {type(mag_spec)}")
+        print(f"Tamaño de mag_spec: {len(mag_spec) if hasattr(mag_spec, '__len__') else 'No tiene longitud'}")
+        
+        if len(mag_spec) > 0:
+            try:
+                print(f"\nFiltro {Mode} - Valores de muestra:")
+                print(f"Longitud total: {len(mag_spec)}")
+                print(f"Primeros 5 valores: {mag_spec[:5]}")
+                
+                # Verificar índices antes de acceder
+                idx_100hz = min(10, len(mag_spec)-1)
+                idx_1khz = min(100, len(mag_spec)-1)
+                idx_10khz = min(1000, len(mag_spec)-1)
+                
+                print(f"100Hz (idx {idx_100hz}): {mag_spec[idx_100hz]:.2f}")
+                print(f"1kHz (idx {idx_1khz}): {mag_spec[idx_1khz]:.2f}")
+                print(f"10kHz (idx {idx_10khz}): {mag_spec[idx_10khz]:.2f}")
+            except Exception as e:
+                print(f"Error al imprimir valores de muestra: {str(e)}")
+        else:
+            print("mag_spec está vacío o no tiene datos")
+        
+        return mag_spec
     def getDispositivosEntrada(self, mode):
         if mode == 'indice':
             return self.dispEnIndice

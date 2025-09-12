@@ -464,21 +464,22 @@ class controlador():
                     current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = audio_data
                     
                     if len(current_data1) > 0:  # Verify we have data to process
-                        # Calculate FFT
+                        # Convertir datos a float32 normalizado (-1 a 1)
+                        normalized_data = current_data1.astype(np.float32) / 32767.0
+                        
+                        # Procesar con los filtros de ponderación
+                        self.cModel.setSignalData(normalized_data)
+                        
+                        # Calcular FFT
                         fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
                         
-                        # Update the main plot
+                        # Actualizar la vista
                         self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
                                              self.device1_name, times1, fft_freqs, fft_db)
                         
-                        # Process data for level plot if active
+                        # Procesar datos para el gráfico de nivel si está activo
                         if self.cVista.btnNivel.isChecked():
-                            # Convert int16 audio data to float32 normalized for compatibility with grabacionSAMNS
-                            # Data comes as int16 (-32768 to 32767), needs to be normalized to float32 (-1 to 1)
-                            normalized_data = current_data1.astype(np.float32) / 32767.0
                             self.wf_data = normalized_data
-                            
-                            # Only process if we have valid data
                             if len(self.wf_data) > 0:
                                 self.grabar()
                             
@@ -490,7 +491,6 @@ class controlador():
 
         if self.start_time is None:
             self.start_time = time.time()
-            # self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
             self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
 
         current_time = time.time()
@@ -523,7 +523,7 @@ class controlador():
 
         frecuencia = 1000
         fs = self.RATE
-        duracion = 0.5  # segundos por paso
+        duracion = 1  # segundos por paso
         frames_per_buffer = 1024
         paso_amp = 0.1
         amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
@@ -584,13 +584,17 @@ class controlador():
                     continue
 
                 capturados = np.concatenate(capturados)
-                # Tomar la segunda mitad para evitar transitorios
-                if len(capturados) > fs // 2:
-                    segmento = capturados[-(fs // 2):]
+                # Tras concatenar 'capturados'
+                if len(capturados) > fs:   # usa el último 1 s estable
+                    segmento = capturados[-fs:]
                 else:
                     segmento = capturados
 
-                thd_pct = compute_thd(segmento, fs, frecuencia, max_harmonics=10)
+                thd_pct, f0_det, nivel_dbfs = compute_thd(
+                    segmento, fs, f0_expected=frecuencia, max_harmonics=10, search_pct=0.15, min_level_dbfs=-40.0
+                )
+                print(f"Paso amp={amp:.2f} -> THD={thd_pct:.3f}% | f0={f0_det} Hz | nivel={nivel_dbfs:.1f} dBFS")
+
                 ultimo_thd = thd_pct
                 print(f"Paso amp={amp:.2f} -> THD={thd_pct:.2f}%")
 
@@ -785,7 +789,7 @@ class controlador():
         frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
         duracion = 3  # 3 segundos
         amplitud = 0.8  # Amplitud normalizada (reducida para evitar distorsión)
-        frames_per_buffer = 1024
+        frames_per_buffer = 512
 
         # Generar el arreglo de tiempos
         t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
@@ -797,19 +801,14 @@ class controlador():
             # Iniciar la captura de audio
             self.cModel.stream.start_stream()
             
-            # Crear un stream de salida para reproducir la onda
-            output_stream = self.cModel.pyaudio_instance.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=frecuencia_muestreo,
-                output=True,
-                output_device_index=output_device_index,
-                frames_per_buffer=frames_per_buffer
-            )
-            
-            # Reproducir la onda
+            # Reproducir la onda con sounddevice (no bloqueante) para permitir captura concurrente
             print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
-            output_stream.write(onda_senoidal.astype(np.float32).tobytes())
+            try:
+                import sounddevice as sd  # Asegurar disponibilidad local
+            except Exception:
+                raise RuntimeError("El backend de reproducción 'sounddevice' no está disponible.")
+            sd.play(onda_senoidal.astype(np.float32), samplerate=frecuencia_muestreo,
+                    device=output_device_index, blocking=False)
             
             # Capturar audio durante la reproducción
             captured_audio = []
@@ -829,9 +828,11 @@ class controlador():
                     print(f"Error durante la captura de audio: {e}")
                     break
             
-            # Cerrar streams
-            output_stream.stop_stream()
-            output_stream.close()
+            # Asegurar fin de reproducción y cerrar captura
+            try:
+                sd.wait()
+            except Exception:
+                pass
             self.cModel.stream.stop_stream()
             
             if not captured_audio:
