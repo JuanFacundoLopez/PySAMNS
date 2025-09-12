@@ -59,7 +59,9 @@ class controlador():
         self.stat_times_c = np.array([])
         self.stat_times_a = np.array([])
         self.last_stat_update_time = 0
-        self.stat_update_interval = 1.0  # Actualizar estadísticas cada 1 segundo
+        self.stat_update_interval = 0.1  # Actualizar estadísticas cada 100ms para una visualización más suave
+        self.stat_window_size = 10  # Número de puntos para el promedio móvil
+        self.stat_window = []  # Ventana para el promedio móvil
         
         #    Setear todas las ganancias en Cero
         self.device_active = False
@@ -323,10 +325,26 @@ class controlador():
             elapsed_real_time = current_time - self.start_time
         
         # Calcular estadísticas periódicamente según el intervalo definido
-        if elapsed_real_time - self.last_stat_update_time >= self.stat_update_interval:
+        current_time = time.time()
+        if current_time - self.last_stat_update_time >= self.stat_update_interval:
             stats = self.cModel.calculate_leq_and_percentiles()
-            self.cModel.update_statistical_levels_history(stats)
-            self.last_stat_update_time = elapsed_real_time
+            
+            # Agregar a la ventana de promediado
+            self.stat_window.append(stats)
+            if len(self.stat_window) > self.stat_window_size:
+                self.stat_window.pop(0)
+            
+            # Calcular promedio de la ventana
+            if self.stat_window:
+                avg_stats = {}
+                for key in stats.keys():
+                    values = [d[key] for d in self.stat_window if key in d]
+                    if values:
+                        avg_stats[key] = sum(values) / len(values)
+                
+                # Actualizar el modelo con los valores promediados
+                self.cModel.update_statistical_levels_history(avg_stats)
+                self.last_stat_update_time = current_time
             
             # Actualizar los tiempos de las estadísticas
             stat_count = len(self.cModel.recorderLeqZ)
