@@ -53,6 +53,16 @@ class controlador():
         self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
         self.start_time = None  # Add start time tracking
+        
+        # Arrays para mantener el seguimiento de tiempos de niveles estadísticos
+        self.stat_times_z = np.array([])
+        self.stat_times_c = np.array([])
+        self.stat_times_a = np.array([])
+        self.last_stat_update_time = 0
+        self.stat_update_interval = 0.1  # Actualizar estadísticas cada 100ms para una visualización más suave
+        self.stat_window_size = 10  # Número de puntos para el promedio móvil
+        self.stat_window = []  # Ventana para el promedio móvil
+        
         #    Setear todas las ganancias en Cero
         self.device_active = False
         self.device1_name = "Nombre del dispositivo de audio"
@@ -306,59 +316,85 @@ class controlador():
         (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
         (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
         
-        # Calcular estadísticas
-        stats = self.cModel.calculate_leq_and_percentiles()
+        # Obtener el tiempo real transcurrido desde el inicio
+        current_time = time.time()
+        if not hasattr(self, 'start_time') or self.start_time is None:
+            self.start_time = current_time
+            elapsed_real_time = 0.0
+        else:
+            elapsed_real_time = current_time - self.start_time
         
-        # Actualizar arrays históricos de niveles estadísticos
-        self.cModel.update_statistical_levels_history(stats)
+        # Calcular estadísticas periódicamente según el intervalo definido
+        current_time = time.time()
+        if current_time - self.last_stat_update_time >= self.stat_update_interval:
+            stats = self.cModel.calculate_leq_and_percentiles()
+            
+            # Agregar a la ventana de promediado
+            self.stat_window.append(stats)
+            if len(self.stat_window) > self.stat_window_size:
+                self.stat_window.pop(0)
+            
+            # Calcular promedio de la ventana
+            if self.stat_window:
+                avg_stats = {}
+                for key in stats.keys():
+                    values = [d[key] for d in self.stat_window if key in d]
+                    if values:
+                        avg_stats[key] = sum(values) / len(values)
+                
+                # Actualizar el modelo con los valores promediados
+                self.cModel.update_statistical_levels_history(avg_stats)
+                self.last_stat_update_time = current_time
+            
+            # Actualizar los tiempos de las estadísticas
+            stat_count = len(self.cModel.recorderLeqZ)
+            if stat_count > 0:
+                self.stat_times_z = np.linspace(0, elapsed_real_time, stat_count)
+            
+            stat_count = len(self.cModel.recorderLeqC)
+            if stat_count > 0:
+                self.stat_times_c = np.linspace(0, elapsed_real_time, stat_count)
+                
+            stat_count = len(self.cModel.recorderLeqA)
+            if stat_count > 0:
+                self.stat_times_a = np.linspace(0, elapsed_real_time, stat_count)
         
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
-            # Obtener el tiempo real transcurrido desde el inicio
-            if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
-                elapsed_real_time = time.time() - self.cModel.start_time
-                # Calcular el intervalo de tiempo promedio por muestra de nivel
-                if len(pico_z) > 1:
-                    time_interval = elapsed_real_time / len(pico_z)
-                    tiempos = np.arange(len(pico_z)) * time_interval
-                else:
-                    tiempos = np.array([elapsed_real_time])
+            # Calcular el intervalo de tiempo promedio por muestra de nivel
+            if len(pico_z) > 1:
+                time_interval = elapsed_real_time / len(pico_z)
+                tiempos = np.arange(len(pico_z)) * time_interval
+            else:
+                tiempos = np.array([elapsed_real_time])
         except Exception as e:
             print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
             # Fallback al método anterior si hay error
             chunk_duration = self.cModel.chunk / self.cModel.rate
             tiempos = np.arange(len(pico_z)) * chunk_duration
         
-        # Crear tiempos para los arrays históricos de niveles estadísticos
-        # Usar el mismo intervalo de tiempo que los otros niveles
-        if len(pico_z) > 1:
-            time_interval = tiempos[1] - tiempos[0] if len(tiempos) > 1 else 1.0
-        else:
-            time_interval = 1.0
-        
-        # Crear tiempos para arrays históricos (pueden tener diferente longitud)
-        def create_times_for_array(array, base_times, interval):
-            if len(array) == 0:
-                return np.array([])
-            elif len(array) == 1:
-                return np.array([base_times[-1] if len(base_times) > 0 else 0.0])
-            else:
-                # Crear tiempos basados en el intervalo y la longitud del array
-                return np.arange(len(array)) * interval
-        
+        # Función auxiliar para crear estructura de datos estadísticos con tiempos
+        def create_stat_data(values, times):
+            if len(values) == 0:
+                return {}
+            return {
+                'data': np.array(values),
+                'times': np.array(times[:len(values)])  # Asegurar que los tiempos coincidan con los datos
+            }
+            
         # Organizar datos en estructura para la vista
         niveles_z = {
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
             'slow': slow_z,
-            # Usar arrays históricos de niveles estadísticos
-            'leq': self.cModel.recorderLeqZ,
-            'l01': self.cModel.recorderL01Z,
-            'l10': self.cModel.recorderL10Z,
-            'l50': self.cModel.recorderL50Z,
-            'l90': self.cModel.recorderL90Z,
-            'l99': self.cModel.recorderL99Z
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqZ, self.stat_times_z),
+            'l01': create_stat_data(self.cModel.recorderL01Z, self.stat_times_z),
+            'l10': create_stat_data(self.cModel.recorderL10Z, self.stat_times_z),
+            'l50': create_stat_data(self.cModel.recorderL50Z, self.stat_times_z),
+            'l90': create_stat_data(self.cModel.recorderL90Z, self.stat_times_z),
+            'l99': create_stat_data(self.cModel.recorderL99Z, self.stat_times_z)
         }
         
         niveles_c = {
@@ -366,13 +402,13 @@ class controlador():
             'inst': inst_c,
             'fast': fast_c,
             'slow': slow_c,
-            # Usar arrays históricos de niveles estadísticos
-            'leq': self.cModel.recorderLeqC,
-            'l01': self.cModel.recorderL01C,
-            'l10': self.cModel.recorderL10C,
-            'l50': self.cModel.recorderL50C,
-            'l90': self.cModel.recorderL90C,
-            'l99': self.cModel.recorderL99C
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqC, self.stat_times_c),
+            'l01': create_stat_data(self.cModel.recorderL01C, self.stat_times_c),
+            'l10': create_stat_data(self.cModel.recorderL10C, self.stat_times_c),
+            'l50': create_stat_data(self.cModel.recorderL50C, self.stat_times_c),
+            'l90': create_stat_data(self.cModel.recorderL90C, self.stat_times_c),
+            'l99': create_stat_data(self.cModel.recorderL99C, self.stat_times_c)
         }
         
         niveles_a = {
@@ -380,13 +416,13 @@ class controlador():
             'inst': inst_a,
             'fast': fast_a,
             'slow': slow_a,
-            # Usar arrays históricos de niveles estadísticos
-            'leq': self.cModel.recorderLeqA,
-            'l01': self.cModel.recorderL01A,
-            'l10': self.cModel.recorderL10A,
-            'l50': self.cModel.recorderL50A,
-            'l90': self.cModel.recorderL90A,
-            'l99': self.cModel.recorderL99A
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqA, self.stat_times_a),
+            'l01': create_stat_data(self.cModel.recorderL01A, self.stat_times_a),
+            'l10': create_stat_data(self.cModel.recorderL10A, self.stat_times_a),
+            'l50': create_stat_data(self.cModel.recorderL50A, self.stat_times_a),
+            'l90': create_stat_data(self.cModel.recorderL90A, self.stat_times_a),
+            'l99': create_stat_data(self.cModel.recorderL99A, self.stat_times_a)
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a
@@ -427,6 +463,10 @@ class controlador():
         self.setGainZero()
         self.start_time = None
         self.msCounter = 0
+        self.last_stat_update_time = 0
+        self.stat_times_z = np.array([])
+        self.stat_times_c = np.array([])
+        self.stat_times_a = np.array([])
 
         # Restablecer datos del modelo
         self.cModel.setNivelesZ(mode='r')
@@ -436,6 +476,28 @@ class controlador():
         self.cModel.normalized_all = []
         self.cModel.times = []
         self.cModel.start_time = None
+        
+        # Reset statistical levels
+        self.cModel.recorderLeqZ = np.empty(0)
+        self.cModel.recorderL01Z = np.empty(0)
+        self.cModel.recorderL10Z = np.empty(0)
+        self.cModel.recorderL50Z = np.empty(0)
+        self.cModel.recorderL90Z = np.empty(0)
+        self.cModel.recorderL99Z = np.empty(0)
+        
+        self.cModel.recorderLeqC = np.empty(0)
+        self.cModel.recorderL01C = np.empty(0)
+        self.cModel.recorderL10C = np.empty(0)
+        self.cModel.recorderL50C = np.empty(0)
+        self.cModel.recorderL90C = np.empty(0)
+        self.cModel.recorderL99C = np.empty(0)
+        
+        self.cModel.recorderLeqA = np.empty(0)
+        self.cModel.recorderL01A = np.empty(0)
+        self.cModel.recorderL10A = np.empty(0)
+        self.cModel.recorderL50A = np.empty(0)
+        self.cModel.recorderL90A = np.empty(0)
+        self.cModel.recorderL99A = np.empty(0)
 
         # Actualizar la vista
         self.cVista.cronometroGrabacion.setText("0:00 s")

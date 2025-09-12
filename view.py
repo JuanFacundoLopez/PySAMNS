@@ -1585,17 +1585,34 @@ class vista(QMainWindow):
                     
                     # Función auxiliar para crear gráfico temporal de nivel estadístico
                     def plot_statistical_level(niveles_data, tiempos_data, color, label, checkbox_checked):
-                        if checkbox_checked and len(niveles_data) > 0:
-                            # Crear tiempos para el array histórico si no existen
-                            if len(tiempos_data) == 0 or len(tiempos_data) != len(niveles_data):
-                                if len(niveles_data) > 1:
-                                    # Crear tiempos basados en el intervalo promedio
-                                    interval = 1.0  # 1 segundo por defecto
-                                    tiempos_hist = np.arange(len(niveles_data)) * interval
-                                else:
-                                    tiempos_hist = np.array([0.0])
-                            else:
+                        if not checkbox_checked or len(niveles_data) == 0:
+                            return None
+                            
+                        # Asegurarse de que no haya valores NaN o infinitos
+                        niveles_data = np.nan_to_num(niveles_data, nan=0.0, posinf=0.0, neginf=0.0)
+                        
+                        # Si los datos vienen con sus propios tiempos, usarlos
+                        if isinstance(niveles_data, dict) and 'times' in niveles_data:
+                            tiempos_hist = niveles_data['times']
+                            niveles_data = niveles_data.get('data', np.array([]))
+                        else:
+                            # Usar los tiempos proporcionados como base
+                            if len(tiempos_data) == 0:
+                                tiempos_hist = np.arange(len(niveles_data))
+                            elif len(tiempos_data) == len(niveles_data):
                                 tiempos_hist = tiempos_data
+                            elif len(tiempos_data) > len(niveles_data):
+                                step = max(1, len(tiempos_data) // len(niveles_data))
+                                tiempos_hist = tiempos_data[::step][:len(niveles_data)]
+                            else:
+                                tiempo_total = tiempos_data[-1] if len(tiempos_data) > 0 else len(niveles_data)
+                                tiempos_hist = np.linspace(0, tiempo_total, len(niveles_data))
+                        
+                        # Asegurarse de que las longitudes coincidan
+                        if len(niveles_data) > 0 and len(tiempos_hist) > 0:
+                            min_len = min(len(tiempos_hist), len(niveles_data))
+                            tiempos_hist = tiempos_hist[:min_len]
+                            niveles_data = niveles_data[:min_len]
                             
                             # Crear el gráfico temporal
                             pen = pg.mkPen(color=color, width=2, style=style_map)
@@ -1604,31 +1621,40 @@ class vista(QMainWindow):
                             return plot
                         return None
                     
+                    # Obtener los tiempos para los niveles estadísticos (usar xdata escalado si es necesario)
+                    def get_stat_times(data, base_times):
+                        if len(data) == 0:
+                            return np.array([])
+                        if len(data) == len(base_times):
+                            return base_times
+                        # Si las longitudes no coinciden, escalar los tiempos
+                        return np.linspace(0, base_times[-1] if len(base_times) > 0 else len(data), len(data))
+                    
                     # Z Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_Z.get('leq', []), xdata, color_map['leq'], 'Z Leq', self.cbEqZ.isChecked())
+                    plot_statistical_level(niveles_Z.get('leq', {}), xdata, color_map['leq'], 'Z Leq', self.cbEqZ.isChecked())
                     
                     # Z Statistical - Todos los niveles
-                    plot_statistical_level(niveles_Z.get('l01', []), xdata, color_map['l01'], 'Z L01', self.cb01Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l10', []), xdata, color_map['l10'], 'Z L10', self.cb10Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l50', []), xdata, color_map['l50'], 'Z L50', self.cb50Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l90', []), xdata, color_map['l90'], 'Z L90', self.cb90Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l99', []), xdata, color_map['l99'], 'Z L99', self.cb99Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l01', {}), xdata, color_map['l01'], 'Z L01', self.cb01Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l10', {}), xdata, color_map['l10'], 'Z L10', self.cb10Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l50', {}), xdata, color_map['l50'], 'Z L50', self.cb50Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l90', {}), xdata, color_map['l90'], 'Z L90', self.cb90Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l99', {}), xdata, color_map['l99'], 'Z L99', self.cb99Z.isChecked())
                     
                     # C Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_C.get('leq', []), xdata, color_map['leq'], 'C Leq', self.cbEqC.isChecked())
-                    plot_statistical_level(niveles_C.get('l01', []), xdata, color_map['l01'], 'C L01', self.cb01C.isChecked())
-                    plot_statistical_level(niveles_C.get('l10', []), xdata, color_map['l10'], 'C L10', self.cb10C.isChecked())
-                    plot_statistical_level(niveles_C.get('l50', []), xdata, color_map['l50'], 'C L50', self.cb50C.isChecked())
-                    plot_statistical_level(niveles_C.get('l90', []), xdata, color_map['l90'], 'C L90', self.cb90C.isChecked())
-                    plot_statistical_level(niveles_C.get('l99', []), xdata, color_map['l99'], 'C L99', self.cb99C.isChecked())
+                    plot_statistical_level(niveles_C.get('leq', {}), xdata, color_map['leq'], 'C Leq', self.cbEqC.isChecked())
+                    plot_statistical_level(niveles_C.get('l01', {}), xdata, color_map['l01'], 'C L01', self.cb01C.isChecked())
+                    plot_statistical_level(niveles_C.get('l10', {}), xdata, color_map['l10'], 'C L10', self.cb10C.isChecked())
+                    plot_statistical_level(niveles_C.get('l50', {}), xdata, color_map['l50'], 'C L50', self.cb50C.isChecked())
+                    plot_statistical_level(niveles_C.get('l90', {}), xdata, color_map['l90'], 'C L90', self.cb90C.isChecked())
+                    plot_statistical_level(niveles_C.get('l99', {}), xdata, color_map['l99'], 'C L99', self.cb99C.isChecked())
                     
                     # A Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_A.get('leq', []), xdata, color_map['leq'], 'A Leq', self.cbEqA.isChecked())
-                    plot_statistical_level(niveles_A.get('l01', []), xdata, color_map['l01'], 'A L01', self.cb01A.isChecked())
-                    plot_statistical_level(niveles_A.get('l10', []), xdata, color_map['l10'], 'A L10', self.cb10A.isChecked())
-                    plot_statistical_level(niveles_A.get('l50', []), xdata, color_map['l50'], 'A L50', self.cb50A.isChecked())
-                    plot_statistical_level(niveles_A.get('l90', []), xdata, color_map['l90'], 'A L90', self.cb90A.isChecked())
-                    plot_statistical_level(niveles_A.get('l99', []), xdata, color_map['l99'], 'A L99', self.cb99A.isChecked())
+                    plot_statistical_level(niveles_A.get('leq', {}), xdata, color_map['leq'], 'A Leq', self.cbEqA.isChecked())
+                    plot_statistical_level(niveles_A.get('l01', {}), xdata, color_map['l01'], 'A L01', self.cb01A.isChecked())
+                    plot_statistical_level(niveles_A.get('l10', {}), xdata, color_map['l10'], 'A L10', self.cb10A.isChecked())
+                    plot_statistical_level(niveles_A.get('l50', {}), xdata, color_map['l50'], 'A L50', self.cb50A.isChecked())
+                    plot_statistical_level(niveles_A.get('l90', {}), xdata, color_map['l90'], 'A L90', self.cb90A.isChecked())
+                    plot_statistical_level(niveles_A.get('l99', {}), xdata, color_map['l99'], 'A L99', self.cb99A.isChecked())
                     
                     # Ajustar rango X para mostrar los últimos 10 segundos
                     if len(xdata) > 0:
