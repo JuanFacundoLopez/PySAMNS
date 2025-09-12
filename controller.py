@@ -445,6 +445,10 @@ class controlador():
         self.setGainZero()
         self.start_time = None
         self.msCounter = 0
+        self.last_stat_update_time = 0
+        self.stat_times_z = np.array([])
+        self.stat_times_c = np.array([])
+        self.stat_times_a = np.array([])
 
         # Restablecer datos del modelo
         self.cModel.setNivelesZ(mode='r')
@@ -454,6 +458,28 @@ class controlador():
         self.cModel.normalized_all = []
         self.cModel.times = []
         self.cModel.start_time = None
+        
+        # Reset statistical levels
+        self.cModel.recorderLeqZ = np.empty(0)
+        self.cModel.recorderL01Z = np.empty(0)
+        self.cModel.recorderL10Z = np.empty(0)
+        self.cModel.recorderL50Z = np.empty(0)
+        self.cModel.recorderL90Z = np.empty(0)
+        self.cModel.recorderL99Z = np.empty(0)
+        
+        self.cModel.recorderLeqC = np.empty(0)
+        self.cModel.recorderL01C = np.empty(0)
+        self.cModel.recorderL10C = np.empty(0)
+        self.cModel.recorderL50C = np.empty(0)
+        self.cModel.recorderL90C = np.empty(0)
+        self.cModel.recorderL99C = np.empty(0)
+        
+        self.cModel.recorderLeqA = np.empty(0)
+        self.cModel.recorderL01A = np.empty(0)
+        self.cModel.recorderL10A = np.empty(0)
+        self.cModel.recorderL50A = np.empty(0)
+        self.cModel.recorderL90A = np.empty(0)
+        self.cModel.recorderL99A = np.empty(0)
 
         # Actualizar la vista
         self.cVista.cronometroGrabacion.setText("0:00 s")
