@@ -381,6 +381,11 @@ class vista(QMainWindow):
         self.r2 = QRadioButton("Z")
         self.r2.setChecked(True)
         
+        # Connect radio button signals to graficar method
+        self.r0.toggled.connect(lambda: self.vController.graficar())
+        self.r1.toggled.connect(lambda: self.vController.graficar())
+        self.r2.toggled.connect(lambda: self.vController.graficar())
+        
         filtrosLayout.addWidget(self.r0)
         filtrosLayout.addWidget(self.r1)
         filtrosLayout.addWidget(self.r2)
@@ -842,6 +847,7 @@ class vista(QMainWindow):
         self.waveform1.scene().addItem(self.vb_right)
         self.waveform1.getAxis('right').linkToView(self.vb_right)
         self.vb_right.setXLink(self.waveform1.vb)   # comparte X
+        self.vb_right.setYRange(0, 120, padding=0)
         self.waveform1.vb.sigResized.connect(self._sync_vb_right)
         self._sync_vb_right()
 

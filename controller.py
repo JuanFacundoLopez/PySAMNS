@@ -464,21 +464,22 @@ class controlador():
                     current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = audio_data
                     
                     if len(current_data1) > 0:  # Verify we have data to process
-                        # Calculate FFT
+                        # Convertir datos a float32 normalizado (-1 a 1)
+                        normalized_data = current_data1.astype(np.float32) / 32767.0
+                        
+                        # Procesar con los filtros de ponderación
+                        self.cModel.setSignalData(normalized_data)
+                        
+                        # Calcular FFT
                         fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
                         
-                        # Update the main plot
+                        # Actualizar la vista
                         self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
                                              self.device1_name, times1, fft_freqs, fft_db)
                         
-                        # Process data for level plot if active
+                        # Procesar datos para el gráfico de nivel si está activo
                         if self.cVista.btnNivel.isChecked():
-                            # Convert int16 audio data to float32 normalized for compatibility with grabacionSAMNS
-                            # Data comes as int16 (-32768 to 32767), needs to be normalized to float32 (-1 to 1)
-                            normalized_data = current_data1.astype(np.float32) / 32767.0
                             self.wf_data = normalized_data
-                            
-                            # Only process if we have valid data
                             if len(self.wf_data) > 0:
                                 self.grabar()
                             
@@ -490,7 +491,6 @@ class controlador():
 
         if self.start_time is None:
             self.start_time = time.time()
-            # self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
             self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
 
         current_time = time.time()

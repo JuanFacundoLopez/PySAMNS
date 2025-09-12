@@ -69,7 +69,7 @@ class GeneradorWin(QMainWindow):
         self.btn_generar = QPushButton("Reproducir")
         icon_play_path = "img/boton-de-play.png" 
         self.btn_generar.setIcon(QIcon(icon_play_path))
-        self.btn_generar.clicked.connect(self.play_signal_sd)
+        self.btn_generar.clicked.connect(self.play_signal)
         configLayout.addWidget(self.btn_generar)
         
         self.btn_pausa = QPushButton("Pausar")
