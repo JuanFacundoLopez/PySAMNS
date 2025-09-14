@@ -560,14 +560,14 @@ class controlador():
         time_diff_str = f"{time_diff:.2f}"
         self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
-    def calRelativaAFondoDeEscala(self):                        # Calibración automática (fondo de escala)
+    def calRelativaAFondoDeEscala(self):
         """
         Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
         captura de micrófono. La referencia (0 dBFS) se fija en la última
         amplitud cuya THD < 0.01%.
         """
-        # Verificar dispositivos
         try:
+            # Verificar dispositivos
             input_device_index = self.cModel.getDispositivoActual()
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
@@ -583,16 +583,20 @@ class controlador():
         self.cModel.setNivelesC(mode='r')
         self.cModel.setNivelesA(mode='r')
 
-        frecuencia = 1000
+        # Parámetros de la señal
+        frecuencia = 1000  # 1 kHz
         fs = self.RATE
-        duracion = 1  # segundos por paso
+        duracion = 0.5  # segundos por paso
+        silencio = 0.1  # segundos de silencio entre pasos
         frames_per_buffer = 1024
         paso_amp = 0.1
-        amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
+        amplitudes = [round(a, 1) for a in np.arange(0.1, 1.0, paso_amp)]
+        umbral_thd = 0.01  # 0.01%
 
-        # Abrir stream de salida
+        # Configurar stream de salida
         try:
-            output_stream = self.cModel.pyaudio_instance.open(
+            p = pyaudio.PyAudio()
+            output_stream = p.open(
                 format=pyaudio.paFloat32,
                 channels=1,
                 rate=fs,
@@ -604,112 +608,160 @@ class controlador():
             QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
             return False
 
-        # Iniciar captura
+        # Configurar stream de entrada
         try:
-            self.cModel.stream.start_stream()
+            input_stream = p.open(
+                format=pyaudio.paFloat32,
+                channels=1,
+                rate=fs,
+                input=True,
+                input_device_index=input_device_index,
+                frames_per_buffer=frames_per_buffer
+            )
         except Exception as e:
             output_stream.close()
-            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de entrada: {str(e)}")
             return False
 
         ultima_amplitud_baja_thd = None
-        ultimo_thd = None
+        thd_medido = None
+        nivel_dbfs = None
 
         try:
             for amp in amplitudes:
-                # Generar tono del paso
+                # Generar tono
                 num_frames = int(fs * duracion)
-                t = np.arange(num_frames) / fs
+                t = np.linspace(0, duracion, num_frames, endpoint=False)
                 tono = (amp * np.sin(2 * np.pi * frecuencia * t)).astype(np.float32)
-
-                # Buffer para los datos capturados de este paso
-                capturados = []
-
-                # Reproducir en chunks y capturar en paralelo
-                for i in range(0, num_frames, frames_per_buffer):
-                    chunk = tono[i:i + frames_per_buffer]
-                    if len(chunk) == 0:
-                        continue
-                    output_stream.write(chunk.tobytes())
-
-                    # Leer del input
+                
+                # Reproducir tono
+                output_stream.write(tono.tobytes())
+                
+                # Esperar un poco para que la señal se estabilice
+                time.sleep(0.1)
+                
+                # Capturar audio
+                frames = []
+                for _ in range(int(fs * duracion / frames_per_buffer)):
                     try:
-                        audio_data = self.cModel.get_audio_data()
-                        if audio_data and len(audio_data) >= 7:
-                            current_data, _, _, _, _, _, _ = audio_data
-                            if len(current_data) > 0:
-                                capturados.append(current_data.astype(np.float32) / 32767.0)
+                        data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
+                        frames.append(np.frombuffer(data, dtype=np.float32))
                     except Exception as e:
-                        print(f"Error al capturar audio: {e}")
-
-                if len(capturados) == 0:
+                        print(f"Error en captura: {e}")
+                        continue
+                
+                if not frames:
                     continue
-
-                capturados = np.concatenate(capturados)
-                # Tras concatenar 'capturados'
-                if len(capturados) > fs:   # usa el último 1 s estable
-                    segmento = capturados[-fs:]
+                    
+                # Procesar señal capturada
+                capturado = np.concatenate(frames)
+                
+                # Ignorar el 10% inicial para evitar transitorios
+                inicio = len(capturado) // 10
+                segmento = capturado[inicio:]
+                
+                # Calcular FFT de la señal capturada
+                n = len(segmento)
+                yf = np.fft.fft(segmento)
+                yf = np.abs(yf[0:n//2]) / (n/2)  # Normalizar
+                
+                # Crear vector de frecuencias
+                freqs = np.fft.fftfreq(n, 1/fs)[:n//2]
+                
+                # Encontrar la fundamental (1kHz) y sus armónicos
+                fundamental_idx = np.argmin(np.abs(freqs - frecuencia))
+                fundamental_freq = freqs[fundamental_idx]
+                fundamental_amp = yf[fundamental_idx]
+                
+                # Encontrar armónicos (hasta 10kHz)
+                harmonic_freqs = []
+                harmonic_amplitudes = []
+                
+                for h in range(2, int(10000/frecuencia) + 1):
+                    target_freq = h * fundamental_freq
+                    if target_freq > fs/2:  # Nyquist
+                        break
+                        
+                    # Buscar en una ventana estrecha alrededor de la frecuencia esperada
+                    f_min = target_freq - 50  # ±50Hz de margen
+                    f_max = target_freq + 50
+                    mask = (freqs >= f_min) & (freqs <= f_max)
+                    
+                    if np.any(mask):
+                        idx = np.argmax(yf[mask]) + np.where(mask)[0][0]
+                        harmonic_freqs.append(freqs[idx])
+                        harmonic_amplitudes.append(yf[idx])
+                
+                # Calcular THD (Distorsión Armónica Total)
+                if len(harmonic_amplitudes) > 0:
+                    sum_harmonics_sq = np.sum(np.square(harmonic_amplitudes))
+                    thd = np.sqrt(sum_harmonics_sq) / fundamental_amp
+                    thd_pct = thd * 100  # Convertir a porcentaje
                 else:
-                    segmento = capturados
-
-                thd_pct, f0_det, nivel_dbfs = compute_thd(
-                    segmento, fs, f0_expected=frecuencia, max_harmonics=10, search_pct=0.15, min_level_dbfs=-40.0
-                )
-                print(f"Paso amp={amp:.2f} -> THD={thd_pct:.3f}% | f0={f0_det} Hz | nivel={nivel_dbfs:.1f} dBFS")
-
-                ultimo_thd = thd_pct
-                print(f"Paso amp={amp:.2f} -> THD={thd_pct:.2f}%")
-
-                # Registrar niveles para la vista (opcional)
-                self.wf_data = segmento
-                grabacion(self)
-
-                if thd_pct < 0.01:
+                    thd_pct = 0.0
+                
+                # Calcular nivel en dBFS
+                rms = np.sqrt(np.mean(np.square(segmento)))
+                nivel_dbfs = 20 * np.log10(rms) if rms > 0 else -np.inf
+                
+                print(f"Amplitud: {amp:.1f}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
+                print(f"  Frecuencia fundamental: {fundamental_freq:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
+                if harmonic_amplitudes:
+                    print(f"  Armónicos encontrados: {len(harmonic_amplitudes)}")
+                    for i, (f, a) in enumerate(zip(harmonic_freqs, harmonic_amplitudes), 2):
+                        print(f"    Armónico {i}: {f:.2f} Hz, Amplitud: {a:.6f}, Nivel: {20*np.log10(a) if a > 0 else -np.inf:.2f} dB")
+                
+                if thd_pct < umbral_thd:
                     ultima_amplitud_baja_thd = amp
-                    continue
+                    thd_medido = thd_pct
+                    nivel_dbfs = nivel_dbfs
                 else:
-                    # Se superó 0.01% de THD -> detener barrido
                     break
+                    
+                # Pequeña pausa entre pasos
+                time.sleep(silencio)
 
         except Exception as e:
-            print(f"Error durante calibración automática: {e}")
+            print(f"Error durante la calibración: {e}")
             return False
+            
         finally:
+            # Cerrar streams
             try:
                 output_stream.stop_stream()
-            except Exception:
-                pass
-            output_stream.close()
-            try:
-                self.cModel.stream.stop_stream()
-            except Exception:
+                output_stream.close()
+                input_stream.stop_stream()
+                input_stream.close()
+                p.terminate()
+            except:
                 pass
 
-        if ultima_amplitud_baja_thd is None:
-            cal_db = 20 * np.log10(max(1e-6, 0.1))
-            error_message = f"No se pudo determinar una amplitud con THD < 0.01%. Aunque se utilizará como amplitud de referencia 0.1 y como offset de calibracion: {cal_db:.2f} .Verifique conexiones y niveles."
+        # Procesar resultados
+        if ultima_amplitud_baja_thd is not None:
+            # Calcular offset para 0 dBFS
+            cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
             self.cModel.setCalibracionAutomatica(cal_db)
             self.cModel.set_calibracion_offset_spl(cal_db)
-            self.cCalWin.txtValorRef.setText("Error")
-            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            self.cCalWin.txtValorRef.setText("Error")
-            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            print(error_message)
+            
+            # Actualizar interfaz
+            self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
+            QMessageBox.information(
+                self.cCalWin, 
+                "Calibración Exitosa",
+                f"Calibración completada:\n"
+                f"Amplitud: {ultima_amplitud_baja_thd:.2f}\n"
+                f"THD: {thd_medido:.4f}%\n"
+                f"Nivel: {nivel_dbfs:.2f} dBFS\n"
+                f"Offset: {cal_db:.2f} dB"
+            )
+            return True
+        else:
+            QMessageBox.warning(
+                self.cCalWin,
+                "Error de Calibración",
+                "No se pudo completar la calibración. Verifique la conexión del micrófono."
+            )
             return False
-
-        # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
-        cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
-        self.cModel.setCalibracionAutomatica(cal_db)
-        self.cModel.set_calibracion_offset_spl(cal_db)
-
-        # Actualizar UI
-        self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
-        QMessageBox.information(
-            self.cCalWin,
-            "Calibración automática",
-            f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
-        )
-        return True
 
     def establecer_ruta_archivo_calibracion(self, ruta):
         """Guarda la ruta del archivo de calibración en el modelo."""
