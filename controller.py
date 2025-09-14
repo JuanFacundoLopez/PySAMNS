@@ -55,6 +55,16 @@ class controlador():
         self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
         self.start_time = None  # Add start time tracking
+        
+        # Arrays para mantener el seguimiento de tiempos de niveles estadísticos
+        self.stat_times_z = np.array([])
+        self.stat_times_c = np.array([])
+        self.stat_times_a = np.array([])
+        self.last_stat_update_time = 0
+        self.stat_update_interval = 0.1  # Actualizar estadísticas cada 100ms para una visualización más suave
+        self.stat_window_size = 10  # Número de puntos para el promedio móvil
+        self.stat_window = []  # Ventana para el promedio móvil
+        
         #    Setear todas las ganancias en Cero
         self.device_active = False
         self.device1_name = "Nombre del dispositivo de audio"
@@ -308,39 +318,85 @@ class controlador():
         (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
         (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
         
-        # Calcular estadísticas
-        stats = self.cModel.calculate_leq_and_percentiles()
+        # Obtener el tiempo real transcurrido desde el inicio
+        current_time = time.time()
+        if not hasattr(self, 'start_time') or self.start_time is None:
+            self.start_time = current_time
+            elapsed_real_time = 0.0
+        else:
+            elapsed_real_time = current_time - self.start_time
+        
+        # Calcular estadísticas periódicamente según el intervalo definido
+        current_time = time.time()
+        if current_time - self.last_stat_update_time >= self.stat_update_interval:
+            stats = self.cModel.calculate_leq_and_percentiles()
+            
+            # Agregar a la ventana de promediado
+            self.stat_window.append(stats)
+            if len(self.stat_window) > self.stat_window_size:
+                self.stat_window.pop(0)
+            
+            # Calcular promedio de la ventana
+            if self.stat_window:
+                avg_stats = {}
+                for key in stats.keys():
+                    values = [d[key] for d in self.stat_window if key in d]
+                    if values:
+                        avg_stats[key] = sum(values) / len(values)
+                
+                # Actualizar el modelo con los valores promediados
+                self.cModel.update_statistical_levels_history(avg_stats)
+                self.last_stat_update_time = current_time
+            
+            # Actualizar los tiempos de las estadísticas
+            stat_count = len(self.cModel.recorderLeqZ)
+            if stat_count > 0:
+                self.stat_times_z = np.linspace(0, elapsed_real_time, stat_count)
+            
+            stat_count = len(self.cModel.recorderLeqC)
+            if stat_count > 0:
+                self.stat_times_c = np.linspace(0, elapsed_real_time, stat_count)
+                
+            stat_count = len(self.cModel.recorderLeqA)
+            if stat_count > 0:
+                self.stat_times_a = np.linspace(0, elapsed_real_time, stat_count)
         
         # Crear eje de tiempo usando el tiempo real transcurrido
         try:
-            # Obtener el tiempo real transcurrido desde el inicio
-            if hasattr(self.cModel, 'start_time') and self.cModel.start_time is not None:
-                elapsed_real_time = time.time() - self.cModel.start_time
-                # Calcular el intervalo de tiempo promedio por muestra de nivel
-                if len(pico_z) > 1:
-                    time_interval = elapsed_real_time / len(pico_z)
-                    tiempos = np.arange(len(pico_z)) * time_interval
-                else:
-                    tiempos = np.array([elapsed_real_time])
+            # Calcular el intervalo de tiempo promedio por muestra de nivel
+            if len(pico_z) > 1:
+                time_interval = elapsed_real_time / len(pico_z)
+                tiempos = np.arange(len(pico_z)) * time_interval
+            else:
+                tiempos = np.array([elapsed_real_time])
         except Exception as e:
             print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
             # Fallback al método anterior si hay error
             chunk_duration = self.cModel.chunk / self.cModel.rate
             tiempos = np.arange(len(pico_z)) * chunk_duration
         
+        # Función auxiliar para crear estructura de datos estadísticos con tiempos
+        def create_stat_data(values, times):
+            if len(values) == 0:
+                return {}
+            return {
+                'data': np.array(values),
+                'times': np.array(times[:len(values)])  # Asegurar que los tiempos coincidan con los datos
+            }
+            
         # Organizar datos en estructura para la vista
         niveles_z = {
             'pico': pico_z,
             'inst': inst_z,
             'fast': fast_z,
             'slow': slow_z,
-            # Añadir niveles estadísticos
-            'leq': np.full_like(tiempos, stats.get('LeqZ', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90Z', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99Z', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqZ, self.stat_times_z),
+            'l01': create_stat_data(self.cModel.recorderL01Z, self.stat_times_z),
+            'l10': create_stat_data(self.cModel.recorderL10Z, self.stat_times_z),
+            'l50': create_stat_data(self.cModel.recorderL50Z, self.stat_times_z),
+            'l90': create_stat_data(self.cModel.recorderL90Z, self.stat_times_z),
+            'l99': create_stat_data(self.cModel.recorderL99Z, self.stat_times_z)
         }
         
         niveles_c = {
@@ -348,12 +404,13 @@ class controlador():
             'inst': inst_c,
             'fast': fast_c,
             'slow': slow_c,
-            'leq': np.full_like(tiempos, stats.get('LeqC', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90C', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99C', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqC, self.stat_times_c),
+            'l01': create_stat_data(self.cModel.recorderL01C, self.stat_times_c),
+            'l10': create_stat_data(self.cModel.recorderL10C, self.stat_times_c),
+            'l50': create_stat_data(self.cModel.recorderL50C, self.stat_times_c),
+            'l90': create_stat_data(self.cModel.recorderL90C, self.stat_times_c),
+            'l99': create_stat_data(self.cModel.recorderL99C, self.stat_times_c)
         }
         
         niveles_a = {
@@ -361,12 +418,13 @@ class controlador():
             'inst': inst_a,
             'fast': fast_a,
             'slow': slow_a,
-            'leq': np.full_like(tiempos, stats.get('LeqA', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l01': np.full_like(tiempos, stats.get('L01A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l10': np.full_like(tiempos, stats.get('L10A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l50': np.full_like(tiempos, stats.get('L50A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l90': np.full_like(tiempos, stats.get('L90A', 0.0)) if len(tiempos) > 0 else np.array([]),
-            'l99': np.full_like(tiempos, stats.get('L99A', 0.0)) if len(tiempos) > 0 else np.array([])
+            # Estructura de datos estadísticos con sus propios tiempos
+            'leq': create_stat_data(self.cModel.recorderLeqA, self.stat_times_a),
+            'l01': create_stat_data(self.cModel.recorderL01A, self.stat_times_a),
+            'l10': create_stat_data(self.cModel.recorderL10A, self.stat_times_a),
+            'l50': create_stat_data(self.cModel.recorderL50A, self.stat_times_a),
+            'l90': create_stat_data(self.cModel.recorderL90A, self.stat_times_a),
+            'l99': create_stat_data(self.cModel.recorderL99A, self.stat_times_a)
         }
     
         return tiempos, niveles_z, niveles_c, niveles_a
@@ -406,6 +464,10 @@ class controlador():
         self.setGainZero()
         self.start_time = None
         self.msCounter = 0
+        self.last_stat_update_time = 0
+        self.stat_times_z = np.array([])
+        self.stat_times_c = np.array([])
+        self.stat_times_a = np.array([])
 
         # Restablecer datos del modelo
         self.cModel.setNivelesZ(mode='r')
@@ -415,6 +477,28 @@ class controlador():
         self.cModel.normalized_all = []
         self.cModel.times = []
         self.cModel.start_time = None
+        
+        # Reset statistical levels
+        self.cModel.recorderLeqZ = np.empty(0)
+        self.cModel.recorderL01Z = np.empty(0)
+        self.cModel.recorderL10Z = np.empty(0)
+        self.cModel.recorderL50Z = np.empty(0)
+        self.cModel.recorderL90Z = np.empty(0)
+        self.cModel.recorderL99Z = np.empty(0)
+        
+        self.cModel.recorderLeqC = np.empty(0)
+        self.cModel.recorderL01C = np.empty(0)
+        self.cModel.recorderL10C = np.empty(0)
+        self.cModel.recorderL50C = np.empty(0)
+        self.cModel.recorderL90C = np.empty(0)
+        self.cModel.recorderL99C = np.empty(0)
+        
+        self.cModel.recorderLeqA = np.empty(0)
+        self.cModel.recorderL01A = np.empty(0)
+        self.cModel.recorderL10A = np.empty(0)
+        self.cModel.recorderL50A = np.empty(0)
+        self.cModel.recorderL90A = np.empty(0)
+        self.cModel.recorderL99A = np.empty(0)
 
         # Actualizar la vista
         self.cVista.cronometroGrabacion.setText("0:00 s")
@@ -443,21 +527,22 @@ class controlador():
                     current_data1, all_data1, norm_current1, norm_all1, times1, fft_freqs1, fft_db1 = audio_data
                     
                     if len(current_data1) > 0:  # Verify we have data to process
-                        # Calculate FFT
+                        # Convertir datos a float32 normalizado (-1 a 1)
+                        normalized_data = current_data1.astype(np.float32) / 32767.0
+                        
+                        # Procesar con los filtros de ponderación
+                        self.cModel.setSignalData(normalized_data)
+                        
+                        # Calcular FFT
                         fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
                         
-                        # Update the main plot
+                        # Actualizar la vista
                         self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
                                              self.device1_name, times1, fft_freqs, fft_db)
                         
-                        # Process data for level plot if active
+                        # Procesar datos para el gráfico de nivel si está activo
                         if self.cVista.btnNivel.isChecked():
-                            # Convert int16 audio data to float32 normalized for compatibility with grabacionSAMNS
-                            # Data comes as int16 (-32768 to 32767), needs to be normalized to float32 (-1 to 1)
-                            normalized_data = current_data1.astype(np.float32) / 32767.0
                             self.wf_data = normalized_data
-                            
-                            # Only process if we have valid data
                             if len(self.wf_data) > 0:
                                 self.grabar()
                             
@@ -469,7 +554,6 @@ class controlador():
 
         if self.start_time is None:
             self.start_time = time.time()
-            # self.normalized_all = []  # Volver a inicializar normalized_all cuando se inicia un nuevo stream
             self.times = []  # Resetear el tiempo cuando se inicia un nuevo stream
 
         current_time = time.time()
@@ -477,14 +561,14 @@ class controlador():
         time_diff_str = f"{time_diff:.2f}"
         self.cVista.cronometroGrabacion.setText(time_diff_str + ' s ')
 
-    def calRelativaAFondoDeEscala(self):                        # Calibración automática (fondo de escala)
+    def calRelativaAFondoDeEscala(self):
         """
         Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
         captura de micrófono. La referencia (0 dBFS) se fija en la última
         amplitud cuya THD < 0.01%.
         """
-        # Verificar dispositivos
         try:
+            # Verificar dispositivos
             input_device_index = self.cModel.getDispositivoActual()
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
@@ -500,16 +584,20 @@ class controlador():
         self.cModel.setNivelesC(mode='r')
         self.cModel.setNivelesA(mode='r')
 
-        frecuencia = 1000
+        # Parámetros de la señal
+        frecuencia = 1000  # 1 kHz
         fs = self.RATE
         duracion = 0.5  # segundos por paso
+        silencio = 0.1  # segundos de silencio entre pasos
         frames_per_buffer = 1024
         paso_amp = 0.1
-        amplitudes = [round(a, 2) for a in np.arange(0.1, 1.0, paso_amp)]
+        amplitudes = [round(a, 1) for a in np.arange(0.1, 1.0, paso_amp)]
+        umbral_thd = 0.01  # 0.01%
 
-        # Abrir stream de salida
+        # Configurar stream de salida
         try:
-            output_stream = self.cModel.pyaudio_instance.open(
+            p = pyaudio.PyAudio()
+            output_stream = p.open(
                 format=pyaudio.paFloat32,
                 channels=1,
                 rate=fs,
@@ -521,104 +609,160 @@ class controlador():
             QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
             return False
 
-        # Iniciar captura
+        # Configurar stream de entrada
         try:
-            self.cModel.stream.start_stream()
+            input_stream = p.open(
+                format=pyaudio.paFloat32,
+                channels=1,
+                rate=fs,
+                input=True,
+                input_device_index=input_device_index,
+                frames_per_buffer=frames_per_buffer
+            )
         except Exception as e:
             output_stream.close()
-            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo iniciar la captura: {str(e)}")
+            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de entrada: {str(e)}")
             return False
 
         ultima_amplitud_baja_thd = None
-        ultimo_thd = None
+        thd_medido = None
+        nivel_dbfs = None
 
         try:
             for amp in amplitudes:
-                # Generar tono del paso
+                # Generar tono
                 num_frames = int(fs * duracion)
-                t = np.arange(num_frames) / fs
+                t = np.linspace(0, duracion, num_frames, endpoint=False)
                 tono = (amp * np.sin(2 * np.pi * frecuencia * t)).astype(np.float32)
-
-                # Buffer para los datos capturados de este paso
-                capturados = []
-
-                # Reproducir en chunks y capturar en paralelo
-                for i in range(0, num_frames, frames_per_buffer):
-                    chunk = tono[i:i + frames_per_buffer]
-                    if len(chunk) == 0:
-                        continue
-                    output_stream.write(chunk.tobytes())
-
-                    # Leer del input
+                
+                # Reproducir tono
+                output_stream.write(tono.tobytes())
+                
+                # Esperar un poco para que la señal se estabilice
+                time.sleep(0.1)
+                
+                # Capturar audio
+                frames = []
+                for _ in range(int(fs * duracion / frames_per_buffer)):
                     try:
-                        audio_data = self.cModel.get_audio_data()
-                        if audio_data and len(audio_data) >= 7:
-                            current_data, _, _, _, _, _, _ = audio_data
-                            if len(current_data) > 0:
-                                capturados.append(current_data.astype(np.float32) / 32767.0)
+                        data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
+                        frames.append(np.frombuffer(data, dtype=np.float32))
                     except Exception as e:
-                        print(f"Error al capturar audio: {e}")
-
-                if len(capturados) == 0:
+                        print(f"Error en captura: {e}")
+                        continue
+                
+                if not frames:
                     continue
-
-                capturados = np.concatenate(capturados)
-                # Tomar la segunda mitad para evitar transitorios
-                if len(capturados) > fs // 2:
-                    segmento = capturados[-(fs // 2):]
+                    
+                # Procesar señal capturada
+                capturado = np.concatenate(frames)
+                
+                # Ignorar el 10% inicial para evitar transitorios
+                inicio = len(capturado) // 10
+                segmento = capturado[inicio:]
+                
+                # Calcular FFT de la señal capturada
+                n = len(segmento)
+                yf = np.fft.fft(segmento)
+                yf = np.abs(yf[0:n//2]) / (n/2)  # Normalizar
+                
+                # Crear vector de frecuencias
+                freqs = np.fft.fftfreq(n, 1/fs)[:n//2]
+                
+                # Encontrar la fundamental (1kHz) y sus armónicos
+                fundamental_idx = np.argmin(np.abs(freqs - frecuencia))
+                fundamental_freq = freqs[fundamental_idx]
+                fundamental_amp = yf[fundamental_idx]
+                
+                # Encontrar armónicos (hasta 10kHz)
+                harmonic_freqs = []
+                harmonic_amplitudes = []
+                
+                for h in range(2, int(10000/frecuencia) + 1):
+                    target_freq = h * fundamental_freq
+                    if target_freq > fs/2:  # Nyquist
+                        break
+                        
+                    # Buscar en una ventana estrecha alrededor de la frecuencia esperada
+                    f_min = target_freq - 50  # ±50Hz de margen
+                    f_max = target_freq + 50
+                    mask = (freqs >= f_min) & (freqs <= f_max)
+                    
+                    if np.any(mask):
+                        idx = np.argmax(yf[mask]) + np.where(mask)[0][0]
+                        harmonic_freqs.append(freqs[idx])
+                        harmonic_amplitudes.append(yf[idx])
+                
+                # Calcular THD (Distorsión Armónica Total)
+                if len(harmonic_amplitudes) > 0:
+                    sum_harmonics_sq = np.sum(np.square(harmonic_amplitudes))
+                    thd = np.sqrt(sum_harmonics_sq) / fundamental_amp
+                    thd_pct = thd * 100  # Convertir a porcentaje
                 else:
-                    segmento = capturados
-
-                thd_pct = compute_thd(segmento, fs, frecuencia, max_harmonics=10)
-                ultimo_thd = thd_pct
-                print(f"Paso amp={amp:.2f} -> THD={thd_pct:.2f}%")
-
-                # Registrar niveles para la vista (opcional)
-                self.wf_data = segmento
-                grabacion(self)
-
-                if thd_pct < 0.01:
+                    thd_pct = 0.0
+                
+                # Calcular nivel en dBFS
+                rms = np.sqrt(np.mean(np.square(segmento)))
+                nivel_dbfs = 20 * np.log10(rms) if rms > 0 else -np.inf
+                
+                print(f"Amplitud: {amp:.1f}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
+                print(f"  Frecuencia fundamental: {fundamental_freq:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
+                if harmonic_amplitudes:
+                    print(f"  Armónicos encontrados: {len(harmonic_amplitudes)}")
+                    for i, (f, a) in enumerate(zip(harmonic_freqs, harmonic_amplitudes), 2):
+                        print(f"    Armónico {i}: {f:.2f} Hz, Amplitud: {a:.6f}, Nivel: {20*np.log10(a) if a > 0 else -np.inf:.2f} dB")
+                
+                if thd_pct < umbral_thd:
                     ultima_amplitud_baja_thd = amp
-                    continue
+                    thd_medido = thd_pct
+                    nivel_dbfs = nivel_dbfs
                 else:
-                    # Se superó 0.01% de THD -> detener barrido
                     break
+                    
+                # Pequeña pausa entre pasos
+                time.sleep(silencio)
 
         except Exception as e:
-            print(f"Error durante calibración automática: {e}")
+            print(f"Error durante la calibración: {e}")
             return False
+            
         finally:
+            # Cerrar streams
             try:
                 output_stream.stop_stream()
-            except Exception:
-                pass
-            output_stream.close()
-            try:
-                self.cModel.stream.stop_stream()
-            except Exception:
+                output_stream.close()
+                input_stream.stop_stream()
+                input_stream.close()
+                p.terminate()
+            except:
                 pass
 
-        if ultima_amplitud_baja_thd is None:
-            error_message = "No se pudo determinar una amplitud con THD < 0.01%. Verifique conexiones y niveles."
-            self.cCalWin.calWin.txtValorRef.setText("Error")
-            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            self.cCalWin.calWin.txtValorRef.setText("Error")
-            QMessageBox.warning(self.cCalWin, "Error de Calibración", error_message)
-            print(error_message)
+        # Procesar resultados
+        if ultima_amplitud_baja_thd is not None:
+            # Calcular offset para 0 dBFS
+            cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
+            self.cModel.setCalibracionAutomatica(cal_db)
+            self.cModel.set_calibracion_offset_spl(cal_db)
+            
+            # Actualizar interfaz
+            self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
+            QMessageBox.information(
+                self.cCalWin, 
+                "Calibración Exitosa",
+                f"Calibración completada:\n"
+                f"Amplitud: {ultima_amplitud_baja_thd:.2f}\n"
+                f"THD: {thd_medido:.4f}%\n"
+                f"Nivel: {nivel_dbfs:.2f} dBFS\n"
+                f"Offset: {cal_db:.2f} dB"
+            )
+            return True
+        else:
+            QMessageBox.warning(
+                self.cCalWin,
+                "Error de Calibración",
+                "No se pudo completar la calibración. Verifique la conexión del micrófono."
+            )
             return False
-
-        # Fijar referencia: esa amplitud corresponde a 0 dBFS -> offset en dB
-        cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
-        self.cModel.setCalibracionAutomatica(cal_db)
-
-        # Actualizar UI
-        self.cVista.calWin.txtValorRef.setText(f"{cal_db:.2f}")
-        QMessageBox.information(
-            self.cCalWin,
-            "Calibración automática",
-            f"Amplitud de referencia: {ultima_amplitud_baja_thd:.2f}\nTHD último paso: {0.0 if ultimo_thd is None else ultimo_thd:.2f}%\nOffset de calibración: {cal_db:.2f} dB"
-        )
-        return True
 
     def establecer_ruta_archivo_calibracion(self, ruta):
         """Guarda la ruta del archivo de calibración en el modelo."""
@@ -748,7 +892,7 @@ class controlador():
         frecuencia_muestreo = self.RATE  # 44.1 kHz, estándar de audio
         duracion = 3  # 3 segundos
         amplitud = 0.8  # Amplitud normalizada (reducida para evitar distorsión)
-        frames_per_buffer = 1024
+        frames_per_buffer = 512
 
         # Generar el arreglo de tiempos
         t = np.linspace(0, duracion, int(frecuencia_muestreo * duracion), endpoint=False)
@@ -760,19 +904,14 @@ class controlador():
             # Iniciar la captura de audio
             self.cModel.stream.start_stream()
             
-            # Crear un stream de salida para reproducir la onda
-            output_stream = self.cModel.pyaudio_instance.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=frecuencia_muestreo,
-                output=True,
-                output_device_index=output_device_index,
-                frames_per_buffer=frames_per_buffer
-            )
-            
-            # Reproducir la onda
+            # Reproducir la onda con sounddevice (no bloqueante) para permitir captura concurrente
             print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
-            output_stream.write(onda_senoidal.astype(np.float32).tobytes())
+            try:
+                import sounddevice as sd  # Asegurar disponibilidad local
+            except Exception:
+                raise RuntimeError("El backend de reproducción 'sounddevice' no está disponible.")
+            sd.play(onda_senoidal.astype(np.float32), samplerate=frecuencia_muestreo,
+                    device=output_device_index, blocking=False)
             
             # Capturar audio durante la reproducción
             captured_audio = []
@@ -792,9 +931,11 @@ class controlador():
                     print(f"Error durante la captura de audio: {e}")
                     break
             
-            # Cerrar streams
-            output_stream.stop_stream()
-            output_stream.close()
+            # Asegurar fin de reproducción y cerrar captura
+            try:
+                sd.wait()
+            except Exception:
+                pass
             self.cModel.stream.stop_stream()
             
             if not captured_audio:
@@ -899,3 +1040,8 @@ class controlador():
         self.ventanas_abiertas["grabaciones"].showNormal()
         self.ventanas_abiertas["grabaciones"].raise_()
         self.ventanas_abiertas["grabaciones"].activateWindow()
+
+    def aceptar_calibracion(self):
+        self.cModel.activar_calibracion(True)
+        if self.cCalWin:
+            self.cCalWin.close()
