@@ -38,7 +38,7 @@ class controlador():
     def __init__(self):                             # Constructor del controlador
         self.cModel = modelo(self)                  # Conecto la referencia del modelo 
         self.cVista = vista(self)                   # Conecto la referencia de la vista 
-
+        self.cCalWin = CalibracionWin(self,self.cVista)         # Ventana de calibración
 
         self.ventanas_abiertas = {
             "calibracion": None,
@@ -48,6 +48,8 @@ class controlador():
             "programar": None,
             "grabaciones": None,
         }
+        self.signal_frec_muestreo = None
+        self.frecuencia_muestreo_actual = 8000
         
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -447,7 +449,6 @@ class controlador():
 
     def grabar(self):                               # Monitoreo en tiempo real
         grabacion(self)
-        self.get_nivel_data()
         self.graficar()
 
     def reset_all_data(self):
@@ -571,10 +572,10 @@ class controlador():
             input_device_index = self.cModel.getDispositivoActual()
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
-                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return False
         except Exception as e:
-            QMessageBox.warning(self.cCalWin, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
             return False
 
         # Reset de niveles
@@ -605,7 +606,7 @@ class controlador():
                 frames_per_buffer=frames_per_buffer
             )
         except Exception as e:
-            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
             return False
 
         # Configurar stream de entrada
@@ -620,7 +621,7 @@ class controlador():
             )
         except Exception as e:
             output_stream.close()
-            QMessageBox.warning(self.cCalWin, "Error de Audio", f"No se pudo abrir el dispositivo de entrada: {str(e)}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Audio", f"No se pudo abrir el dispositivo de entrada: {str(e)}")
             return False
 
         ultima_amplitud_baja_thd = None
@@ -744,9 +745,9 @@ class controlador():
             self.cModel.set_calibracion_offset_spl(cal_db)
             
             # Actualizar interfaz
-            self.cCalWin.txtValorRef.setText(f"{cal_db:.2f}")
+            self.ventanas_abiertas["calibracion"].txtValorRef.setText(f"{cal_db:.2f}")
             QMessageBox.information(
-                self.cCalWin, 
+                self.ventanas_abiertas["calibracion"], 
                 "Calibración Exitosa",
                 f"Calibración completada:\n"
                 f"Amplitud: {ultima_amplitud_baja_thd:.2f}\n"
@@ -757,7 +758,7 @@ class controlador():
             return True
         else:
             QMessageBox.warning(
-                self.cCalWin,
+                self.ventanas_abiertas["calibracion"],
                 "Error de Calibración",
                 "No se pudo completar la calibración. Verifique la conexión del micrófono."
             )
@@ -773,7 +774,7 @@ class controlador():
         try:
             ruta = self.cModel.get_ruta_archivo_calibracion()
             if not ruta:
-                QMessageBox.warning(self.cCalWin, "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
+                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
                 return
 
             # Leer el archivo de audio
@@ -782,15 +783,15 @@ class controlador():
             # Obtener dispositivo de salida
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
-                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return
 
             # Reproducir el audio
             sd.play(data, samplerate, device=output_device_index)
-            QMessageBox.information(self.cCalWin, "Reproducción", f"Reproduciendo {ruta}...")
+            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Reproducción", f"Reproduciendo {ruta}...")
 
         except Exception as e:
-            QMessageBox.critical(self.cCalWin, "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
+            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
             print(f"Error en reproducir_audio_calibracion: {e}")
 
     def calFuenteReferenciaInterna(self):
@@ -800,14 +801,14 @@ class controlador():
         """
         try:
             # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cCalWin.txtValorRefExterna.text()
+            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
             if not ref_spl_text:
-                QMessageBox.warning(self.cCalWin, "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
+                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
                 return False
             ref_spl = float(ref_spl_text)
 
             # 2. Iniciar una grabación corta para medir el nivel dBFS
-            QMessageBox.information(self.cCalWin, "Medición en Curso", 
+            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Medición en Curso", 
                                     "Se medirá el nivel de entrada durante 3 segundos.\n" 
                                     "Asegúrese de que su tono de referencia esté sonando y presione OK.")
             
@@ -830,7 +831,7 @@ class controlador():
             self.cModel.stream.stop_stream()
 
             if not grabacion_data:
-                QMessageBox.critical(self.cCalWin, "Error de Medición", "No se pudieron capturar datos de audio.")
+                QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Medición", "No se pudieron capturar datos de audio.")
                 return False
 
             # Concatenar y procesar los datos grabados
@@ -841,7 +842,7 @@ class controlador():
             medido_dbfs = self.cModel.calculate_db(audio_completo)
             
             # 4. Actualizar la interfaz con el valor medido
-            self.cCalWin.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
+            self.cVista.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
 
             # 5. Calcular el offset
             offset = ref_spl - medido_dbfs
@@ -850,9 +851,9 @@ class controlador():
             self.cModel.set_calibracion_offset_spl(offset)
             
             # 7. Actualizar la interfaz con el offset
-            self.cCalWin.lblFactorAjuste.setText(f"{offset:.2f} dB")
+            self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
 
-            QMessageBox.information(self.cCalWin, "Calibración Completa", 
+            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Calibración Completa", 
                                    f"Calibración finalizada con éxito.\n\n"
                                    f"Nivel de Referencia: {ref_spl:.2f} dBSPL\n"
                                    f"Nivel Medido: {medido_dbfs:.2f} dBFS\n"
@@ -860,16 +861,16 @@ class controlador():
             return True
 
         except ValueError:
-            QMessageBox.warning(self.cCalWin, "Entrada Inválida", "El valor de referencia debe ser un número.")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Entrada Inválida", "El valor de referencia debe ser un número.")
             return False
         except Exception as e:
-            QMessageBox.critical(self.cCalWin, "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
+            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
             print(f"Error en iniciar_calibracion_relativa: {e}")
             return False
 
     def calFuenteCalibracionExterna(self):
         try:
-            valor_ref_str = self.cCalWin.txtValorRef.text()
+            valor_ref_str = self.ventanas_abiertas["calibracion"].txtValorRef.text()
             print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
             valor_ref_str_cleaned = valor_ref_str.strip()
             if not valor_ref_str_cleaned:
@@ -883,7 +884,7 @@ class controlador():
 
         except (ValueError, AttributeError) as e:
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
-            QMessageBox.warning(self.cCalWin, "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
         # Obtener dispositivos de entrada y salida seleccionados
@@ -892,10 +893,10 @@ class controlador():
             output_device_index = self.cModel.getDispositivoSalidaActual()
             
             if output_device_index is None:
-                QMessageBox.warning(self.cCalWin, "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return
         except Exception as e:
-            QMessageBox.warning(self.cCalWin, "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
             return
 
         # Parámetros de la señal
@@ -982,7 +983,7 @@ class controlador():
             
             # Mostrar mensaje de éxito
             QMessageBox.information(
-                self.cCalWin,
+                self.ventanas_abiertas["calibracion"],
                 "Calibración Exitosa",
                 f"Calibración relativa completada.\n\n"
                 f"Nivel de referencia: {ref_level:.2f} dB\n"
@@ -993,15 +994,23 @@ class controlador():
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
-            QMessageBox.critical(self.cCalWin, "Error de Calibración", error_msg)
+            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", error_msg)
 
+    def actualizar_limite_desde_fs(self, fs):
+        self.frecuencia_muestreo_actual = fs
+    
+    def set_frecuencia_muestreo_actual(self, fs):
+        self.frecuencia_muestreo_actual = fs
+    
+    def get_frecuencia_muestreo_actual(self):
+        return self.frecuencia_muestreo_actual
+    
     def abrir_calibracion(self):
         if self.ventanas_abiertas["calibracion"] is None:
             self.ventanas_abiertas["calibracion"] = CalibracionWin(self, self.cVista)
-        self.cCalWin = self.ventanas_abiertas["calibracion"]
-        self.cCalWin.showNormal()
-        self.cCalWin.raise_()
-        self.cCalWin.activateWindow()
+        self.ventanas_abiertas["calibracion"].showNormal()
+        self.ventanas_abiertas["calibracion"].raise_()
+        self.ventanas_abiertas["calibracion"].activateWindow()
 
     def abrir_generador(self):
         if self.ventanas_abiertas["generador"] is None:
@@ -1012,14 +1021,31 @@ class controlador():
 
     def abrir_config_disp(self):
         if self.ventanas_abiertas["config_disp"] is None:
-            self.ventanas_abiertas["config_disp"] = ConfigDispWin(self)
+            if self.ventanas_abiertas["calibracion"] is not None:
+                config_disp = ConfigDispWin(self, self.ventanas_abiertas["calibracion"])
+            else:
+                config_disp = ConfigDispWin(self, None)
+            self.ventanas_abiertas["config_disp"] = config_disp
+
+            # ✅ Guardamos la instancia, no la señal
+            self.config_disp_instancia = config_disp
+            self.config_disp_instancia.frecuenciaMuestreoCambiada.connect(self.set_frecuencia_muestreo_actual)
+
         self.ventanas_abiertas["config_disp"].showNormal()
         self.ventanas_abiertas["config_disp"].raise_()
         self.ventanas_abiertas["config_disp"].activateWindow()
 
     def abrir_configuracion(self):
         if self.ventanas_abiertas["configuracion"] is None:
-            self.ventanas_abiertas["configuracion"] = ConfiguracionWin(self.cVista, self)
+            config_win = ConfiguracionWin(self.cVista, self)
+            self.ventanas_abiertas["configuracion"] = config_win
+
+            # ✅ Conectamos desde la instancia real, no señal suelta
+            if hasattr(self, "config_disp_instancia"):
+                self.config_disp_instancia.frecuenciaMuestreoCambiada.connect(
+                    config_win.actualizarLimiteXMaxEspectro
+                )
+
         self.ventanas_abiertas["configuracion"].showNormal()
         self.ventanas_abiertas["configuracion"].raise_()
         self.ventanas_abiertas["configuracion"].activateWindow()
@@ -1040,5 +1066,5 @@ class controlador():
 
     def aceptar_calibracion(self):
         self.cModel.activar_calibracion(True)
-        if self.cCalWin:
-            self.cCalWin.close()
+        if self.ventanas_abiertas["calibracion"]:
+            self.ventanas_abiertas["calibracion"].close()

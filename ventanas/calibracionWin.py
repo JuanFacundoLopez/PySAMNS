@@ -69,7 +69,7 @@ class CalibracionWin(QMainWindow):
         self.btnConfHard = QPushButton("Configurar dispositivo")
         confLayoutVer.addWidget(self.btnConfHard, alignment=Qt.AlignHCenter)
         confLayoutVer.addStretch()
-        self.btnConfHard.clicked.connect(self.configuracionDispositivo)
+        self.btnConfHard.clicked.connect(self.vController.abrir_config_disp)
         gridHardLayout.addLayout(confLayoutVer, 0, 2, 2, 1)
 
         # --- Calibracion Relativa ---
@@ -91,19 +91,11 @@ class CalibracionWin(QMainWindow):
         self.txtValorRefExterna = QLineEdit("94.0")
         self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
         # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
-        self.lblNivelMedidoDesc = QLabel("Nivel medido (dBFS):")
-        self.lblNivelMedidoFS = QLabel("N/A")
-        self.lblFactorAjusteDesc = QLabel("Factor de ajuste (dB):")
-        self.lblFactorAjuste = QLabel("N/A")
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
         layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
         layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
         layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
-        layoutExterna.addWidget(self.lblNivelMedidoDesc, 4, 0)
-        layoutExterna.addWidget(self.lblNivelMedidoFS, 4, 1)
-        layoutExterna.addWidget(self.lblFactorAjusteDesc, 5, 0)
-        layoutExterna.addWidget(self.lblFactorAjuste, 5, 1)
 
         # --- Grafico ---
         self.chart2 = QChart()
@@ -114,7 +106,6 @@ class CalibracionWin(QMainWindow):
 
         # --- Botones ---
         self.btnAceptar = QPushButton("Aceptar")
-        self.btnAceptar.clicked.connect(self.vController.aceptar_calibracion)
         self.btnCalibrar = QPushButton("Calibrar")
         self.calibracion_realizada = False
         self.btnGenerador = QPushButton("Generador de señales")
@@ -232,9 +223,9 @@ class CalibracionWin(QMainWindow):
     def actualizarNombreDispositivoSalida(self):
         """Actualiza el label con el nombre del dispositivo de salida actual"""
         try:
-            # Verificar si el label existe
-            if not hasattr(self, 'lblConfDispSal'):
-                print("Label lblConfDispSal no existe - ventana de calibración no abierta")
+            # Verificar si el label existe (solo se crea cuando se abre la ventana de calibración)
+            if not hasattr(self, 'lblConfHardSalida'):
+                print("Label lblConfHardSalida no existe - ventana de calibración no abierta")
                 return
                 
             dispositivo_salida_actual = self.vController.cModel.getDispositivoSalidaActual()
@@ -247,32 +238,28 @@ class CalibracionWin(QMainWindow):
                 try:
                     idx_actual = indices.index(dispositivo_salida_actual)
                     nombre_dispositivo = nombres[idx_actual]
-                    self.lblConfDispSal.setText(nombre_dispositivo)
+                    self.lblConfHardSalida.setText(nombre_dispositivo)
                     print(f"Dispositivo de salida actualizado: {nombre_dispositivo}")
                 except ValueError:
                     # Si no se encuentra el dispositivo actual, mostrar "Desconocido"
-                    self.lblConfDispSal.setText("Desconocido")
+                    self.lblConfHardSalida.setText("Desconocido")
                     print("Dispositivo de salida no encontrado en la lista")
             else:
-                self.lblConfDispSal.setText("No disponible")
+                self.lblConfHardSalida.setText("No disponible")
                 print("No hay dispositivo de salida actual")
         except Exception as e:
             print(f"Error al actualizar nombre del dispositivo de salida: {e}")
-            if hasattr(self, 'lblConfDispSal'):
-                self.lblConfDispSal.setText("Error")   
+            if hasattr(self, 'lblConfHardSalida'):
+                self.lblConfHardSalida.setText("Error")   
     
     def generadorWin(self):
         self.genWin = GeneradorWin(self.vController)
         self.genWin.show()
         
     def configuracionDispositivo(self):
-        """Abre la ventana de configuración de dispositivos como un diálogo modal."""
-        # El parámetro parent_cal_win ya no es necesario con este enfoque
-        config_win = ConfigDispWin(self.vController)
-        config_win.exec_()  # Esto hace que el diálogo sea modal y bloqueante
-        
-        # Después de que el usuario cierra el diálogo, actualizamos los nombres
-        self.actualizarNombreDispositivos()
+        """Abre la ventana de configuración de dispositivos."""
+        self.configDispWin = ConfigDispWin(self.vController, parent_cal_win=self)
+        self.configDispWin.show()
     
     def importarSenalCalibracion(self):
         """Importa un archivo .wav y lo grafica en chart2"""
@@ -296,7 +283,7 @@ class CalibracionWin(QMainWindow):
                 self.vController.establecer_ruta_archivo_calibracion(fileName)
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error al importar archivo: {str(e)}")
+            QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
             print(f"Error en importarSenalCalibracion: {e}")
             
     def closeEvent(self, event):

@@ -105,7 +105,6 @@ class FrequencyAxisItem(pg.AxisItem):
         self.bandas = new_bandas
         self.update()
 
-
 class vista(QMainWindow):
 
     def resizeEvent(self, event):
@@ -236,6 +235,8 @@ class vista(QMainWindow):
         self.var_yMaxTiempo = 1
         self.var_xMinEspectro = np.log10(20)
         self.var_xMaxEspectro = np.log10(20000)
+        self.var_eje2Visible = True
+        self.var_valoresOctavas = True
         self.var_yMinEspectro = -120
         self.var_yMaxEspectro = 0
         self.var_xMinNivel = 0
@@ -794,7 +795,28 @@ class vista(QMainWindow):
         self.cb50A.setChecked(False)
         self.cb90A.setChecked(False)
         self.cb99A.setChecked(False)
-        
+      
+    def configure_bar_chart_y_range(self, niveles):
+        """
+        Configura el rango Y para el gráfico de barras.
+        Va desde -120 dB (piso de ruido) hasta el valor máximo capturado.
+        Las barras se extienden desde -120 dB hacia arriba hasta el valor capturado.
+        """
+        y_min = -120.0
+        y_max = np.max(niveles) if len(niveles) > 0 else -20.0
+        if y_max < y_min + 20:
+            y_max = y_min + 20
+
+        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
+            self.fft_ymin = y_min
+            self.fft_ymax = y_max
+        else:
+            self.fft_ymin = -120.0
+            if y_max > self.fft_ymax:
+                self.fft_ymax = y_max
+
+        return self.fft_ymin, self.fft_ymax  
+    
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
@@ -914,10 +936,11 @@ class vista(QMainWindow):
         
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
-        self._ensure_right_axis()
-        self._ejeYDer_titulo_base = "Nivel (dB)"
-        self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
-        self.vb_right.setYRange(0, 120, padding=0)
+        if self.var_eje2Visible:
+            self._ensure_right_axis()
+            self._ejeYDer_titulo_base = "Nivel (dB)"
+            self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
+            self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
@@ -975,7 +998,7 @@ class vista(QMainWindow):
             self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
             self.waveform1.setYRange(-120, 0, padding=0)
             # Invert the Y-axis to show negative values at the bottom
-            self.waveform1.invertY(False)  # This will invert the Y-axis
+            self.waveform1.invertY(False) 
             self.waveform1.setXRange(0, 10, padding=0)  # Rango de tiempo en segundos
             self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
@@ -1000,7 +1023,7 @@ class vista(QMainWindow):
         return cal_auto or (ruta_ext is not None) or (abs(offset) > 1e-9)
 
     def actualizar_badge_calibracion_pyqtgraph(self):
-        if self.esta_calibrado():
+        if self.esta_calibrado() or self.btnTiempo.isChecked:
             # Sin badge
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
             if self.btnFrecuencia.isChecked():
@@ -1179,35 +1202,6 @@ class vista(QMainWindow):
         if hasattr(color, 'name'):
             return color.name()
         return color
-    
-    def configure_bar_chart_y_range(self, niveles):
-        """
-        Configura el rango Y para el gráfico de barras.
-        Va desde -120 dB (piso de ruido) hasta el valor máximo capturado.
-        Las barras se extienden desde -120 dB hacia arriba hasta el valor capturado.
-        """
-        # Piso de ruido típico en dB (equivalente a -infinito para efectos prácticos)
-        y_min = -120.0
-        
-        # Valor máximo de los niveles capturados (menos negativo, que es el "techo" del gráfico)
-        y_max = np.max(niveles) if len(niveles) > 0 else -20.0
-        
-        # Asegurar que el rango máximo sea al menos 20 dB por encima del piso
-        if y_max < y_min + 20:
-            y_max = y_min + 20
-        
-        # Inicializar o actualizar el rango Y fijo
-        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
-            self.fft_ymin = y_min
-            self.fft_ymax = y_max
-        else:
-            # Mantener el piso fijo en -120 dB
-            self.fft_ymin = -120.0
-            # Actualizar solo el máximo si es mayor (menos negativo)
-            if y_max > self.fft_ymax:
-                self.fft_ymax = y_max
-        
-        return self.fft_ymin, self.fft_ymax
 
 # CODIGO YAMILI
 
@@ -1321,7 +1315,6 @@ class vista(QMainWindow):
                         if len(x_positions) != len(niveles):
                             print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
                             return
-                        
                         # Calcular la altura de las barras desde -120 dB hasta el valor capturado
                         piso_ruido = -120.0
                         bar_heights = niveles - piso_ruido  # Altura = valor_capturado - (-120) = valor_capturado + 120
@@ -1570,9 +1563,9 @@ class vista(QMainWindow):
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=3, style=QtCore.Qt.SolidLine), name='A Slow')
                         print(f"DEBUG SLOW A: Plot creado")
 
-                    # --- Ploteo de niveles estadísticos (evolución temporal) ---
+                    # --- Ploteo de niveles estadísticos (horizontales constantes) ---
                     # Colores fijos por tipo de Ln (para parecerse al ejemplo: L10 rojo, L50 verde, L90 naranja)
-                    # Ahora usamos PlotDataItem para mostrar evolución temporal
+                    # Usamos InfiniteLine en el último valor (asumiendo que es el percentile cumulativo actual)
                     color_map = {
                         'leq': 'purple',   # Leq: morado
                         'l01': 'yellow',   # L01: amarillo
@@ -1717,9 +1710,11 @@ class vista(QMainWindow):
             self.var_xMaxEspectro = config['espectro']['xMax']
             self.var_yMinEspectro = config['espectro']['yMin']
             self.var_yMaxEspectro = config['espectro']['yMax']
+            self.var_eje2Visible = config['espectro']['eje2']
             self.var_etiquetaXEspectro = config['espectro']['etiquetaX']
             self.var_etiquetaYEspectro = config['espectro']['etiquetaY']
             self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
+            self.var_valoresOctavas = config['espectro']['valoresOcta']
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']
