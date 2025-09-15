@@ -795,7 +795,28 @@ class vista(QMainWindow):
         self.cb50A.setChecked(False)
         self.cb90A.setChecked(False)
         self.cb99A.setChecked(False)
-        
+      
+    def configure_bar_chart_y_range(self, niveles):
+        """
+        Configura el rango Y para el gráfico de barras.
+        Va desde -120 dB (piso de ruido) hasta el valor máximo capturado.
+        Las barras se extienden desde -120 dB hacia arriba hasta el valor capturado.
+        """
+        y_min = -120.0
+        y_max = np.max(niveles) if len(niveles) > 0 else -20.0
+        if y_max < y_min + 20:
+            y_max = y_min + 20
+
+        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
+            self.fft_ymin = y_min
+            self.fft_ymax = y_max
+        else:
+            self.fft_ymin = -120.0
+            if y_max > self.fft_ymax:
+                self.fft_ymax = y_max
+
+        return self.fft_ymin, self.fft_ymax  
+    
     def abrirprogramarWin(self):
         self.programar_win = ProgramarWin()
         self.programar_win.show()
@@ -975,7 +996,9 @@ class vista(QMainWindow):
         else:
             # Configuración por defecto para gráfico de nivel
             self.waveform1.setLogMode(x=False, y=False)  # Escala lineal
-            self.waveform1.setYRange(-150, 0, padding=0)  # Rango de presión en dB (ajustado para mostrar datos más bajos)
+            self.waveform1.setYRange(-120, 0, padding=0)
+            # Invert the Y-axis to show negative values at the bottom
+            self.waveform1.invertY(False) 
             self.waveform1.setXRange(0, 10, padding=0)  # Rango de tiempo en segundos
             self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
@@ -1292,49 +1315,74 @@ class vista(QMainWindow):
                         if len(x_positions) != len(niveles):
                             print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
                             return
+                        # Calcular la altura de las barras desde -120 dB hasta el valor capturado
+                        piso_ruido = -120.0
+                        bar_heights = niveles - piso_ruido  # Altura = valor_capturado - (-120) = valor_capturado + 120
+                        bar_bottoms = np.full_like(niveles, piso_ruido)  # Base de las barras en -120 dB
                         
-                        # Crear el gráfico de barras
-                        bar_item = pg.BarGraphItem(
-                            x=x_positions, 
-                            height=niveles, 
-                            width=bar_width, 
-                            brush=color,
-                            pen=pg.mkPen(color='black', width=1)
-                        )
-                        self.waveform1.addItem(bar_item)
+                        # Debug: mostrar el color que se está usando
+                        print(f"Color de las barras: {color}")
+                        print(f"Tipo de color: {type(color)}")
                         
-                        if self.var_valoresOctavas:
-                            for i, h in enumerate(niveles):
-                                # Position the text slightly above the bar
-                                text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                                text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                                text_item.setAngle(45)
-                                self.waveform1.addItem(text_item)
+                        # Crear barras individuales usando PlotDataItem
+                        print("Creando barras individuales...")
+                        
+                        # Calcular el ancho de cada barra para que se toquen (sin espacios)
+                        total_width = len(bandas)  # Ancho total disponible
+                        bar_width = total_width / len(bandas)  # Ancho de cada barra
+                        
+                        for i, (x, height, nivel) in enumerate(zip(x_positions, bar_heights, niveles)):
+                            if height > 0:  # Solo crear barras con altura positiva
+                                # Calcular los límites de la barra (sin espacios)
+                                x_left = x - bar_width/2
+                                x_right = x + bar_width/2
+                                
+                                # Crear puntos para la barra: base y cima
+                                x_vals = [x_left, x_right, x_right, x_left, x_left]
+                                y_vals = [piso_ruido, piso_ruido, nivel, nivel, piso_ruido]
+                                
+                                # Usar el color de la configuración
+                                bar_color = self.get_color_str(color)
+                                print(f"Usando color: {bar_color}")
+                                
+                                # Crear la barra como un PlotDataItem
+                                bar_item = pg.PlotDataItem(
+                                    x_vals, y_vals, 
+                                    pen=pg.mkPen('black', width=1),
+                                    brush=pg.mkBrush(bar_color),
+                                    fillLevel=piso_ruido,
+                                    fillBrush=pg.mkBrush(bar_color)
+                                )
+                                self.waveform1.addItem(bar_item)
+                                print(f"Barra {i}: x={x:.1f}, ancho={bar_width:.2f}, altura={height:.1f}, nivel={nivel:.1f} dB")
+                        
+                        print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
+                        
+                        for i, h in enumerate(niveles):
+                            # Position the text slightly above the bar
+                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
+                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
+                            text_item.setAngle(45)
+                            self.waveform1.addItem(text_item)
                             
-                        # Configurar rangos de ejes
+                        # Configurar rangos de ejes - ajustar para barras sin espacios
                         self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
                         
-                        # Rango Y dinámico basado en los niveles
-                        y_min = np.min(niveles) if len(niveles) > 0 else 0
-                        y_max = np.max(niveles) if len(niveles) > 0 else 1
-                        y_range = y_max - y_min
-                        if y_range == 0:
-                            y_range = 1
+                        # Configurar rango Y usando la función auxiliar
+                        y_min, y_max = self.configure_bar_chart_y_range(niveles)
+                        self.waveform1.setYRange(y_min, y_max)
                         
-                        # Usar el mismo sistema de rango Y fijo que el gráfico de línea
-                        if not hasattr(self, 'fft_ymin') or not hasattr(self, 'fft_ymax'):
-                            self.fft_ymin = y_min
-                            self.fft_ymax = y_max
-                        else:
-                            if y_min < self.fft_ymin:
-                                self.fft_ymin = y_min
-                            if y_max > self.fft_ymax:
-                                self.fft_ymax = y_max
-                        
-                        self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
+                        # Debug: mostrar información del rango Y
+                        print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
+                        print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
+                        print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
+                        print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
+                        print(f"Posiciones X: {x_positions[:5]}...")
+                        print(f"Ancho de barras: {bar_width}")
+                        print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB)')
+                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
