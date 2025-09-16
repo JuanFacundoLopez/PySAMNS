@@ -94,7 +94,7 @@ class modelo:
         self.times = []  # Add times array to track timestamps
         
         # Valores de referencia para normalización y dB
-        self.max_int16 = 32767
+        self.max_int16 = 32767/2
         self.reference = 1.0  # Referencia para dB (1.0 = 0dB)
 
         try:

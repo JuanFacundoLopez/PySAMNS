@@ -587,7 +587,7 @@ class controlador():
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
         fs = self.RATE
-        duracion = 0.5  # segundos por paso
+        duracion = 1.5  # segundos por paso
         silencio = 0.1  # segundos de silencio entre pasos
         frames_per_buffer = 1024
         paso_amp = 0.1
@@ -645,8 +645,10 @@ class controlador():
                 frames = []
                 for _ in range(int(fs * duracion / frames_per_buffer)):
                     try:
-                        data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
-                        frames.append(np.frombuffer(data, dtype=np.float32))
+                        audio_data = self.cModel.get_audio_data()
+                        if audio_data and len(audio_data) >= 7:
+                            current_data = audio_data[0]  # Tomamos solo el primer elemento que contiene los datos actuales
+                            frames.append(current_data.astype(np.float32))
                     except Exception as e:
                         print(f"Error en captura: {e}")
                         continue
@@ -695,8 +697,14 @@ class controlador():
                 
                 # Calcular THD (Distorsión Armónica Total)
                 if len(harmonic_amplitudes) > 0:
-                    sum_harmonics_sq = np.sum(np.square(harmonic_amplitudes))
-                    thd = np.sqrt(sum_harmonics_sq) / fundamental_amp
+                    # Calcular la suma de los cuadrados de las amplitudes armónicas
+                    sum_harmonics_sq = 0.0
+                    for amplitud in harmonic_amplitudes:
+                        print("Amplitud: ", amplitud)
+                        sum_harmonics_sq += amplitud * amplitud
+                        print("Suma: ", sum_harmonics_sq)
+                    thd = (sum_harmonics_sq ** 0.5) / fundamental_amp
+                    print("THD: ", thd)
                     thd_pct = thd * 100  # Convertir a porcentaje
                 else:
                     thd_pct = 0.0
@@ -705,7 +713,7 @@ class controlador():
                 rms = np.sqrt(np.mean(np.square(segmento)))
                 nivel_dbfs = 20 * np.log10(rms) if rms > 0 else -np.inf
                 
-                print(f"Amplitud: {amp:.1f}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
+                print(f"Amplitud: {amp}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
                 print(f"  Frecuencia fundamental: {fundamental_freq:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
                 if harmonic_amplitudes:
                     print(f"  Armónicos encontrados: {len(harmonic_amplitudes)}")
@@ -823,7 +831,7 @@ class controlador():
                     if audio_data and len(audio_data) >= 7:
                         current_data, _, _, _, _, _, _ = audio_data
                         if len(current_data) > 0:
-                            grabacion_data.append(current_data.astype(np.float32) / 32767.0)
+                            grabacion_data.append(current_data.astype(np.float32))
                 except Exception as e:
                     print(f"Error al capturar audio: {e}")
                 time.sleep(0.01) # Pequeña pausa
