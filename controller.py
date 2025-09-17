@@ -528,7 +528,7 @@ class controlador():
                     
                     if len(current_data1) > 0:  # Verify we have data to process
                         # Convertir datos a float32 normalizado (-1 a 1)
-                        normalized_data = current_data1.astype(np.float32) / 32767.0
+                        normalized_data = current_data1.astype(np.float32) / (32767.0/2)
                         
                         # Procesar con los filtros de ponderación
                         self.cModel.setSignalData(normalized_data)
@@ -587,7 +587,7 @@ class controlador():
         # Parámetros de la señal
         frecuencia = 1000  # 1 kHz
         fs = self.RATE
-        duracion = 1.5  # segundos por paso
+        duracion = 3  # segundos por paso
         silencio = 0.1  # segundos de silencio entre pasos
         frames_per_buffer = 1024
         paso_amp = 0.1
@@ -645,10 +645,8 @@ class controlador():
                 frames = []
                 for _ in range(int(fs * duracion / frames_per_buffer)):
                     try:
-                        audio_data = self.cModel.get_audio_data()
-                        if audio_data and len(audio_data) >= 7:
-                            current_data = audio_data[0]  # Tomamos solo el primer elemento que contiene los datos actuales
-                            frames.append(current_data.astype(np.float32))
+                        data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
+                        frames.append(np.frombuffer(data, dtype=np.float32))
                     except Exception as e:
                         print(f"Error en captura: {e}")
                         continue
@@ -664,48 +662,49 @@ class controlador():
                 segmento = capturado[inicio:]
                 
                 # Calcular FFT de la señal capturada
+                if len(segmento) == 0:
+                    return [], []
+
+                # 1. Aplicar ventana y calcular FFT
+                window = np.hanning(len(segmento))
+                window_gain = np.mean(window)  # Factor de corrección de la ventana
+                fft_data = np.fft.fft(segmento * window)
+
+                # 2. Normalización correcta
                 n = len(segmento)
-                yf = np.fft.fft(segmento)
-                yf = np.abs(yf[0:n//2]) / (n/2)  # Normalizar
-                
-                # Crear vector de frecuencias
-                freqs = np.fft.fftfreq(n, 1/fs)[:n//2]
-                
-                # Encontrar la fundamental (1kHz) y sus armónicos
-                fundamental_idx = np.argmin(np.abs(freqs - frecuencia))
+                yf = np.abs(fft_data[0:n//2]) * (2.0 / (n * window_gain))
+                freqs = np.fft.fftfreq(n, 1.0/fs)[:n//2]
+
+                # 3. Encontrar la fundamental
+                fundamental_idx = np.argmax(yf)  # Usamos el pico más alto
                 fundamental_freq = freqs[fundamental_idx]
                 fundamental_amp = yf[fundamental_idx]
-                
-                # Encontrar armónicos (hasta 10kHz)
-                harmonic_freqs = []
+
+                # 4. Buscar armónicos con mejor precisión
                 harmonic_amplitudes = []
-                
-                for h in range(2, int(10000/frecuencia) + 1):
+                for h in range(2, 6):  # Solo hasta el 5to armónico
                     target_freq = h * fundamental_freq
-                    if target_freq > fs/2:  # Nyquist
+                    if target_freq > fs/2:
                         break
-                        
-                    # Buscar en una ventana estrecha alrededor de la frecuencia esperada
-                    f_min = target_freq - 50  # ±50Hz de margen
-                    f_max = target_freq + 50
-                    mask = (freqs >= f_min) & (freqs <= f_max)
                     
-                    if np.any(mask):
-                        idx = np.argmax(yf[mask]) + np.where(mask)[0][0]
-                        harmonic_freqs.append(freqs[idx])
-                        harmonic_amplitudes.append(yf[idx])
-                
-                # Calcular THD (Distorsión Armónica Total)
-                if len(harmonic_amplitudes) > 0:
-                    # Calcular la suma de los cuadrados de las amplitudes armónicas
-                    sum_harmonics_sq = 0.0
-                    for amplitud in harmonic_amplitudes:
-                        print("Amplitud: ", amplitud)
-                        sum_harmonics_sq += amplitud * amplitud
-                        print("Suma: ", sum_harmonics_sq)
-                    thd = (sum_harmonics_sq ** 0.5) / fundamental_amp
-                    print("THD: ", thd)
-                    thd_pct = thd * 100  # Convertir a porcentaje
+                    # Buscar en una ventana estrecha
+                    idx = np.argmin(np.abs(freqs - target_freq))
+                    if abs(freqs[idx] - target_freq) < (fs/n * 2):  # Margen de 2 bins
+                        # Interpolación cuadrática
+                        if 0 < idx < len(yf)-1:
+                            alpha = yf[idx-1]
+                            beta = yf[idx]
+                            gamma = yf[idx+1]
+                            p = 0.5 * (alpha - gamma) / (alpha - 2*beta + gamma)
+                            true_amp = beta - 0.25 * (alpha - gamma) * p
+                            harmonic_amplitudes.append(true_amp)
+                        else:
+                            harmonic_amplitudes.append(yf[idx])
+
+                # 5. Calcular THD solo si hay armónicos válidos
+                if harmonic_amplitudes and fundamental_amp > 0:
+                    thd = np.sqrt(np.sum(np.square(harmonic_amplitudes))) / fundamental_amp
+                    thd_pct = thd * 100
                 else:
                     thd_pct = 0.0
                 
@@ -713,12 +712,13 @@ class controlador():
                 rms = np.sqrt(np.mean(np.square(segmento)))
                 nivel_dbfs = 20 * np.log10(rms) if rms > 0 else -np.inf
                 
-                print(f"Amplitud: {amp}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
-                print(f"  Frecuencia fundamental: {fundamental_freq:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
+                print(f"Amplitud: {amp:.1f}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
+                print(f"  Frecuencia fundamental: {frecuencia:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
                 if harmonic_amplitudes:
                     print(f"  Armónicos encontrados: {len(harmonic_amplitudes)}")
-                    for i, (f, a) in enumerate(zip(harmonic_freqs, harmonic_amplitudes), 2):
-                        print(f"    Armónico {i}: {f:.2f} Hz, Amplitud: {a:.6f}, Nivel: {20*np.log10(a) if a > 0 else -np.inf:.2f} dB")
+                    for i, a in enumerate(harmonic_amplitudes, 2):
+                        freq = frecuencia * i  # Calculamos la frecuencia del armónico
+                        print(f"    Armónico {i}: {freq:.2f} Hz, Amplitud: {a:.6f}, Nivel: {20*np.log10(a) if a > 0 else -np.inf:.2f} dB")
                 
                 if thd_pct < umbral_thd:
                     ultima_amplitud_baja_thd = amp
@@ -831,7 +831,7 @@ class controlador():
                     if audio_data and len(audio_data) >= 7:
                         current_data, _, _, _, _, _, _ = audio_data
                         if len(current_data) > 0:
-                            grabacion_data.append(current_data.astype(np.float32))
+                            grabacion_data.append(current_data.astype(np.float32) / (32767.0/2))
                 except Exception as e:
                     print(f"Error al capturar audio: {e}")
                 time.sleep(0.01) # Pequeña pausa
@@ -944,7 +944,7 @@ class controlador():
                         current_data, _, _, _, _, _, _ = audio_data
                         if len(current_data) > 0:
                             # Convertir a float32 y normalizar (-1.0 a 1.0)
-                            normalized_data = current_data.astype(np.float32) / 32767.0
+                            normalized_data = current_data.astype(np.float32) / (32767.0/2)
                             captured_audio.extend(normalized_data)
                     time.sleep(0.01)  # Pequeña pausa para no saturar el CPU
                 except Exception as e:

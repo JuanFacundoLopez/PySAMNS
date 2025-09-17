@@ -774,6 +774,7 @@ class modelo:
             
             # Calcular FFT para el espectro de frecuencia
             fft_freqs, fft_db = self.calculate_fft(current_data)
+            print("Normalized_current: ", normalized_current)
             
             # return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times, fft_freqs, fft_db
             return current_data, all_data, normalized_current, normalized_all_array, self.times, fft_freqs, fft_db
