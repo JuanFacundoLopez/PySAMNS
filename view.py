@@ -1023,12 +1023,16 @@ class vista(QMainWindow):
         return cal_auto or (ruta_ext is not None) or (abs(offset) > 1e-9)
 
     def actualizar_badge_calibracion_pyqtgraph(self):
-        if self.esta_calibrado() or self.btnTiempo.isChecked:
+        bandera = self.esta_calibrado()
+        bandera2 = self.btnTiempo.isChecked()
+        if bandera or bandera2:
+            print("DEBUG: Está calibrado, actualizando badge")
             # Sin badge
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
             if self.btnFrecuencia.isChecked():
                 self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
         else:
+            print("DEBUG: No está calibrado, actualizando badge")
             # Sufijo naranja "(sin calibrar)"
             self.waveform1.setLabel('left', f"{self._ejeY_titulo_base} <span style='color:#ff9800'>(sin calibrar)</span>")
             if self.btnFrecuencia.isChecked():

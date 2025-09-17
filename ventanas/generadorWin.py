@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout
                              QLabel, QLineEdit, QWidget, QMessageBox, QComboBox, QSpinBox)
 
 from PyQt5.QtGui import  QIcon, QPainter, QBrush
-from PyQt5.QtCore import QPointF
+from PyQt5.QtCore import QPointF, QTimer
 
 
 # Imports para QChart (solo para la ventana de calibración)
@@ -27,6 +27,11 @@ class GeneradorWin(QMainWindow):
         self.altoY = screen.height()
         self.setGeometry(norm(self.anchoX, self.altoY, 0.4, 0.3, 0.2, 0.4))
 
+        # Timer para controlar el fin de la reproducción
+        self.timer_reproduccion = QTimer()
+        self.timer_reproduccion.setSingleShot(True)
+        self.timer_reproduccion.timeout.connect(self.fin_reproduccion)
+
         with open("estilos.qss", "r", encoding='utf-8') as f:
             QApplication.instance().setStyleSheet(f.read())
         
@@ -38,7 +43,7 @@ class GeneradorWin(QMainWindow):
         
         self.lbltipoSig = QLabel("Tipo de señal:")
         self.tipo_combo = QComboBox()
-        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular", "Ruido Blanco", "Ruido Rosa"])
+        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular", "Ruido Blanco", "Ruido Rosa", "Senoidal exponencial"])
         configLayout.addWidget(self.lbltipoSig)
         configLayout.addWidget(self.tipo_combo)
         
@@ -65,6 +70,14 @@ class GeneradorWin(QMainWindow):
         configLayout.addWidget(self.duty_input)
         self.lblDutyCicleSig.setVisible(False)
         self.duty_input.setVisible(False)
+        
+        # Campo Tau (constante de decaimiento)
+        self.lblTauSig = QLabel("Tau (s):")
+        self.tau_input = QLineEdit("1")
+        configLayout.addWidget(self.lblTauSig)
+        configLayout.addWidget(self.tau_input)
+        self.lblTauSig.setVisible(False)
+        self.tau_input.setVisible(False)
         
         self.btn_generar = QPushButton("Reproducir")
         icon_play_path = "img/boton-de-play.png" 
@@ -96,11 +109,13 @@ class GeneradorWin(QMainWindow):
         
         self.tipo_combo.currentIndexChanged.connect(self.mostra_duty_cicle)
         self.tipo_combo.currentIndexChanged.connect(self.mostrar_frecuencia)
+        self.tipo_combo.currentIndexChanged.connect(self.mostrar_tau)
         self.tipo_combo.currentIndexChanged.connect(self.generar_senal)
         self.dur_input.textChanged.connect(self.generar_senal)
         self.freq_input.textChanged.connect(self.generar_senal)
         self.amp_input.textChanged.connect(self.generar_senal)
         self.duty_input.valueChanged.connect(self.generar_senal)
+        self.tau_input.textChanged.connect(self.generar_senal)
         
 
         mainLayout.addLayout(configLayout)
@@ -113,10 +128,10 @@ class GeneradorWin(QMainWindow):
         for boton in [self.btn_generar, self.btn_pausa]:
             boton.setProperty("class", "ventanasSec")
 
-        for txt in [self.freq_input, self.amp_input, self.dur_input, self.duty_input]:
+        for txt in [self.freq_input, self.amp_input, self.dur_input, self.duty_input, self.tau_input]:
             txt.setProperty("class", "ventanasSec")
             
-        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig, self.lblDutyCicleSig]:
+        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig, self.lblDutyCicleSig, self.lblTauSig]:
             lbl.setProperty("class", "ventanasSecLabelDestacado")  
 
         self.lbl_error_gen_sig.setProperty("class", "errorLbl") 
@@ -139,6 +154,14 @@ class GeneradorWin(QMainWindow):
             self.lblDutyCicleSig.setVisible(False)
             self.duty_input.setVisible(False)
 
+    def mostrar_tau(self):
+        if self.tipo_combo.currentText() == "Senoidal exponencial":
+            self.lblTauSig.setVisible(True)
+            self.tau_input.setVisible(True)
+        else:
+            self.lblTauSig.setVisible(False)
+            self.tau_input.setVisible(False)
+            
     def mostrar_frecuencia(self):
         if self.tipo_combo.currentText() in [ "Ruido Blanco", "Ruido Rosa"]:
             self.lblFrecSig.setVisible(False)
@@ -169,6 +192,13 @@ class GeneradorWin(QMainWindow):
                 self.lbl_error_gen_sig.setText("El duty cycle debe ser entre 0 y 100%.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
+            
+            if self.tipo_combo.currentText() == "Senoidal exponencial":
+                tau = float(self.tau_input.text())
+                if tau <= 0:
+                    self.lbl_error_gen_sig.setText("Tau debe ser > 0.")
+                    self.lbl_error_gen_sig.setVisible(True)
+                    return False
             self.lbl_error_gen_sig.setVisible(False)
             return True
         except ValueError:
@@ -180,6 +210,11 @@ class GeneradorWin(QMainWindow):
         """Pausa la reproduccion de la señal generada por el dispositivo de salida"""
         self.btn_generar.setVisible(True)
         self.btn_pausa.setVisible(False)
+        
+        # Detener el timer si está corriendo
+        if self.timer_reproduccion.isActive():
+            self.timer_reproduccion.stop()
+            
         try:
             import sounddevice as sd
             sd.stop()  # Detiene cualquier señal en reproducción
@@ -187,13 +222,19 @@ class GeneradorWin(QMainWindow):
         except Exception as e:
             print(f"Error al pausar la señal: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo pausar la señal: {str(e)}")
+    
+    def fin_reproduccion(self):
+        """Función que se ejecuta cuando termina la reproducción automáticamente"""
+        self.btn_generar.setVisible(True)
+        self.btn_pausa.setVisible(False)
+        print("Reproducción terminada")
             
     def generar_senal(self):
         if not self.verificar_valores_generador():
             return
 
         tipo = self.tipo_combo.currentText()
-        f = float(self.freq_input.text())
+        f = float(self.freq_input.text()) if self.freq_input.isVisible() else 1000  # Valor por defecto para ruidos
         A = float(self.amp_input.text())
         T = float(self.dur_input.text())
         Fs = 44100
@@ -206,7 +247,7 @@ class GeneradorWin(QMainWindow):
             fase = (f * t) % 1.0
             y = A * np.where(fase < duty, 1.0, -1.0)
         elif tipo == "Triangular":
-            y = A * 2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1
+            y = A * (2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1)
         elif tipo == "Ruido Blanco":
             y = A * np.random.normal(0, 1, len(t))
         elif tipo == "Ruido Rosa":
@@ -217,26 +258,47 @@ class GeneradorWin(QMainWindow):
             y = (np.fft.irfft(X / S)).real
             y = y[:N]
             y *= A
+        elif tipo == "Senoidal exponencial":                               # NUEVO
+            tau = max(1e-12, float(self.tau_input.text()))
+            y = A * np.exp(-t / tau) * np.sin(2 * np.pi * f * t)
 
         self.signal_data = y.astype(np.float32)
         self.sample_rate = Fs
 
         # -----------------------
-        # Ajuste dinámico del eje X según frecuencia
+        # Ajuste dinámico del eje X según el tipo de señal
         # -----------------------
-        num_ciclos_visibles = 5
-        duracion_visible = num_ciclos_visibles / f  # ventana de tiempo que muestra 5 ciclos
+        
+        # Para ruidos, mostrar siempre 5 segundos fijos
+        if tipo in ["Ruido Blanco", "Ruido Rosa"]:
+            duracion_visible = min(0.05, T)  # Máximo 5 segundos o la duración total si es menor
+        elif tipo == "Senoidal exponencial":
+            # Para señal exponencial, mostrar un rango más largo para ver la decadencia
+            tau = max(1e-12, float(self.tau_input.text()))
+            # Mostrar aproximadamente 3 constantes de tiempo para ver bien la decadencia
+            duracion_visible = min(3 * tau, T)  
+            # Mínimo 2 segundos para que siempre sea visible, máximo 10 segundos
+            duracion_visible = max(2.0, min(duracion_visible, 10.0))
+        else:
+            # Para otras señales, mostrar según frecuencia
+            num_ciclos_visibles = 5
+            duracion_visible = num_ciclos_visibles / f  # ventana de tiempo que muestra 5 ciclos
+        
         num_samples_visible = int(Fs * duracion_visible)
+        num_samples_visible = min(num_samples_visible, len(t))  # No exceder la longitud total
 
         t_visible = t[:num_samples_visible]
         y_visible = y[:num_samples_visible]
 
-        # Interpolación visual para evitar aliasing en pantalla
-        Fs_vis = Fs * 10
-        t_interp = np.linspace(t_visible[0], t_visible[-1], int(len(t_visible) * 10))
-
-        interpolador = interp1d(t_visible, y_visible, kind='cubic')
-        y_interp = interpolador(t_interp)
+        # Interpolación visual para evitar aliasing en pantalla (solo si no es ruido)
+        if tipo not in ["Ruido Blanco", "Ruido Rosa"]:
+            t_interp = np.linspace(t_visible[0], t_visible[-1], int(len(t_visible) * 10))
+            interpolador = interp1d(t_visible, y_visible, kind='cubic')
+            y_interp = interpolador(t_interp)
+        else:
+            # Para ruidos, usar los datos originales sin interpolación
+            t_interp = t_visible
+            y_interp = y_visible
 
         # Submuestreo para mostrar máximo N puntos
         max_points = 1000
@@ -249,27 +311,6 @@ class GeneradorWin(QMainWindow):
             self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
 
         self.chartGenSig.addSeries(self.seriesGenSig)
-        # self.chartGenSig.createDefaultAxes()
-
-        # # Asegúrate de asignar títulos después de crear los ejes
-        # axisX = self.chartGenSig.axisX(self.seriesGenSig)
-        # axisY = self.chartGenSig.axisY(self.seriesGenSig)
-
-        # if isinstance(axisX, QValueAxis):
-        #     axisX.setRange(0, duracion_visible)
-        #     axisX.setTitleText("Tiempo (s)")
-        #     axisX.setTitleBrush(QBrush(Qt.white))
-        #     axisX.setTitleVisible(True)
-
-        # if isinstance(axisY, QValueAxis):
-        #     axisY.setTitleText("Amplitud relativa")
-        #     axisY.setTitleBrush(QBrush(Qt.white))
-        #     axisY.setTitleVisible(True)
-        # # Eje X ajustado dinámicamente a la frecuencia
-        # axisX = self.chartGenSig.axisX(self.seriesGenSig)
-        
-        # if axisX is not None:
-        #     axisX.setRange(0, duracion_visible)
         
         # Elimina cualquier eje anterior
         self.chartGenSig.removeAxis(self.chartGenSig.axisX())
@@ -302,6 +343,7 @@ class GeneradorWin(QMainWindow):
         """Play the generated signal through the selected output device"""
         self.btn_generar.setVisible(False)
         self.btn_pausa.setVisible(True)
+        
         if not hasattr(self, 'signal_data') or self.signal_data is None:
             print("No hay señal generada para reproducir")
             return
@@ -314,9 +356,17 @@ class GeneradorWin(QMainWindow):
             
             if output_device is None:
                 QMessageBox.warning(self, "Error", "No se ha seleccionado un dispositivo de salida.")
+                self.btn_generar.setVisible(True)
+                self.btn_pausa.setVisible(False)
                 return
                 
             print(f"Reproduciendo señal en el dispositivo {output_device}...")
+            
+            # Obtener la duración de la señal
+            duracion_ms = int(float(self.dur_input.text()) * 1000)  # Convertir a milisegundos
+            
+            # Iniciar el timer para que termine la reproducción automáticamente
+            self.timer_reproduccion.start(duracion_ms)
             
             # Play the signal
             sd.play(self.signal_data, self.sample_rate, device=output_device)
@@ -324,7 +374,20 @@ class GeneradorWin(QMainWindow):
         except Exception as e:
             print(f"Error al reproducir la señal: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo reproducir la señal: {str(e)}")
+            # En caso de error, restaurar los botones
+            self.btn_generar.setVisible(True)
+            self.btn_pausa.setVisible(False)
             
     def closeEvent(self, event):
+        # Detener cualquier reproducción y timer al cerrar
+        if hasattr(self, 'timer_reproduccion') and self.timer_reproduccion.isActive():
+            self.timer_reproduccion.stop()
+        
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except:
+            pass
+            
         self.vController.ventanas_abiertas["generador"] = None
         event.accept()
