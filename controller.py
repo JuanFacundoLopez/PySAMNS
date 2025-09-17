@@ -630,26 +630,49 @@ class controlador():
 
         # --- 5. Función auxiliar: calcular THD ---
         def compute_thd(signal, fs, f0=1000, harmonics=10):
+            """
+            Calcula y MUESTRA en consola:
+            - Fundamental
+            - Armónicos hasta 'harmonics'
+            - THD (%)
+            """
             n = len(signal)
             window = np.hanning(n)
             spectrum = np.fft.rfft(signal * window)
             freqs = np.fft.rfftfreq(n, 1/fs)
-            mag = np.abs(spectrum)
 
+            # Normalización para amplitud real
+            mag = np.abs(spectrum) * (2.0 / np.sum(window))
+
+            # Fundamental
             idx_f0 = np.argmin(np.abs(freqs - f0))
-            fundamental = mag[idx_f0]
+            fundamental_freq = freqs[idx_f0]
+            fundamental_amp = mag[idx_f0]
 
-            harm_power = 0.0
+            print(f"\nFundamental: {fundamental_freq:.2f} Hz -> {fundamental_amp:.6f}")
+
+            # Armónicos
+            harmonic_amps = []
             for h in range(2, harmonics+1):
                 target = h * f0
                 if target > fs/2:
                     break
                 idx = np.argmin(np.abs(freqs - target))
-                harm_power += mag[idx]**2
+                harm_freq = freqs[idx]
+                harm_amp = mag[idx]
+                harmonic_amps.append(harm_amp)
+                print(f"Armónico {h}: {harm_freq:.2f} Hz -> {harm_amp:.6f}")
 
-            if fundamental <= 0:
-                return np.inf
-            return (np.sqrt(harm_power) / fundamental) * 100
+            # THD
+            if fundamental_amp > 0 and harmonic_amps:
+                harm_power = sum(a**2 for a in harmonic_amps)
+                thd = np.sqrt(harm_power) / fundamental_amp
+                thd_pct = thd * 100
+            else:
+                thd_pct = 0.0
+
+            print(f"THD: {thd_pct:.4f} %\n")
+            return thd_pct
 
         # --- 6. Bucle de calibración ---
         try:
@@ -669,7 +692,7 @@ class controlador():
                 capturado = np.concatenate(frames)
 
                 # Evitar transitorios
-                capturado = capturado[len(capturado)//10:]
+                #capturado = capturado[len(capturado)//10:]
 
                 # Calcular métricas
                 thd = compute_thd(capturado, fs, f0=freq)
