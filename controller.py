@@ -563,204 +563,153 @@ class controlador():
 
     def calRelativaAFondoDeEscala(self):
         """
-        Genera un tono de 1 kHz por pasos de amplitud y mide el THD en la
-        captura de micrófono. La referencia (0 dBFS) se fija en la última
-        amplitud cuya THD < 0.01%.
+        Calibración relativa a fondo de escala:
+        Genera tonos de 1kHz variando amplitud de 0.1 a 1.0,
+        mide THD en la captura y se detiene cuando THD > 1%.
         """
+        import numpy as np
+        import pyaudio
+        import time
+
+        # --- 1. Verificación de dispositivos ---
         try:
-            # Verificar dispositivos
             input_device_index = self.cModel.getDispositivoActual()
             output_device_index = self.cModel.getDispositivoSalidaActual()
             if output_device_index is None:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+                QMessageBox.warning(
+                    self.ventanas_abiertas["calibracion"],
+                    "Error de Dispositivo",
+                    "No se ha seleccionado un dispositivo de salida."
+                )
                 return False
         except Exception as e:
-            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
+            QMessageBox.warning(
+                self.ventanas_abiertas["calibracion"],
+                "Error de Dispositivo",
+                f"Error al obtener dispositivos: {str(e)}"
+            )
             return False
 
-        # Reset de niveles
-        self.setGainZero()
-        self.cModel.setNivelesZ(mode='r')
-        self.cModel.setNivelesC(mode='r')
-        self.cModel.setNivelesA(mode='r')
-
-        # Parámetros de la señal
-        frecuencia = 1000  # 1 kHz
+        # --- 2. Parámetros ---
         fs = self.RATE
-        duracion = 3  # segundos por paso
-        silencio = 0.1  # segundos de silencio entre pasos
+        duracion = 2.0  # segundos por paso
+        amplitudes = np.arange(0.1, 1, 0.1)
+        freq = 1000
+        umbral_thd = 1.0  # 1 %
         frames_per_buffer = 1024
-        paso_amp = 0.1
-        amplitudes = [round(a, 1) for a in np.arange(0.1, 1.0, paso_amp)]
-        umbral_thd = 0.01  # 0.01%
 
-        # Configurar stream de salida
+        # --- 3. Inicializar PyAudio ---
+        p = pyaudio.PyAudio()
         try:
-            p = pyaudio.PyAudio()
-            output_stream = p.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=fs,
-                output=True,
-                output_device_index=output_device_index,
-                frames_per_buffer=frames_per_buffer
-            )
+            output_stream = p.open(format=pyaudio.paFloat32, channels=1, rate=fs,
+                                output=True, output_device_index=output_device_index,
+                                frames_per_buffer=frames_per_buffer)
         except Exception as e:
-            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Audio", f"No se pudo abrir el dispositivo de salida: {str(e)}")
+            QMessageBox.warning(
+                self.ventanas_abiertas["calibracion"],
+                "Error de Audio",
+                f"No se pudo abrir el dispositivo de salida: {str(e)}"
+            )
             return False
 
-        # Configurar stream de entrada
         try:
-            input_stream = p.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=fs,
-                input=True,
-                input_device_index=input_device_index,
-                frames_per_buffer=frames_per_buffer
-            )
+            input_stream = p.open(format=pyaudio.paFloat32, channels=1, rate=fs,
+                                input=True, input_device_index=input_device_index,
+                                frames_per_buffer=frames_per_buffer)
         except Exception as e:
             output_stream.close()
-            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Audio", f"No se pudo abrir el dispositivo de entrada: {str(e)}")
+            QMessageBox.warning(
+                self.ventanas_abiertas["calibracion"],
+                "Error de Audio",
+                f"No se pudo abrir el dispositivo de entrada: {str(e)}"
+            )
             return False
 
-        ultima_amplitud_baja_thd = None
-        thd_medido = None
-        nivel_dbfs = None
+        # --- 4. Variables de calibración ---
+        ultima_amp_valida, ultimo_thd, ultimo_nivel = None, None, None
 
+        # --- 5. Función auxiliar: calcular THD ---
+        def compute_thd(signal, fs, f0=1000, harmonics=10):
+            n = len(signal)
+            window = np.hanning(n)
+            spectrum = np.fft.rfft(signal * window)
+            freqs = np.fft.rfftfreq(n, 1/fs)
+            mag = np.abs(spectrum)
+
+            idx_f0 = np.argmin(np.abs(freqs - f0))
+            fundamental = mag[idx_f0]
+
+            harm_power = 0.0
+            for h in range(2, harmonics+1):
+                target = h * f0
+                if target > fs/2:
+                    break
+                idx = np.argmin(np.abs(freqs - target))
+                harm_power += mag[idx]**2
+
+            if fundamental <= 0:
+                return np.inf
+            return (np.sqrt(harm_power) / fundamental) * 100
+
+        # --- 6. Bucle de calibración ---
         try:
             for amp in amplitudes:
-                # Generar tono
-                num_frames = int(fs * duracion)
-                t = np.linspace(0, duracion, num_frames, endpoint=False)
-                tono = (amp * np.sin(2 * np.pi * frecuencia * t)).astype(np.float32)
-                
-                # Reproducir tono
-                output_stream.write(tono.tobytes())
-                
-                # Esperar un poco para que la señal se estabilice
-                time.sleep(0.1)
-                
-                # Capturar audio
+                # Generar señal
+                t = np.linspace(0, duracion, int(fs*duracion), endpoint=False)
+                signal = (amp * np.sin(2*np.pi*freq*t)).astype(np.float32)
+
+                # Reproducir
+                output_stream.write(signal.tobytes())
+
+                # Capturar
                 frames = []
-                for _ in range(int(fs * duracion / frames_per_buffer)):
-                    try:
-                        data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
-                        frames.append(np.frombuffer(data, dtype=np.float32))
-                    except Exception as e:
-                        print(f"Error en captura: {e}")
-                        continue
-                
-                if not frames:
-                    continue
-                    
-                # Procesar señal capturada
+                for _ in range(int(fs*duracion/frames_per_buffer)):
+                    data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
+                    frames.append(np.frombuffer(data, dtype=np.float32))
                 capturado = np.concatenate(frames)
-                
-                # Ignorar el 10% inicial para evitar transitorios
-                inicio = len(capturado) // 10
-                segmento = capturado[inicio:]
-                
-                # Calcular FFT de la señal capturada
-                if len(segmento) == 0:
-                    return [], []
 
-                # 1. Aplicar ventana y calcular FFT
-                window = np.hanning(len(segmento))
-                window_gain = np.mean(window)  # Factor de corrección de la ventana
-                fft_data = np.fft.fft(segmento * window)
+                # Evitar transitorios
+                capturado = capturado[len(capturado)//10:]
 
-                # 2. Normalización correcta
-                n = len(segmento)
-                yf = np.abs(fft_data[0:n//2]) * (2.0 / (n * window_gain))
-                freqs = np.fft.fftfreq(n, 1.0/fs)[:n//2]
+                # Calcular métricas
+                thd = compute_thd(capturado, fs, f0=freq)
+                rms = np.sqrt(np.mean(capturado**2))
+                nivel_dbfs = 20*np.log10(rms) if rms > 0 else -np.inf
 
-                # 3. Encontrar la fundamental
-                fundamental_idx = np.argmax(yf)  # Usamos el pico más alto
-                fundamental_freq = freqs[fundamental_idx]
-                fundamental_amp = yf[fundamental_idx]
+                print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
 
-                # 4. Buscar armónicos con mejor precisión
-                harmonic_amplitudes = []
-                for h in range(2, 6):  # Solo hasta el 5to armónico
-                    target_freq = h * fundamental_freq
-                    if target_freq > fs/2:
-                        break
-                    
-                    # Buscar en una ventana estrecha
-                    idx = np.argmin(np.abs(freqs - target_freq))
-                    if abs(freqs[idx] - target_freq) < (fs/n * 2):  # Margen de 2 bins
-                        # Interpolación cuadrática
-                        if 0 < idx < len(yf)-1:
-                            alpha = yf[idx-1]
-                            beta = yf[idx]
-                            gamma = yf[idx+1]
-                            p = 0.5 * (alpha - gamma) / (alpha - 2*beta + gamma)
-                            true_amp = beta - 0.25 * (alpha - gamma) * p
-                            harmonic_amplitudes.append(true_amp)
-                        else:
-                            harmonic_amplitudes.append(yf[idx])
-
-                # 5. Calcular THD solo si hay armónicos válidos
-                if harmonic_amplitudes and fundamental_amp > 0:
-                    thd = np.sqrt(np.sum(np.square(harmonic_amplitudes))) / fundamental_amp
-                    thd_pct = thd * 100
+                if thd < umbral_thd:
+                    ultima_amp_valida, ultimo_thd, ultimo_nivel = amp, thd, nivel_dbfs
                 else:
-                    thd_pct = 0.0
-                
-                # Calcular nivel en dBFS
-                rms = np.sqrt(np.mean(np.square(segmento)))
-                nivel_dbfs = 20 * np.log10(rms) if rms > 0 else -np.inf
-                
-                print(f"Amplitud: {amp:.1f}, THD: {thd_pct:.4f}%, Nivel: {nivel_dbfs:.2f} dBFS")
-                print(f"  Frecuencia fundamental: {frecuencia:.2f} Hz, Amplitud: {fundamental_amp:.6f}")
-                if harmonic_amplitudes:
-                    print(f"  Armónicos encontrados: {len(harmonic_amplitudes)}")
-                    for i, a in enumerate(harmonic_amplitudes, 2):
-                        freq = frecuencia * i  # Calculamos la frecuencia del armónico
-                        print(f"    Armónico {i}: {freq:.2f} Hz, Amplitud: {a:.6f}, Nivel: {20*np.log10(a) if a > 0 else -np.inf:.2f} dB")
-                
-                if thd_pct < umbral_thd:
-                    ultima_amplitud_baja_thd = amp
-                    thd_medido = thd_pct
-                    nivel_dbfs = nivel_dbfs
-                else:
+                    print("THD superó el 1%, deteniendo calibración.")
                     break
-                    
-                # Pequeña pausa entre pasos
-                time.sleep(silencio)
+
+                time.sleep(0.2)
 
         except Exception as e:
-            print(f"Error durante la calibración: {e}")
+            print(f"Error durante calibración: {e}")
             return False
-            
-        finally:
-            # Cerrar streams
-            try:
-                output_stream.stop_stream()
-                output_stream.close()
-                input_stream.stop_stream()
-                input_stream.close()
-                p.terminate()
-            except:
-                pass
 
-        # Procesar resultados
-        if ultima_amplitud_baja_thd is not None:
-            # Calcular offset para 0 dBFS
-            cal_db = 20 * np.log10(max(1e-6, ultima_amplitud_baja_thd))
+        finally:
+            output_stream.stop_stream()
+            output_stream.close()
+            input_stream.stop_stream()
+            input_stream.close()
+            p.terminate()
+
+        # --- 7. Resultados ---
+        if ultima_amp_valida is not None:
+            cal_db = 20*np.log10(max(1e-6, ultima_amp_valida))
             self.cModel.setCalibracionAutomatica(cal_db)
             self.cModel.set_calibracion_offset_spl(cal_db)
-            
-            # Actualizar interfaz
+
             self.ventanas_abiertas["calibracion"].txtValorRef.setText(f"{cal_db:.2f}")
             QMessageBox.information(
-                self.ventanas_abiertas["calibracion"], 
+                self.ventanas_abiertas["calibracion"],
                 "Calibración Exitosa",
-                f"Calibración completada:\n"
-                f"Amplitud: {ultima_amplitud_baja_thd:.2f}\n"
-                f"THD: {thd_medido:.4f}%\n"
-                f"Nivel: {nivel_dbfs:.2f} dBFS\n"
+                f"Amplitud: {ultima_amp_valida:.2f}\n"
+                f"THD: {ultimo_thd:.3f}%\n"
+                f"Nivel: {ultimo_nivel:.2f} dBFS\n"
                 f"Offset: {cal_db:.2f} dB"
             )
             return True
