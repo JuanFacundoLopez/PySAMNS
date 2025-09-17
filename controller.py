@@ -629,50 +629,52 @@ class controlador():
         ultima_amp_valida, ultimo_thd, ultimo_nivel = None, None, None
 
         # --- 5. Función auxiliar: calcular THD ---
-        def compute_thd(signal, fs, f0=1000, harmonics=10):
+        def compute_thd(signal, fs, f0=1000, harmonics=10, side_bins=1):
             """
-            Calcula y MUESTRA en consola:
-            - Fundamental
-            - Armónicos hasta 'harmonics'
-            - THD (%)
+            Muestra fundamental, armónicos y THD (%). No devuelve nada.
+            - Ventana Hann con normalización coherente.
+            - Integra ±side_bins alrededor de cada armónico.
             """
             n = len(signal)
+            if n == 0:
+                print("Señal vacía."); return
             window = np.hanning(n)
-            spectrum = np.fft.rfft(signal * window)
-            freqs = np.fft.rfftfreq(n, 1/fs)
+            coherent_gain = np.sum(window) / n
+            S = np.fft.rfft(signal * window)
+            freqs = np.fft.rfftfreq(n, 1.0/fs)
 
-            # Normalización para amplitud real
-            mag = np.abs(spectrum) * (2.0 / np.sum(window))
+            # Magnitud normalizada a amplitud pico ≈ amplitud temporal de la senoidal
+            mag = np.abs(S) * (2.0 / (n * coherent_gain))  # equiv. a 2/sum(window)
 
-            # Fundamental
-            idx_f0 = np.argmin(np.abs(freqs - f0))
-            fundamental_freq = freqs[idx_f0]
-            fundamental_amp = mag[idx_f0]
+            # Fundamental (bin más cercano a f0)
+            idx_f0 = int(np.argmin(np.abs(freqs - f0)))
+            # Integramos ±side_bins alrededor del pico
+            lo = max(0, idx_f0 - side_bins); hi = min(len(mag)-1, idx_f0 + side_bins)
+            fund_amp = np.sqrt(np.sum(mag[lo:hi+1]**2))
+            fund_freq = freqs[idx_f0]
+            fund_amp = max(fund_amp, 1e-15)  # evitar div/0
 
-            print(f"\nFundamental: {fundamental_freq:.2f} Hz -> {fundamental_amp:.6f}")
+            print(f"Fundamental: {fund_freq:.2f} Hz -> {fund_amp:.6f}")
 
-            # Armónicos
-            harmonic_amps = []
+            harm_amps = []
             for h in range(2, harmonics+1):
                 target = h * f0
-                if target > fs/2:
+                if target >= fs/2:
                     break
-                idx = np.argmin(np.abs(freqs - target))
-                harm_freq = freqs[idx]
-                harm_amp = mag[idx]
-                harmonic_amps.append(harm_amp)
-                print(f"Armónico {h}: {harm_freq:.2f} Hz -> {harm_amp:.6f}")
+                idx = int(np.argmin(np.abs(freqs - target)))
+                lo = max(0, idx - side_bins); hi = min(len(mag)-1, idx + side_bins)
+                a = np.sqrt(np.sum(mag[lo:hi+1]**2))
+                f = freqs[idx]
+                dBc = 20.0*np.log10(max(a,1e-15)/fund_amp)
+                harm_amps.append(a)
+                print(f"Armónico {h}: {f:.2f} Hz -> {a:.6f}  ({dBc:.1f} dBc)")
 
-            # THD
-            if fundamental_amp > 0 and harmonic_amps:
-                harm_power = sum(a**2 for a in harmonic_amps)
-                thd = np.sqrt(harm_power) / fundamental_amp
-                thd_pct = thd * 100
+            if harm_amps:
+                thd = np.sqrt(np.sum(np.array(harm_amps)**2)) / fund_amp
             else:
-                thd_pct = 0.0
-
-            print(f"THD: {thd_pct:.4f} %\n")
-            return thd_pct
+                thd = 0.0
+            print(f"THD: {thd*100:.4f} %\n")
+            return thd*100
 
         # --- 6. Bucle de calibración ---
         try:
