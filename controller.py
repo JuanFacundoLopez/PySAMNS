@@ -771,10 +771,9 @@ class controlador():
             if output_device_index is None:
                 QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
                 return
-
             # Reproducir el audio
             sd.play(data, samplerate, device=output_device_index)
-            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Reproducción", f"Reproduciendo {ruta}...")
+            #QMessageBox.information(self.ventanas_abiertas["calibracion"], "Reproducción", f"Reproduciendo {ruta}...")
 
         except Exception as e:
             QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
