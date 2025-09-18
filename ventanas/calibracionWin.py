@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout
 from PyQt5.QtGui import  QPainter, QIcon
 
 # Imports para QChart (solo para la ventana de calibración)
-from PyQt5.QtChart import QChart, QChartView
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
 from PyQt5.QtCore import Qt
 from utils import norm
 import os
@@ -40,7 +40,7 @@ class CalibracionWin(QMainWindow):
         confLayoutVer = QVBoxLayout()
         confLayoutVer.addStretch()
         gridHardLayout = QGridLayout()
-        self.valorRefLayout = QHBoxLayout() # Make it a class attribute for visibility control
+        self.valorRefLayout = QHBoxLayout() 
         botonesLayout = QHBoxLayout()
 
         # --- Tipo de Calibracion ---
@@ -89,20 +89,42 @@ class CalibracionWin(QMainWindow):
         self.lblRutaArchivoCal.setWordWrap(True)
         self.lblValRefExterna = QLabel("Nivel de referencia (dBSPL):")
         self.txtValorRefExterna = QLineEdit("94.0")
-        self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
+        #self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
         # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
         layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
         layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
-        layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
+        #layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
 
         # --- Grafico ---
+        # Crear QChart para la ventana de calibración
         self.chart2 = QChart()
         self.chart2.setTheme(QChart.ChartThemeDark)
+        
+        # Crear QChartView para mostrar el gráfico
         self.winGraph2 = QChartView(self.chart2)
         self.winGraph2.setRenderHint(QPainter.Antialiasing)
-        # ... (chart setup as before)
+        
+        # Crear series para el gráfico de calibración
+        self.plot_line_cal = QLineSeries()
+        
+        # Configurar ejes para el gráfico de calibración
+        self.axisX2 = QValueAxis()
+        self.axisX2.setTitleText("Tiempo")
+        self.axisX2.setRange(0, 1024)
+        
+        self.axisY2 = QValueAxis()
+        self.axisY2.setTitleText("Amplitud Normalizada")
+        self.axisY2.setRange(-1.2, 1.2)
+        
+        self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
+        self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
+        self.chart2.legend().hide()
+
+        # Definir las líneas del gráfico (para compatibilidad)
+        self.ptdomTiempo2 = self.plot_line_cal
+        self.ptdomEspect2 = self.plot_line_cal
 
         # --- Botones ---
         self.btnAceptar = QPushButton("Aceptar")
