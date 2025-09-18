@@ -761,7 +761,7 @@ class controlador():
             ruta = self.cModel.get_ruta_archivo_calibracion()
             if not ruta:
                 QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
-                return
+                return False
 
             # Leer el archivo de audio
             data, samplerate = sf.read(ruta, dtype='float32')
@@ -779,6 +779,8 @@ class controlador():
         except Exception as e:
             QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
             print(f"Error en reproducir_audio_calibracion: {e}")
+            return False
+        return True
 
     def calFuenteReferenciaInterna(self):
         #Obtener valor de referencia
@@ -813,7 +815,9 @@ class controlador():
         try:
             # Iniciar la captura de audio
             self.cModel.stream.start_stream()
-            self.reproducir_audio_calibracion() 
+            reproduccion = self.reproducir_audio_calibracion()
+            if not reproduccion:
+                return
             #Capturar audio 
             # Acumular datos durante unos segundos
             grabacion_data = []
