@@ -592,8 +592,8 @@ class controlador():
 
         # --- 2. Parámetros ---
         fs = self.RATE
-        duracion = 2.0  # segundos por paso
-        amplitudes = np.arange(0.1, 1, 0.1)
+        duracion = 1.0  # segundos por paso
+        amplitudes = np.arange(0.1, 1, 0.05)
         freq = 1000
         umbral_thd = 1.0  # 1 %
         frames_per_buffer = 1024
@@ -687,18 +687,22 @@ class controlador():
                 output_stream.write(signal.tobytes())
 
                 # Capturar
-                frames = []
-                for _ in range(int(fs*duracion/frames_per_buffer)):
-                    data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
-                    frames.append(np.frombuffer(data, dtype=np.float32))
-                capturado = np.concatenate(frames)
-
-                # Evitar transitorios
-                #capturado = capturado[len(capturado)//10:]
+                grabacion_data = []
+                try:
+                    while (len(grabacion_data)/fs) < duracion :  # Grabar por 1 segundos
+                        audio_data = self.cModel.get_audio_data()
+                        if len(audio_data) > 5:
+                            current_data, _, _, _, _, _, _ = audio_data
+                            if len(current_data) > 0:
+                                # grabacion_data.append(current_data.astype(np.float32) / (32767.0 / 2))
+                                grabacion_data = np.concatenate((grabacion_data, current_data.astype(np.float32) / (32767.0 / 2)),axis=0)
+                except Exception as e:
+                    print(f"Error al capturar audio: {e}")
+                time.sleep(0.01)  # Pequeña pausa
 
                 # Calcular métricas
-                thd = compute_thd(capturado, fs, f0=freq)
-                rms = np.sqrt(np.mean(capturado**2))
+                thd = compute_thd(grabacion_data, fs, f0=freq)
+                rms = np.sqrt(np.mean(grabacion_data**2))
                 nivel_dbfs = 20*np.log10(rms) if rms > 0 else -np.inf
 
                 print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
