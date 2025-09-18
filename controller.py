@@ -755,31 +755,46 @@ class controlador():
         self.cModel.set_ruta_archivo_calibracion(ruta)
         print(f"Ruta de archivo de calibración establecida en: {ruta}")
 
-    def reproducir_audio_calibracion(self):
-        """Lee y reproduce el archivo de audio de referencia."""
+    def leer_audio_calibracion(self, ref_level):
+        """Lee el archivo de audio de referencia y calcula el nivel RMS."""
         try:
             ruta = self.cModel.get_ruta_archivo_calibracion()
             if not ruta:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
-                return False
+                QMessageBox.warning(
+                    self.ventanas_abiertas["calibracion"],
+                    "Archivo no encontrado",
+                    "Por favor, seleccione un archivo de referencia .wav primero."
+                )
+                return False, False, False
 
             # Leer el archivo de audio
             data, samplerate = sf.read(ruta, dtype='float32')
-            
-            # Obtener dispositivo de salida
-            output_device_index = self.cModel.getDispositivoSalidaActual()
-            if output_device_index is None:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
-                return
-            # Reproducir el audio
-            sd.play(data, samplerate, device=output_device_index)
-            #QMessageBox.information(self.ventanas_abiertas["calibracion"], "Reproducción", f"Reproduciendo {ruta}...")
+            QMessageBox.information(
+                    self.ventanas_abiertas["calibracion"],
+                    "Leyendo archivo",
+                    "Por favor espere, leyendo archivo de referencia..."
+                )
+            # Si el audio es estéreo, pasarlo a mono promediando canales
+            if data.ndim > 1:
+                data = np.mean(data, axis=1)
 
+            # Calcular el nivel RMS en dBSPL
+            rms = np.sqrt(np.mean(data**2))
+            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+            #calcular dBFS
+            rms_dbfs = 20 * np.log10(rms/1.0)
+            
+            # Calcular el factor de calibración
+            cal = ref_level - rms_db
+
+            #calcular offset
+            offset = ref_level - rms_dbfs
+
+            return rms_db, cal, offset
         except Exception as e:
-            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
-            print(f"Error en reproducir_audio_calibracion: {e}")
-            return False
-        return True
+            print(f"Error al calcular el nivel RMS: {e}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error", f"Error al calcular el nivel RMS: {e}")
+            return False, False, False
 
     def calFuenteReferenciaInterna(self):
         #Obtener valor de referencia
@@ -800,61 +815,12 @@ class controlador():
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
             QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
-        # Obtener dispositivos de entrada y salida seleccionados
+            
         try:
-            input_device_index = self.cModel.getDispositivoActual()
-            output_device_index = self.cModel.getDispositivoSalidaActual()
-            
-            if output_device_index is None:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
+            #Calcular calibración
+            rms_db, cal, offset = self.leer_audio_calibracion(ref_level)
+            if not rms_db or not cal or not offset:
                 return
-        except Exception as e:
-            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", f"Error al obtener dispositivos: {str(e)}")
-            return
-        try:
-            # Iniciar la captura de audio
-            self.cModel.stream.start_stream()
-            reproduccion = self.reproducir_audio_calibracion()
-            if not reproduccion:
-                return
-            #Capturar audio 
-            # Acumular datos durante unos segundos
-            grabacion_data = []
-            tiempo_inicio = time.time()
-            while time.time() - tiempo_inicio < 3:  # Grabar por 3 segundos
-                try:
-                    audio_data = self.cModel.get_audio_data()
-                    if audio_data and len(audio_data) >= 7:
-                        current_data, _, _, _, _, _, _ = audio_data
-                        if len(current_data) > 0:
-                            grabacion_data.extend(current_data.astype(np.float32) / (32767.0/2))
-                except Exception as e:
-                    print(f"Error al capturar audio: {e}")
-                time.sleep(0.01) # Pequeña pausa
-
-            self.cModel.stream.stop_stream()
-
-            if not grabacion_data:
-                    raise ValueError("No se capturó audio. Verifique la conexión del micrófono.")
-                    
-            # Convertir a array de numpy
-            grabacion_data = np.array(grabacion_data)
-            
-            # Calcular el nivel RMS en dBSPL
-            rms = np.sqrt(np.mean(grabacion_data**2))
-            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
-            #calcular dBFS
-            rms_dbfs = 20 * np.log10(rms/1.0)
-            
-            # Calcular el factor de calibración
-            cal = ref_level - rms_db
-
-            #calcular offset
-            offset = ref_level - rms_dbfs
-            
-            print(f"Nivel de referencia: {ref_level} dB")
-            print(f"Nivel RMS medido: {rms_db:.2f} dB")
-            print(f"Factor de calibración: {cal:.2f} dB")
             
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
