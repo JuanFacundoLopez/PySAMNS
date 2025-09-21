@@ -7,6 +7,10 @@ from ventanas.configuracionWin import ConfiguracionWin
 from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
 
+from db import leer_todas_grabaciones, actualizar_estado
+from datetime import datetime, timedelta
+import os
+
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
 import struct
@@ -51,6 +55,10 @@ class controlador():
         self.signal_frec_muestreo = None
         self.frecuencia_muestreo_actual = 8000
         
+        self.timer_grabacion_automatica = QtCore.QTimer()
+        self.timer_grabacion_automatica.timeout.connect(self.verificar_grabaciones_programadas)
+        self.timer_grabacion_automatica.start(10000)  # cada 10 segundos
+
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
@@ -1050,3 +1058,57 @@ class controlador():
         self.cModel.activar_calibracion(True)
         if self.ventanas_abiertas["calibracion"]:
             self.ventanas_abiertas["calibracion"].close()
+            
+    def verificar_grabaciones_programadas(self):
+        ahora = datetime.now()
+        registros = leer_todas_grabaciones()
+        for registro in registros:
+            id_reg, fecha_ini, hora_ini, fecha_fin, hora_fin, duracion, ext, estado, ruta = registro
+            if estado == "Pendiente":
+                fecha_hora_inicio = datetime.strptime(f"{fecha_ini} {hora_ini}", "%Y-%m-%d %H:%M:%S")
+                fecha_hora_fin = datetime.strptime(f"{fecha_fin} {hora_fin}", "%Y-%m-%d %H:%M:%S")
+                if fecha_hora_inicio <= ahora <= fecha_hora_inicio + timedelta(seconds=10):  # margen de 10s
+                    print(f"[INFO] Iniciando grabación automática: {id_reg}")
+                    self.iniciar_grabacion_automatica(id_reg, duracion, ruta, ext)
+    
+    def iniciar_grabacion_automatica(self, id_reg, duracion_str, ruta, ext):
+        # Preparar duración
+        h, m, s = map(int, duracion_str.split(":"))
+        duracion_seg = h * 3600 + m * 60 + s
+
+        # Crear nombre de archivo
+        nombre_archivo = f"grabacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+        path_completo = os.path.join(ruta, nombre_archivo)
+
+        try:
+            # Iniciar grabación
+            print(f"[INFO] Grabando {duracion_seg}s en {path_completo}")
+            self.grabar_audio_y_guardar(path_completo, duracion_seg)
+
+            # Actualizar estado a 'realizada'
+            actualizar_estado(id_reg, "realizada")
+
+            # Reproducir en vista (como grabación manual)
+            from scipy.io.wavfile import read as wavread
+            Fs, data = wavread(path_completo)
+            if data.ndim > 1:
+                data = data.mean(axis=1)
+            max_val = np.max(np.abs(data))
+            normalizado = data / max_val if max_val > 0 else data
+            self.cModel.setSignalData(normalizado)
+            self.graficar()
+
+        except Exception as e:
+            print(f"[ERROR] Falló la grabación automática: {e}")
+    
+    def grabar_audio_y_guardar(self, path_completo, duracion):
+        import sounddevice as sd
+        import soundfile as sf
+
+        fs = self.frecuencia_muestreo_actual
+        print(f"[INFO] Grabando a {fs} Hz...")
+        grabacion = sd.rec(int(duracion * fs), samplerate=fs, channels=1, dtype='int16')
+        sd.wait()  # esperar a que termine
+
+        sf.write(path_completo, grabacion, fs)
+

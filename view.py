@@ -936,11 +936,6 @@ class vista(QMainWindow):
         
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
-        if self.var_eje2Visible:
-            self._ensure_right_axis()
-            self._ejeYDer_titulo_base = "Nivel (dB)"
-            self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
-            self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
@@ -1104,6 +1099,13 @@ class vista(QMainWindow):
             self._ejeY_titulo_base = self.var_etiquetaYEspectro
             self.waveform1.setLabel('bottom', self.var_etiquetaXEspectro)
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
+            if self.var_eje2Visible:
+                self._ensure_right_axis()
+                self._ejeYDer_titulo_base = "Nivel (dB)"
+                self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
+                self.vb_right.setYRange(0, 120, padding=0)
+            else:
+                self._remove_right_axis()
             # Color y tipo de gráfico
             if hasattr(self, 'colorEspectro'):
                 color = self.get_color_str(self.colorEspectro)
@@ -1362,12 +1364,13 @@ class vista(QMainWindow):
                         
                         print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
                         
-                        for i, h in enumerate(niveles):
-                            # Position the text slightly above the bar
-                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                            text_item.setAngle(45)
-                            self.waveform1.addItem(text_item)
+                        if self.var_valoresOctavas:
+                            for i, h in enumerate(niveles):
+                                # Position the text slightly above the bar
+                                text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
+                                text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
+                                text_item.setAngle(45)
+                                self.waveform1.addItem(text_item)
                             
                         # Configurar rangos de ejes - ajustar para barras sin espacios
                         self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
@@ -1377,13 +1380,13 @@ class vista(QMainWindow):
                         self.waveform1.setYRange(y_min, y_max)
                         
                         # Debug: mostrar información del rango Y
-                        print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
-                        print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
-                        print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
-                        print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
-                        print(f"Posiciones X: {x_positions[:5]}...")
-                        print(f"Ancho de barras: {bar_width}")
-                        print(f"Piso de ruido: {piso_ruido}")
+                        # print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
+                        # print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
+                        # print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
+                        # print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
+                        # print(f"Posiciones X: {x_positions[:5]}...")
+                        # print(f"Ancho de barras: {bar_width}")
+                        # print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
                         self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
@@ -1401,6 +1404,7 @@ class vista(QMainWindow):
                         
                         print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
                         print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
+                        
                 else:
                     # Por defecto, línea
                     if device_num == 1 and len(fft_freqs) > 0:

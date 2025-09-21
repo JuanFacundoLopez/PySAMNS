@@ -250,6 +250,7 @@ class GeneradorWin(QMainWindow):
             y = A * (2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1)
         elif tipo == "Ruido Blanco":
             y = A * np.random.normal(0, 1, len(t))
+            y = y / np.max(np.abs(y))  # Normalizar a -1 a 1
         elif tipo == "Ruido Rosa":
             N = len(t)
             uneven = N % 2
