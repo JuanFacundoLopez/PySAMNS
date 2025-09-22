@@ -186,9 +186,9 @@ class modelo:
     def setFs(self,Fs):
         self.Fs = Fs
     def setSignalData(self, signaldata):
-        print("\n=== setSignalData llamado ===")
-        print(f"Tipo de signaldata: {type(signaldata)}")
-        print(f"Tamaño de signaldata: {len(signaldata) if hasattr(signaldata, '__len__') else 'No tiene longitud'}")
+        #print("\n=== setSignalData llamado ===")
+        #print(f"Tipo de signaldata: {type(signaldata)}")
+        #print(f"Tamaño de signaldata: {len(signaldata) if hasattr(signaldata, '__len__') else 'No tiene longitud'}")
         
         try:
             signaldataA = filtA(signaldata, self.Fs)
@@ -197,22 +197,22 @@ class modelo:
             self.signaldataA = signaldataA
             self.signaldataC = signaldataC
             
-            print("Filtros aplicados correctamente")
-            print(f"Tamaños - A: {len(signaldataA)}, C: {len(signaldataC)}, Z: {len(signaldata)}")
+            #print("Filtros aplicados correctamente")
+            #print(f"Tamaños - A: {len(signaldataA)}, C: {len(signaldataC)}, Z: {len(signaldata)}")
             
             # Forma de onda en frecuencia
-            print("\nCalculando FFT...")
+            #print("\nCalculando FFT...")
             yf = fft(signaldata)
-            print(f"Tamaño de yf: {len(yf)}")
+            #print(f"Tamaño de yf: {len(yf)}")
             yf = np.abs(yf[0:int(self.chunk/2)])
-            print(f"Tamaño de yf después de recorte: {len(yf)}")
+            #print(f"Tamaño de yf después de recorte: {len(yf)}")
             
-            print("\nLlamando a setSignalFrec...")
+            #print("\nLlamando a setSignalFrec...")
             self.setSignalFrec(yf)  # Guardo en modelo
-            print("setSignalFrec llamado exitosamente")
+            #print("setSignalFrec llamado exitosamente")
             
         except Exception as e:
-            print(f"Error en setSignalData: {str(e)}")
+            #print(f"Error en setSignalData: {str(e)}")
             import traceback
             traceback.print_exc()
             
@@ -253,9 +253,9 @@ class modelo:
             self.recorderFastA = np.empty(0)
             self.recorderSlowA = np.empty(0)    
     def setSignalFrec(self, SignalFrec):
-        print("\n=== setSignalFrec llamado ===")
-        print(f"Tipo de SignalFrec: {type(SignalFrec)}")
-        print(f"Tamaño de SignalFrec: {len(SignalFrec) if hasattr(SignalFrec, '__len__') else 'No tiene longitud'}")
+        #print("\n=== setSignalFrec llamado ===")
+        #print(f"Tipo de SignalFrec: {type(SignalFrec)}")
+        #print(f"Tamaño de SignalFrec: {len(SignalFrec) if hasattr(SignalFrec, '__len__') else 'No tiene longitud'}")
         
         try:
             SignalFrecC = filtFrecC(SignalFrec, self.Fs)
@@ -265,13 +265,13 @@ class modelo:
             self.SignalFrecZ = SignalFrec
             
             # Debug: Verificar tamaños
-            print(f"Tamaños - A: {len(SignalFrecA)}, C: {len(SignalFrecC)}, Z: {len(SignalFrec)}")
+            #print(f"Tamaños - A: {len(SignalFrecA)}, C: {len(SignalFrecC)}, Z: {len(SignalFrec)}")
             
             # Verificar algunos valores
-            if len(SignalFrec) > 100:
-                print(f"Valor en 1kHz (Z): {SignalFrec[100]}")
-                print(f"Valor en 1kHz (A): {SignalFrecA[100]}")
-                print(f"Valor en 1kHz (C): {SignalFrecC[100]}")
+            #if len(SignalFrec) > 100:
+                #print(f"Valor en 1kHz (Z): {SignalFrec[100]}")
+                #print(f"Valor en 1kHz (A): {SignalFrecA[100]}")
+                #print(f"Valor en 1kHz (C): {SignalFrecC[100]}")
         except Exception as e:
             print(f"Error en setSignalFrec: {str(e)}")
     def setCalibracionAutomatica(self, k):
@@ -308,7 +308,7 @@ class modelo:
         if Mode == 'A':
             return self.signaldataA
     def getSignalFrec(self, Mode='Z'):
-        print(f"\n=== Llamada a getSignalFrec con Mode={Mode} ===")
+        #print(f"\n=== Llamada a getSignalFrec con Mode={Mode} ===")
         
         # Obtener el espectro según el modo
         if Mode == 'Z':
@@ -321,23 +321,23 @@ class modelo:
             mag_spec = np.array([])
         
         # Debug detallado
-        print(f"Tipo de mag_spec: {type(mag_spec)}")
-        print(f"Tamaño de mag_spec: {len(mag_spec) if hasattr(mag_spec, '__len__') else 'No tiene longitud'}")
+        #print(f"Tipo de mag_spec: {type(mag_spec)}")
+        #print(f"Tamaño de mag_spec: {len(mag_spec) if hasattr(mag_spec, '__len__') else 'No tiene longitud'}")
         
         if len(mag_spec) > 0:
             try:
-                print(f"\nFiltro {Mode} - Valores de muestra:")
-                print(f"Longitud total: {len(mag_spec)}")
-                print(f"Primeros 5 valores: {mag_spec[:5]}")
+                #print(f"\nFiltro {Mode} - Valores de muestra:")
+                #print(f"Longitud total: {len(mag_spec)}")
+                #print(f"Primeros 5 valores: {mag_spec[:5]}")
                 
                 # Verificar índices antes de acceder
                 idx_100hz = min(10, len(mag_spec)-1)
                 idx_1khz = min(100, len(mag_spec)-1)
                 idx_10khz = min(1000, len(mag_spec)-1)
                 
-                print(f"100Hz (idx {idx_100hz}): {mag_spec[idx_100hz]:.2f}")
-                print(f"1kHz (idx {idx_1khz}): {mag_spec[idx_1khz]:.2f}")
-                print(f"10kHz (idx {idx_10khz}): {mag_spec[idx_10khz]:.2f}")
+                #print(f"100Hz (idx {idx_100hz}): {mag_spec[idx_100hz]:.2f}")
+                #print(f"1kHz (idx {idx_1khz}): {mag_spec[idx_1khz]:.2f}")
+                #print(f"10kHz (idx {idx_10khz}): {mag_spec[idx_10khz]:.2f}")
             except Exception as e:
                 print(f"Error al imprimir valores de muestra: {str(e)}")
         else:
@@ -730,19 +730,19 @@ class modelo:
 
             # Comparar current_data con data, para verificar que no se vea afectada la amplitud de onda
             current_data = np.frombuffer(data, dtype=np.int16)
-            print("current_data max:", np.max(current_data), "min:", np.min(current_data))
+            #print("current_data max:", np.max(current_data), "min:", np.min(current_data))
             # Verificar que la conversión mantiene la amplitud de la onda
             # Convertir data (bytes) a int16 para comparar amplitudes
             data_as_int16 = np.frombuffer(data, dtype=np.int16)
             
             # Comparar las amplitudes máximas y mínimas de la onda
-            if (np.max(current_data) != np.max(data_as_int16) or 
-                np.min(current_data) != np.min(data_as_int16) or
-                np.mean(np.abs(current_data)) != np.mean(np.abs(data_as_int16))):
-                print(f"Advertencia: Posible pérdida de amplitud en la conversión")
-                print(f"Data max: {np.max(data_as_int16)}, Current max: {np.max(current_data)}")
-                print(f"Data min: {np.min(data_as_int16)}, Current min: {np.min(current_data)}")
-                print(f"Data mean abs: {np.mean(np.abs(data_as_int16)):.2f}, Current mean abs: {np.mean(np.abs(current_data)):.2f}")
+            #if (np.max(current_data) != np.max(data_as_int16) or 
+            #    np.min(current_data) != np.min(data_as_int16) or
+            #    np.mean(np.abs(current_data)) != np.mean(np.abs(data_as_int16))):
+                #print(f"Advertencia: Posible pérdida de amplitud en la conversión")
+                #print(f"Data max: {np.max(data_as_int16)}, Current max: {np.max(current_data)}")
+                #print(f"Data min: {np.min(data_as_int16)}, Current min: {np.min(current_data)}")
+                #print(f"Data mean abs: {np.mean(np.abs(data_as_int16)):.2f}, Current mean abs: {np.mean(np.abs(current_data)):.2f}")
             
             # Verificar que los valores están dentro del rango esperado para int16
             if np.any(current_data < -32768) or np.any(current_data > 32767):
@@ -774,13 +774,13 @@ class modelo:
             
             # Calcular FFT para el espectro de frecuencia
             fft_freqs, fft_db = self.calculate_fft(current_data)
-            print("Normalized_current: ", normalized_current)
+            #print("Normalized_current: ", normalized_current)
             
             # return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times, fft_freqs, fft_db
             return current_data, all_data, normalized_current, normalized_all_array, self.times, fft_freqs, fft_db
 
         except Exception as e:
-            print(f"Error en get_audio_data: {e}")
+            #print(f"Error en get_audio_data: {e}")
             empty_current = np.zeros(self.chunk)
             empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
             return empty_current, empty_all, empty_current, empty_all, -100.0, [], [], []

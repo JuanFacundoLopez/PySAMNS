@@ -7,6 +7,10 @@ from ventanas.configuracionWin import ConfiguracionWin
 from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
 
+from db import leer_todas_grabaciones, actualizar_estado
+from datetime import datetime, timedelta
+import os
+
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
 import struct
@@ -51,6 +55,10 @@ class controlador():
         self.signal_frec_muestreo = None
         self.frecuencia_muestreo_actual = 8000
         
+        self.timer_grabacion_automatica = QtCore.QTimer()
+        self.timer_grabacion_automatica.timeout.connect(self.verificar_grabaciones_programadas)
+        self.timer_grabacion_automatica.start(10000)  # cada 10 segundos
+
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
         self.msCounter = 0
@@ -130,11 +138,11 @@ class controlador():
         
         # Read wav file
         Fs, x = wavread(SignalfileName[0])
-        print("Fs:", Fs)
-        print("Shape de x:", x.shape)
-        print("Primeros datos:", x[:10])
-        print("maxX:", maxX)
-        print("signaldata:", signaldata[:10])
+        #print("Fs:", Fs)
+        #print("Shape de x:", x.shape)
+        #print("Primeros datos:", x[:10])
+        #print("maxX:", maxX)
+        #print("signaldata:", signaldata[:10])
         if x.ndim > 1:
             x = x.mean(axis=1)  # Convertir a mono si es estéreo
         maxX = np.max(np.abs(x))
@@ -145,13 +153,13 @@ class controlador():
 
         if Fs > 44000: # validacion de la entrada de datos
             self.cModel.setFs(Fs) # Guardo en base de datos/modelo
-            print("Fs fue correctamente cargado")
+            #print("Fs fue correctamente cargado")
         else:
             print("Fs es invalido " + str(Fs))
         if len(signaldata) > 2:# validacion de la entrada de datos
             self.cModel.setSignalData(signaldata)  # Guardo en base de datos/modelo      
-            print("Datos guardados en el modelo:", self.cModel.getSignalData()[:10])
-            print("signaldata fue correctamente cargado")
+            #print("Datos guardados en el modelo:", self.cModel.getSignalData()[:10])
+            #print("signaldata fue correctamente cargado")
         else:
             print("signaldata es invalido")
 
@@ -164,10 +172,10 @@ class controlador():
         return probar_frecuencias_entrada(device_index, lista_frecuencias, canales)
 
     def graficar(self):                             # Funcion para graficar las señales
-        print(f"DEBUG: Función graficar llamada")
-        print(f"DEBUG: btnTiempo.isChecked(): {self.cVista.btnTiempo.isChecked()}")
-        print(f"DEBUG: btnFrecuencia.isChecked(): {self.cVista.btnFrecuencia.isChecked()}")
-        print(f"DEBUG: btnNivel.isChecked(): {self.cVista.btnNivel.isChecked()}")
+        #print(f"DEBUG: Función graficar llamada")
+        #print(f"DEBUG: btnTiempo.isChecked(): {self.cVista.btnTiempo.isChecked()}")
+        #print(f"DEBUG: btnFrecuencia.isChecked(): {self.cVista.btnFrecuencia.isChecked()}")
+        #print(f"DEBUG: btnNivel.isChecked(): {self.cVista.btnNivel.isChecked()}")
         
         if self.cVista.btnTiempo.isChecked():
             # Tiempo
@@ -200,14 +208,14 @@ class controlador():
                 self.cVista.ptdomEspect.setData(f, yf_data)
 
         elif self.cVista.btnNivel.isChecked():
-            print("DEBUG: Entrando en sección de nivel")
+            #print("DEBUG: Entrando en sección de nivel")
             # Nivel - Crear eje de tiempo real basado en la frecuencia de muestreo
             # Obtener datos del modelo
             (dataVectorPicoZ, dataVectorInstZ, dataVectorFastZ, dataVectorSlowZ) = self.cModel.getNivelesZ()
             (dataVectorPicoC, dataVectorInstC, dataVectorFastC, dataVectorSlowC) = self.cModel.getNivelesC()
             (dataVectorPicoA, dataVectorInstA, dataVectorFastA, dataVectorSlowA) = self.cModel.getNivelesA()
             
-            print(f"DEBUG: Datos obtenidos - Z: {len(dataVectorPicoZ)}, C: {len(dataVectorPicoC)}, A: {len(dataVectorPicoA)}")
+            #print(f"DEBUG: Datos obtenidos - Z: {len(dataVectorPicoZ)}, C: {len(dataVectorPicoC)}, A: {len(dataVectorPicoA)}")
             
             # Crear eje de tiempo real sincronizado
             # Usar el tiempo de inicio real pero con intervalos consistentes
@@ -227,7 +235,7 @@ class controlador():
                         
                         timeNivelData = np.array([elapsed_real_time])
             except Exception as e:
-                print(f"DEBUG: Error en cálculo de tiempo: {e}")
+                #print(f"DEBUG: Error en cálculo de tiempo: {e}")
                 # Fallback al método basado en chunks
                 chunk_duration = self.cModel.chunk / self.cModel.rate
                 timeNivelData = np.arange(len(dataVectorPicoZ)) * chunk_duration
@@ -236,9 +244,9 @@ class controlador():
             
             # Solo graficar si hay datos
             if len(timeNivelData) > 0:
-                print(f"DEBUG: Hay {len(timeNivelData)} puntos de tiempo")
-                print(f"DEBUG: Checkboxes Z - Pico: {self.cVista.cbNivPicoZ.isChecked()}, Inst: {self.cVista.cbNivInstZ.isChecked()}, Fast: {self.cVista.cbNivFastZ.isChecked()}, Slow: {self.cVista.cbNivSlowZ.isChecked()}")
-                print(f"DEBUG: Datos Z - Pico: {len(dataVectorPicoZ)}, Inst: {len(dataVectorInstZ)}, Fast: {len(dataVectorFastZ)}, Slow: {len(dataVectorSlowZ)}")
+                #print(f"DEBUG: Hay {len(timeNivelData)} puntos de tiempo")
+                #print(f"DEBUG: Checkboxes Z - Pico: {self.cVista.cbNivPicoZ.isChecked()}, Inst: {self.cVista.cbNivInstZ.isChecked()}, Fast: {self.cVista.cbNivFastZ.isChecked()}, Slow: {self.cVista.cbNivSlowZ.isChecked()}")
+                #print(f"DEBUG: Datos Z - Pico: {len(dataVectorPicoZ)}, Inst: {len(dataVectorInstZ)}, Fast: {len(dataVectorFastZ)}, Slow: {len(dataVectorSlowZ)}")
                 if len(dataVectorFastZ) > 0:
                     print(f"DEBUG: Valores Fast Z: {dataVectorFastZ}")
                 if len(dataVectorSlowZ) > 0:
@@ -273,21 +281,21 @@ class controlador():
                 if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
                     self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
                 if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
-                    print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
-                    print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
+                    #print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
+                    #print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
                     self.cVista.ptNivZFast.setData(timeNivelData, dataVectorFastZ)
-                    print(f"DEBUG FAST Z: setData llamado")
+                    #print(f"DEBUG FAST Z: setData llamado")
                     # Forzar actualización del gráfico
                     self.cVista.waveform1.replot()
-                    print(f"DEBUG FAST Z: replot llamado")
+                    #print(f"DEBUG FAST Z: replot llamado")
                 if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
-                    print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
-                    print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
+                    #print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
+                    #print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
                     self.cVista.ptNivZSlow.setData(timeNivelData, dataVectorSlowZ)
-                    print(f"DEBUG SLOW Z: setData llamado")
+                    #print(f"DEBUG SLOW Z: setData llamado")
                     # Forzar actualización del gráfico
                     self.cVista.waveform1.replot()
-                    print(f"DEBUG SLOW Z: replot llamado")
+                    #print(f"DEBUG SLOW Z: replot llamado")
                 else:
                     print(f"DEBUG SLOW Z: NO se grafica - checkbox: {self.cVista.cbNivSlowZ.isChecked()}, datos: {len(dataVectorSlowZ)}")
 
@@ -370,7 +378,7 @@ class controlador():
             else:
                 tiempos = np.array([elapsed_real_time])
         except Exception as e:
-            print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
+            #print(f"DEBUG: Error en cálculo de tiempo en get_nivel_data: {e}")
             # Fallback al método anterior si hay error
             chunk_duration = self.cModel.chunk / self.cModel.rate
             tiempos = np.arange(len(pico_z)) * chunk_duration
@@ -547,7 +555,7 @@ class controlador():
                                 self.grabar()
                             
             except Exception as e:
-                print(f"Error al actualizar dispositivo 1: {e}")
+                #print(f"Error al actualizar dispositivo 1: {e}")
                 self.device_active = False
         else:
             print("No se inicio grabacion")
@@ -654,7 +662,7 @@ class controlador():
             fund_freq = freqs[idx_f0]
             fund_amp = max(fund_amp, 1e-15)  # evitar div/0
 
-            print(f"Fundamental: {fund_freq:.2f} Hz -> {fund_amp:.6f}")
+            #print(f"Fundamental: {fund_freq:.2f} Hz -> {fund_amp:.6f}")
 
             harm_amps = []
             for h in range(2, harmonics+1):
@@ -667,13 +675,13 @@ class controlador():
                 f = freqs[idx]
                 dBc = 20.0*np.log10(max(a,1e-15)/fund_amp)
                 harm_amps.append(a)
-                print(f"Armónico {h}: {f:.2f} Hz -> {a:.6f}  ({dBc:.1f} dBc)")
+                #print(f"Armónico {h}: {f:.2f} Hz -> {a:.6f}  ({dBc:.1f} dBc)")
 
             if harm_amps:
                 thd = np.sqrt(np.sum(np.array(harm_amps)**2)) / fund_amp
             else:
                 thd = 0.0
-            print(f"THD: {thd*100:.4f} %\n")
+            #print(f"THD: {thd*100:.4f} %\n")
             return thd*100
 
         # --- 6. Bucle de calibración ---
@@ -705,18 +713,18 @@ class controlador():
                 rms = np.sqrt(np.mean(grabacion_data**2))
                 nivel_dbfs = 20*np.log10(rms) if rms > 0 else -np.inf
 
-                print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
+                #print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
 
                 if thd < umbral_thd:
                     ultima_amp_valida, ultimo_thd, ultimo_nivel = amp, thd, nivel_dbfs
                 else:
-                    print("THD superó el 1%, deteniendo calibración.")
+                    #print("THD superó el 1%, deteniendo calibración.")
                     break
 
                 time.sleep(0.2)
 
         except Exception as e:
-            print(f"Error durante calibración: {e}")
+            #print(f"Error durante calibración: {e}")
             return False
 
         finally:
@@ -753,7 +761,7 @@ class controlador():
     def establecer_ruta_archivo_calibracion(self, ruta):
         """Guarda la ruta del archivo de calibración en el modelo."""
         self.cModel.set_ruta_archivo_calibracion(ruta)
-        print(f"Ruta de archivo de calibración establecida en: {ruta}")
+        #print(f"Ruta de archivo de calibración establecida en: {ruta}")
 
     def leer_audio_calibracion(self, ref_level):
         """Lee el archivo de audio de referencia y calcula el nivel RMS."""
@@ -850,19 +858,19 @@ class controlador():
     def calFuenteCalibracionExterna(self):
         try:
             valor_ref_str = self.ventanas_abiertas["calibracion"].txtValorRef.text()
-            print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
+            #print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
             valor_ref_str_cleaned = valor_ref_str.strip()
             if not valor_ref_str_cleaned:
                 raise ValueError("El valor de referencia no puede estar vacío.")
             
             valor_para_float = valor_ref_str_cleaned.replace(',', '.')
-            print(f"DEBUG: Valor después de limpiar y reemplazar comas: '{valor_para_float}'")
+            #print(f"DEBUG: Valor después de limpiar y reemplazar comas: '{valor_para_float}'")
             
             ref_level = float(valor_para_float)
-            print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+            #print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
 
         except (ValueError, AttributeError) as e:
-            print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
+            #print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
             QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
             return
 
@@ -896,7 +904,7 @@ class controlador():
             self.cModel.stream.start_stream()
             
             # Reproducir la onda con sounddevice (no bloqueante) para permitir captura concurrente
-            print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
+            #print(f"Reproduciendo tono de {frecuencia} Hz en dispositivo {output_device_index}")
             try:
                 import sounddevice as sd  # Asegurar disponibilidad local
             except Exception:
@@ -919,7 +927,7 @@ class controlador():
                             captured_audio.extend(normalized_data)
                     time.sleep(0.01)  # Pequeña pausa para no saturar el CPU
                 except Exception as e:
-                    print(f"Error durante la captura de audio: {e}")
+                    #print(f"Error durante la captura de audio: {e}")
                     break
             
             # Asegurar fin de reproducción y cerrar captura
@@ -947,9 +955,9 @@ class controlador():
             #calcular offset
             offset = ref_level - rms_dbfs
             
-            print(f"Nivel de referencia: {ref_level} dB")
-            print(f"Nivel RMS medido: {rms_db:.2f} dB")
-            print(f"Factor de calibración: {cal:.2f} dB")
+            #print(f"Nivel de referencia: {ref_level} dB")
+            #print(f"Nivel RMS medido: {rms_db:.2f} dB")
+            #print(f"Factor de calibración: {cal:.2f} dB")
             
             # Guardar el factor de calibración
             self.cModel.setCalibracionAutomatica(cal)
@@ -972,7 +980,7 @@ class controlador():
             
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
-            print(error_msg)
+            #print(error_msg)
             QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", error_msg)
 
     def actualizar_limite_desde_fs(self, fs):
@@ -1047,3 +1055,57 @@ class controlador():
         self.cModel.activar_calibracion(True)
         if self.ventanas_abiertas["calibracion"]:
             self.ventanas_abiertas["calibracion"].close()
+            
+    def verificar_grabaciones_programadas(self):
+        ahora = datetime.now()
+        registros = leer_todas_grabaciones()
+        for registro in registros:
+            id_reg, fecha_ini, hora_ini, fecha_fin, hora_fin, duracion, ext, estado, ruta = registro
+            if estado == "Pendiente":
+                fecha_hora_inicio = datetime.strptime(f"{fecha_ini} {hora_ini}", "%Y-%m-%d %H:%M:%S")
+                fecha_hora_fin = datetime.strptime(f"{fecha_fin} {hora_fin}", "%Y-%m-%d %H:%M:%S")
+                if fecha_hora_inicio <= ahora <= fecha_hora_inicio + timedelta(seconds=10):  # margen de 10s
+                    #print(f"[INFO] Iniciando grabación automática: {id_reg}")
+                    self.iniciar_grabacion_automatica(id_reg, duracion, ruta, ext)
+    
+    def iniciar_grabacion_automatica(self, id_reg, duracion_str, ruta, ext):
+        # Preparar duración
+        h, m, s = map(int, duracion_str.split(":"))
+        duracion_seg = h * 3600 + m * 60 + s
+
+        # Crear nombre de archivo
+        nombre_archivo = f"grabacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+        path_completo = os.path.join(ruta, nombre_archivo)
+
+        try:
+            # Iniciar grabación
+            #print(f"[INFO] Grabando {duracion_seg}s en {path_completo}")
+            self.grabar_audio_y_guardar(path_completo, duracion_seg)
+
+            # Actualizar estado a 'realizada'
+            actualizar_estado(id_reg, "realizada")
+
+            # Reproducir en vista (como grabación manual)
+            from scipy.io.wavfile import read as wavread
+            Fs, data = wavread(path_completo)
+            if data.ndim > 1:
+                data = data.mean(axis=1)
+            max_val = np.max(np.abs(data))
+            normalizado = data / max_val if max_val > 0 else data
+            self.cModel.setSignalData(normalizado)
+            self.graficar()
+
+        except Exception as e:
+            print(f"[ERROR] Falló la grabación automática: {e}")
+    
+    def grabar_audio_y_guardar(self, path_completo, duracion):
+        import sounddevice as sd
+        import soundfile as sf
+
+        fs = self.frecuencia_muestreo_actual
+        #print(f"[INFO] Grabando a {fs} Hz...")
+        grabacion = sd.rec(int(duracion * fs), samplerate=fs, channels=1, dtype='int16')
+        sd.wait()  # esperar a que termine
+
+        sf.write(path_completo, grabacion, fs)
+
