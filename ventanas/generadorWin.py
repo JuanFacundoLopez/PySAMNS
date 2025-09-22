@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout
 
 from PyQt5.QtGui import  QIcon, QPainter, QBrush
 from PyQt5.QtCore import QPointF, QTimer
-
+from scipy.signal import chirp
 
 # Imports para QChart (solo para la ventana de calibración)
 from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
@@ -43,7 +43,7 @@ class GeneradorWin(QMainWindow):
         
         self.lbltipoSig = QLabel("Tipo de señal:")
         self.tipo_combo = QComboBox()
-        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular", "Ruido Blanco", "Ruido Rosa", "Senoidal exponencial"])
+        self.tipo_combo.addItems(["Senoidal", "Cuadrada", "Triangular", "Ruido Blanco", "Ruido Rosa", "Barrido senoidal exponencial", "Barrido senoidal lineal"])
         configLayout.addWidget(self.lbltipoSig)
         configLayout.addWidget(self.tipo_combo)
         
@@ -72,12 +72,12 @@ class GeneradorWin(QMainWindow):
         self.duty_input.setVisible(False)
         
         # Campo Tau (constante de decaimiento)
-        self.lblTauSig = QLabel("Tau (s):")
-        self.tau_input = QLineEdit("1")
-        configLayout.addWidget(self.lblTauSig)
-        configLayout.addWidget(self.tau_input)
-        self.lblTauSig.setVisible(False)
-        self.tau_input.setVisible(False)
+        self.lblFreFinSig = QLabel("Frecueuncia final (Hz):")
+        self.FreFin_input = QLineEdit("1")
+        configLayout.addWidget(self.lblFreFinSig)
+        configLayout.addWidget(self.FreFin_input)
+        self.lblFreFinSig.setVisible(False)
+        self.FreFin_input.setVisible(False)
         
         self.btn_generar = QPushButton("Reproducir")
         icon_play_path = "img/boton-de-play.png" 
@@ -115,7 +115,7 @@ class GeneradorWin(QMainWindow):
         self.freq_input.textChanged.connect(self.generar_senal)
         self.amp_input.textChanged.connect(self.generar_senal)
         self.duty_input.valueChanged.connect(self.generar_senal)
-        self.tau_input.textChanged.connect(self.generar_senal)
+        self.FreFin_input.textChanged.connect(self.generar_senal)
         
 
         mainLayout.addLayout(configLayout)
@@ -128,10 +128,10 @@ class GeneradorWin(QMainWindow):
         for boton in [self.btn_generar, self.btn_pausa]:
             boton.setProperty("class", "ventanasSec")
 
-        for txt in [self.freq_input, self.amp_input, self.dur_input, self.duty_input, self.tau_input]:
+        for txt in [self.freq_input, self.amp_input, self.dur_input, self.duty_input, self.FreFin_input]:
             txt.setProperty("class", "ventanasSec")
             
-        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig, self.lblDutyCicleSig, self.lblTauSig]:
+        for lbl in [self.lbltipoSig, self.lblFrecSig, self.lblAmpSig, self.lblDurSig, self.lblDutyCicleSig, self.lblFreFinSig]:
             lbl.setProperty("class", "ventanasSecLabelDestacado")  
 
         self.lbl_error_gen_sig.setProperty("class", "errorLbl") 
@@ -155,12 +155,14 @@ class GeneradorWin(QMainWindow):
             self.duty_input.setVisible(False)
 
     def mostrar_tau(self):
-        if self.tipo_combo.currentText() == "Senoidal exponencial":
-            self.lblTauSig.setVisible(True)
-            self.tau_input.setVisible(True)
+        if self.tipo_combo.currentText() in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+            self.lblFrecSig.setText("Frecuencia Inicial(Hz):")
+            self.lblFreFinSig.setVisible(True)
+            self.FreFin_input.setVisible(True)
         else:
-            self.lblTauSig.setVisible(False)
-            self.tau_input.setVisible(False)
+            self.lblFrecSig.setText("Frecuencia (Hz):")
+            self.lblFreFinSig.setVisible(False)
+            self.FreFin_input.setVisible(False)
             
     def mostrar_frecuencia(self):
         if self.tipo_combo.currentText() in [ "Ruido Blanco", "Ruido Rosa"]:
@@ -192,13 +194,14 @@ class GeneradorWin(QMainWindow):
                 self.lbl_error_gen_sig.setText("El duty cycle debe ser entre 0 y 100%.")
                 self.lbl_error_gen_sig.setVisible(True)
                 return False
-            
-            if self.tipo_combo.currentText() == "Senoidal exponencial":
-                tau = float(self.tau_input.text())
-                if tau <= 0:
-                    self.lbl_error_gen_sig.setText("Tau debe ser > 0.")
+            if self.tipo_combo.currentText() in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+                frecIni = float(self.freq_input.text())
+                frecFin = float(self.FreFin_input.text())
+                if frecIni <= 0 or frecFin <= 0:
+                    self.lbl_error_gen_sig.setText("Las frecuencias deben ser mayores a > 0.")
                     self.lbl_error_gen_sig.setVisible(True)
                     return False
+                
             self.lbl_error_gen_sig.setVisible(False)
             return True
         except ValueError:
@@ -234,12 +237,13 @@ class GeneradorWin(QMainWindow):
             return
 
         tipo = self.tipo_combo.currentText()
-        f = float(self.freq_input.text()) if self.freq_input.isVisible() else 1000  # Valor por defecto para ruidos
+        f = float(self.freq_input.text()) if self.freq_input.isVisible() else 1000
         A = float(self.amp_input.text())
         T = float(self.dur_input.text())
         Fs = 44100
         t = np.linspace(0, T, int(Fs * T))
 
+        # Generate signal based on type
         if tipo == "Senoidal":
             y = A * np.sin(2 * np.pi * f * t)
         elif tipo == "Cuadrada":
@@ -250,7 +254,7 @@ class GeneradorWin(QMainWindow):
             y = A * (2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1)
         elif tipo == "Ruido Blanco":
             y = A * np.random.normal(0, 1, len(t))
-            y = y / np.max(np.abs(y))  # Normalizar a -1 a 1
+            y = y / np.max(np.abs(y))
         elif tipo == "Ruido Rosa":
             N = len(t)
             uneven = N % 2
@@ -258,13 +262,30 @@ class GeneradorWin(QMainWindow):
             S = np.sqrt(np.arange(len(X)) + 1)
             y = (np.fft.irfft(X / S)).real
             y = y[:N]
+            y /= np.max(np.abs(y))  # normalización a [-1, 1]
             y *= A
-        elif tipo == "Senoidal exponencial":                               # NUEVO
-            tau = max(1e-12, float(self.tau_input.text()))
-            y = A * np.exp(-t / tau) * np.sin(2 * np.pi * f * t)
-
+        elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+            N, T = 1000, 0.01  # number of samples and sampling interval for 10 s signal
+            t = np.arange(N) * T  # timestamps
+            f_ini = float(self.freq_input.text())
+            f_fin = float(self.FreFin_input.text())
+            method = 'logarithmic' if tipo == "Barrido senoidal exponencial" else 'linear'
+            y = A * chirp(t, f0=f_ini, f1=f_fin, t1=10, method=method)
+        else:
+            return  # Invalid signal type
+        
+        # Store signal data
         self.signal_data = y.astype(np.float32)
         self.sample_rate = Fs
+
+        # Visualization settings
+        if tipo in ["Ruido Blanco", "Ruido Rosa"]:
+            duracion_visible = min(0.05, T)
+        elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+            duracion_visible = T
+        else:
+            num_ciclos_visibles = 5
+            duracion_visible = num_ciclos_visibles / f
 
         # -----------------------
         # Ajuste dinámico del eje X según el tipo de señal
@@ -273,13 +294,9 @@ class GeneradorWin(QMainWindow):
         # Para ruidos, mostrar siempre 5 segundos fijos
         if tipo in ["Ruido Blanco", "Ruido Rosa"]:
             duracion_visible = min(0.05, T)  # Máximo 5 segundos o la duración total si es menor
-        elif tipo == "Senoidal exponencial":
-            # Para señal exponencial, mostrar un rango más largo para ver la decadencia
-            tau = max(1e-12, float(self.tau_input.text()))
-            # Mostrar aproximadamente 3 constantes de tiempo para ver bien la decadencia
-            duracion_visible = min(3 * tau, T)  
-            # Mínimo 2 segundos para que siempre sea visible, máximo 10 segundos
-            duracion_visible = max(2.0, min(duracion_visible, 10.0))
+        elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+            # Para barrdidos
+            duracion_visible = float(self.dur_input.text())
         else:
             # Para otras señales, mostrar según frecuencia
             num_ciclos_visibles = 5
@@ -339,6 +356,45 @@ class GeneradorWin(QMainWindow):
         self.chartGenSig.addAxis(axisY, Qt.AlignLeft)
         self.seriesGenSig.attachAxis(axisX)
         self.seriesGenSig.attachAxis(axisY)
+        
+        # For visualization of sweep signals
+        if tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
+            t_visible = t
+            y_visible = y
+            
+            # Create more points for smooth visualization
+            t_interp = t_visible
+            y_interp = y_visible
+            
+            # Update axes ranges for better visualization
+            self.chartGenSig.removeSeries(self.seriesGenSig)
+            self.seriesGenSig.clear()
+            
+            # Reduce number of points for display
+            max_points = 2000
+            step = max(1, len(t_interp) // max_points)
+            
+            for i in range(0, len(t_interp), step):
+                self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
+                
+            self.chartGenSig.addSeries(self.seriesGenSig)
+            
+            # Create custom axes for sweep signals
+            axisX = QValueAxis()
+            axisX.setRange(0, T)
+            axisX.setTitleText("Tiempo (s)")
+            
+            axisY = QValueAxis()
+            axisY.setRange(-A, A)
+            axisY.setTitleText("Amplitud")
+            
+            self.chartGenSig.removeAxis(self.chartGenSig.axisX())
+            self.chartGenSig.removeAxis(self.chartGenSig.axisY())
+            self.chartGenSig.addAxis(axisX, Qt.AlignBottom)
+            self.chartGenSig.addAxis(axisY, Qt.AlignLeft)
+            self.seriesGenSig.attachAxis(axisX)
+            self.seriesGenSig.attachAxis(axisY)
+       
 
     def play_signal(self):
         """Play the generated signal through the selected output device"""
