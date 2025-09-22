@@ -600,8 +600,8 @@ class controlador():
 
         # --- 2. Parámetros ---
         fs = self.RATE
-        duracion = 2.0  # segundos por paso
-        amplitudes = np.arange(0.1, 1, 0.1)
+        duracion = 1.0  # segundos por paso
+        amplitudes = np.arange(0.1, 1, 0.05)
         freq = 1000
         umbral_thd = 1.0  # 1 %
         frames_per_buffer = 1024
@@ -639,7 +639,7 @@ class controlador():
         # --- 5. Función auxiliar: calcular THD ---
         def compute_thd(signal, fs, f0=1000, harmonics=10, side_bins=1):
             """
-            Muestra fundamental, armónicos y THD (%). No devuelve nada.
+            Muestra fundamental, armónicos y THD (%).
             - Ventana Hann con normalización coherente.
             - Integra ±side_bins alrededor de cada armónico.
             """
@@ -695,18 +695,22 @@ class controlador():
                 output_stream.write(signal.tobytes())
 
                 # Capturar
-                frames = []
-                for _ in range(int(fs*duracion/frames_per_buffer)):
-                    data = input_stream.read(frames_per_buffer, exception_on_overflow=False)
-                    frames.append(np.frombuffer(data, dtype=np.float32))
-                capturado = np.concatenate(frames)
-
-                # Evitar transitorios
-                #capturado = capturado[len(capturado)//10:]
+                grabacion_data = []
+                try:
+                    while (len(grabacion_data)/fs) < duracion :  # Grabar por 1 segundos
+                        audio_data = self.cModel.get_audio_data()
+                        if len(audio_data) > 5:
+                            current_data, _, _, _, _, _, _ = audio_data
+                            if len(current_data) > 0:
+                                # grabacion_data.append(current_data.astype(np.float32) / (32767.0 / 2))
+                                grabacion_data = np.concatenate((grabacion_data, current_data.astype(np.float32) / (32767.0 / 2)),axis=0)
+                except Exception as e:
+                    print(f"Error al capturar audio: {e}")
+                time.sleep(0.01)  # Pequeña pausa
 
                 # Calcular métricas
-                thd = compute_thd(capturado, fs, f0=freq)
-                rms = np.sqrt(np.mean(capturado**2))
+                thd = compute_thd(grabacion_data, fs, f0=freq)
+                rms = np.sqrt(np.mean(grabacion_data**2))
                 nivel_dbfs = 20*np.log10(rms) if rms > 0 else -np.inf
 
                 #print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
@@ -759,104 +763,97 @@ class controlador():
         self.cModel.set_ruta_archivo_calibracion(ruta)
         #print(f"Ruta de archivo de calibración establecida en: {ruta}")
 
-    def reproducir_audio_calibracion(self):
-        """Lee y reproduce el archivo de audio de referencia."""
+    def leer_audio_calibracion(self, ref_level):
+        """Lee el archivo de audio de referencia y calcula el nivel RMS."""
         try:
             ruta = self.cModel.get_ruta_archivo_calibracion()
             if not ruta:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Archivo no encontrado", "Por favor, seleccione un archivo de referencia .wav primero.")
-                return
+                QMessageBox.warning(
+                    self.ventanas_abiertas["calibracion"],
+                    "Archivo no encontrado",
+                    "Por favor, seleccione un archivo de referencia .wav primero."
+                )
+                return False, False, False
 
             # Leer el archivo de audio
             data, samplerate = sf.read(ruta, dtype='float32')
+            QMessageBox.information(
+                    self.ventanas_abiertas["calibracion"],
+                    "Leyendo archivo",
+                    "Por favor espere, leyendo archivo de referencia..."
+                )
+            # Si el audio es estéreo, pasarlo a mono promediando canales
+            if data.ndim > 1:
+                data = np.mean(data, axis=1)
+
+            # Calcular el nivel RMS en dBSPL
+            rms = np.sqrt(np.mean(data**2))
+            rms_db = 20 * np.log10(rms/0.00002)  # Evitar log(0)
+            #calcular dBFS
+            rms_dbfs = 20 * np.log10(rms/1.0)
             
-            # Obtener dispositivo de salida
-            output_device_index = self.cModel.getDispositivoSalidaActual()
-            if output_device_index is None:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Dispositivo", "No se ha seleccionado un dispositivo de salida.")
-                return
+            # Calcular el factor de calibración
+            cal = ref_level - rms_db
 
-            # Reproducir el audio
-            sd.play(data, samplerate, device=output_device_index)
-            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Reproducción", f"Reproduciendo {ruta}...")
+            #calcular offset
+            offset = ref_level - rms_dbfs
 
+            return rms_db, cal, offset
         except Exception as e:
-            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Reproducción", f"No se pudo reproducir el archivo de audio: {str(e)}")
-            #print(f"Error en reproducir_audio_calibracion: {e}")
+            print(f"Error al calcular el nivel RMS: {e}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error", f"Error al calcular el nivel RMS: {e}")
+            return False, False, False
 
     def calFuenteReferenciaInterna(self):
-        """
-        Orquesta el proceso de calibración externa: mide el nivel de la señal de entrada 
-        mientras se reproduce el tono de referencia y calcula el offset.
-        """
+        #Obtener valor de referencia
         try:
-            # 1. Obtener el nivel de referencia dBSPL del usuario
-            ref_spl_text = self.cVista.calWin.txtValorRefExterna.text()
-            if not ref_spl_text:
-                QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Entrada Inválida", "Por favor, ingrese un valor de referencia en dBSPL.")
-                return False
-            ref_spl = float(ref_spl_text)
-
-            # 2. Iniciar una grabación corta para medir el nivel dBFS
-            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Medición en Curso", 
-                                    "Se medirá el nivel de entrada durante 3 segundos.\n" 
-                                    "Asegúrese de que su tono de referencia esté sonando y presione OK.")
+            valor_ref_str = self.ventanas_abiertas["calibracion"].txtValorRefExterna.text()
+            print(f"DEBUG: Valor de referencia ingresado: '{valor_ref_str}'")
+            valor_ref_str_cleaned = valor_ref_str.strip()
+            if not valor_ref_str_cleaned:
+                raise ValueError("El valor de referencia no puede estar vacío.")
             
-            self.cModel.stream.start_stream()
+            valor_para_float = valor_ref_str_cleaned.replace(',', '.')
+            print(f"DEBUG: Valor después de limpiar y reemplazar comas: '{valor_para_float}'")
             
-            # Acumular datos durante unos segundos
-            grabacion_data = []
-            tiempo_inicio = time.time()
-            while time.time() - tiempo_inicio < 3:  # Grabar por 3 segundos
-                try:
-                    audio_data = self.cModel.get_audio_data()
-                    if audio_data and len(audio_data) >= 7:
-                        current_data, _, _, _, _, _, _ = audio_data
-                        if len(current_data) > 0:
-                            grabacion_data.append(current_data.astype(np.float32) / (32767.0/2))
-                except Exception as e:
-                    print(f"Error al capturar audio: {e}")
-                time.sleep(0.01) # Pequeña pausa
+            ref_level = float(valor_para_float)
+            print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
 
-            self.cModel.stream.stop_stream()
-
-            if not grabacion_data:
-                QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Medición", "No se pudieron capturar datos de audio.")
-                return False
-
-            # Concatenar y procesar los datos grabados
-            audio_completo = np.concatenate(grabacion_data)
+        except (ValueError, AttributeError) as e:
+            print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
+            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Error de Entrada", "Por favor, ingrese un valor de referencia numérico válido.")
+            return
             
-            # 3. Calcular el nivel en dBFS
-            # Usamos la función del modelo que calcula dB sobre datos normalizados
-            medido_dbfs = self.cModel.calculate_db(audio_completo)
+        try:
+            #Calcular calibración
+            rms_db, cal, offset = self.leer_audio_calibracion(ref_level)
+            if not rms_db or not cal or not offset:
+                return
             
-            # 4. Actualizar la interfaz con el valor medido
-            self.cVista.lblNivelMedidoFS.setText(f"{medido_dbfs:.2f} dBFS")
+            # Guardar el factor de calibración
+            self.cModel.setCalibracionAutomatica(cal)
 
-            # 5. Calcular el offset
-            offset = ref_spl - medido_dbfs
-            
-            # 6. Guardar el offset en el modelo
+            # Guardar el offset en el modelo
             self.cModel.set_calibracion_offset_spl(offset)
             
-            # 7. Actualizar la interfaz con el offset
-            self.cVista.lblFactorAjuste.setText(f"{offset:.2f} dB")
-
-            QMessageBox.information(self.ventanas_abiertas["calibracion"], "Calibración Completa", 
-                                   f"Calibración finalizada con éxito.\n\n"
-                                   f"Nivel de Referencia: {ref_spl:.2f} dBSPL\n"
-                                   f"Nivel Medido: {medido_dbfs:.2f} dBFS\n"
-                                   f"Factor de Ajuste: {offset:.2f} dB")
-            return True
-
-        except ValueError:
-            QMessageBox.warning(self.ventanas_abiertas["calibracion"], "Entrada Inválida", "El valor de referencia debe ser un número.")
-            return False
+            # # Actualizar la UI
+            # self.cVista.txtValorRef.setText(f"{cal:.2f}")
+            
+            # Mostrar mensaje de éxito
+            QMessageBox.information(
+                self.ventanas_abiertas["calibracion"],
+                "Calibración Exitosa",
+                f"Calibración relativa completada.\n\n"
+                f"Nivel de referencia: {ref_level:.2f} dB\n"
+                f"Nivel medido: {rms_db:.2f} dB\n"
+                f"Factor de ajuste: {cal:.2f} dB"
+            )
+        
         except Exception as e:
-            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", f"Ocurrió un error inesperado: {str(e)}")
-            #print(f"Error en iniciar_calibracion_relativa: {e}")
-            return False
+            error_msg = f"Error durante la calibración: {str(e)}"
+            print(error_msg)
+            QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", error_msg)
+
 
     def calFuenteCalibracionExterna(self):
         try:
