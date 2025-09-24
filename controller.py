@@ -203,9 +203,23 @@ class controlador():
             print("DEBUG: Entrando en sección de nivel")
             # Nivel - Crear eje de tiempo real basado en la frecuencia de muestreo
             # Obtener datos del modelo
-            (dataVectorPicoZ, dataVectorInstZ, dataVectorFastZ, dataVectorSlowZ) = self.cModel.getNivelesZ()
-            (dataVectorPicoC, dataVectorInstC, dataVectorFastC, dataVectorSlowC) = self.cModel.getNivelesC()
-            (dataVectorPicoA, dataVectorInstA, dataVectorFastA, dataVectorSlowA) = self.cModel.getNivelesA()
+            nivelesZ = self.cModel.getNivelesZ()
+            dataVectorPicoZ = nivelesZ['pico']
+            dataVectorInstZ = nivelesZ['inst']
+            dataVectorFastZ = nivelesZ['fast']
+            dataVectorSlowZ = nivelesZ['slow']
+            
+            nivelesC = self.cModel.getNivelesC()
+            dataVectorPicoC = nivelesC['pico']
+            dataVectorInstC = nivelesC['inst']
+            dataVectorFastC = nivelesC['fast']
+            dataVectorSlowC = nivelesC['slow']
+
+            nivelesA = self.cModel.getNivelesA()
+            dataVectorPicoA = nivelesA['pico']
+            dataVectorInstA = nivelesA['inst']
+            dataVectorFastA = nivelesA['fast']
+            dataVectorSlowA = nivelesA['slow']
             
             print(f"DEBUG: Datos obtenidos - Z: {len(dataVectorPicoZ)}, C: {len(dataVectorPicoC)}, A: {len(dataVectorPicoA)}")
             
@@ -272,6 +286,7 @@ class controlador():
                     self.cVista.ptNivZPico.setData(timeNivelData, dataVectorPicoZ)
                 if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
                     self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
+
                 if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
                     print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
                     print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
@@ -280,6 +295,7 @@ class controlador():
                     # Forzar actualización del gráfico
                     self.cVista.waveform1.replot()
                     print(f"DEBUG FAST Z: replot llamado")
+
                 if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
                     print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
                     print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
@@ -296,8 +312,10 @@ class controlador():
                     self.cVista.ptNivCPico.setData(timeNivelData, dataVectorPicoC)
                 if self.cVista.cbNivInstC.isChecked() and len(dataVectorInstC) > 0:
                     self.cVista.ptNivCInst.setData(timeNivelData, dataVectorInstC)
+
                 if self.cVista.cbNivFastC.isChecked() and len(dataVectorFastC) > 0:
                     self.cVista.ptNivCFast.setData(timeNivelData, dataVectorFastC)
+
                 if self.cVista.cbNivSlowC.isChecked() and len(dataVectorSlowC) > 0:
                     self.cVista.ptNivCSlow.setData(timeNivelData, dataVectorSlowC)
 
@@ -306,17 +324,51 @@ class controlador():
                     self.cVista.ptNivAPico.setData(timeNivelData, dataVectorPicoA)
                 if self.cVista.cbNivInstA.isChecked() and len(dataVectorInstA) > 0:
                     self.cVista.ptNivAInst.setData(timeNivelData, dataVectorInstA)
+
                 if self.cVista.cbNivFastA.isChecked() and len(dataVectorFastA) > 0:
                     self.cVista.ptNivAFast.setData(timeNivelData, dataVectorFastA)
+
                 if self.cVista.cbNivSlowA.isChecked() and len(dataVectorSlowA) > 0:
                     self.cVista.ptNivASlow.setData(timeNivelData, dataVectorSlowA)
 
     def get_nivel_data(self):
         """Obtiene los datos de nivel del modelo y los prepara para la vista"""
         # Obtener datos del modelo
-        (pico_z, inst_z, fast_z, slow_z) = self.cModel.getNivelesZ()
-        (pico_c, inst_c, fast_c, slow_c) = self.cModel.getNivelesC()
-        (pico_a, inst_a, fast_a, slow_a) = self.cModel.getNivelesA()
+        nivelesZ = self.cModel.getNivelesZ()
+        pico_z = nivelesZ['pico']
+        inst_z = nivelesZ['inst']
+        fast_z = nivelesZ['fast']
+        slow_z = nivelesZ['slow']
+        inst_min_z = nivelesZ['inst_min']
+        inst_max_z = nivelesZ['inst_max']
+        fast_min_z = nivelesZ['fast_min']
+        fast_max_z = nivelesZ['fast_max']
+        slow_min_z = nivelesZ['slow_min']
+        slow_max_z = nivelesZ['slow_max']
+
+        nivelesC = self.cModel.getNivelesC()
+        pico_c = nivelesC['pico']
+        inst_c = nivelesC['inst']
+        fast_c = nivelesC['fast']
+        slow_c = nivelesC['slow']
+        inst_min_c = nivelesC['inst_min']
+        inst_max_c = nivelesC['inst_max']
+        fast_min_c = nivelesC['fast_min']
+        fast_max_c = nivelesC['fast_max']
+        slow_min_c = nivelesC['slow_min']
+        slow_max_c = nivelesC['slow_max']
+
+        nivelesA = self.cModel.getNivelesA()
+        pico_a = nivelesA['pico']
+        inst_a = nivelesA['inst']
+        fast_a = nivelesA['fast']
+        slow_a = nivelesA['slow']
+        inst_min_a = nivelesA['inst_min']
+        inst_max_a = nivelesA['inst_max']
+        fast_min_a = nivelesA['fast_min']
+        fast_max_a = nivelesA['fast_max']
+        slow_min_a = nivelesA['slow_min']
+        slow_max_a = nivelesA['slow_max']
         
         # Obtener el tiempo real transcurrido desde el inicio
         current_time = time.time()
@@ -388,8 +440,14 @@ class controlador():
         niveles_z = {
             'pico': pico_z,
             'inst': inst_z,
+            'inst_min': inst_min_z,
+            'inst_max': inst_max_z,
             'fast': fast_z,
+            'fast_min': fast_min_z,
+            'fast_max': fast_max_z,
             'slow': slow_z,
+            'slow_min': slow_min_z,
+            'slow_max': slow_max_z,
             # Estructura de datos estadísticos con sus propios tiempos
             'leq': create_stat_data(self.cModel.recorderLeqZ, self.stat_times_z),
             'l01': create_stat_data(self.cModel.recorderL01Z, self.stat_times_z),
@@ -402,8 +460,14 @@ class controlador():
         niveles_c = {
             'pico': pico_c,
             'inst': inst_c,
+            'inst_min': inst_min_c,
+            'inst_max': inst_max_c,
             'fast': fast_c,
+            'fast_min': fast_min_c,
+            'fast_max': fast_max_c,
             'slow': slow_c,
+            'slow_min': slow_min_c,
+            'slow_max': slow_max_c,
             # Estructura de datos estadísticos con sus propios tiempos
             'leq': create_stat_data(self.cModel.recorderLeqC, self.stat_times_c),
             'l01': create_stat_data(self.cModel.recorderL01C, self.stat_times_c),
@@ -416,8 +480,14 @@ class controlador():
         niveles_a = {
             'pico': pico_a,
             'inst': inst_a,
+            'inst_min': inst_min_a,
+            'inst_max': inst_max_a,
             'fast': fast_a,
+            'fast_min': fast_min_a,
+            'fast_max': fast_max_a,
             'slow': slow_a,
+            'slow_min': slow_min_a,
+            'slow_max': slow_max_a,
             # Estructura de datos estadísticos con sus propios tiempos
             'leq': create_stat_data(self.cModel.recorderLeqA, self.stat_times_a),
             'l01': create_stat_data(self.cModel.recorderL01A, self.stat_times_a),

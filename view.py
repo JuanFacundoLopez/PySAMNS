@@ -289,6 +289,12 @@ class vista(QMainWindow):
         self.ptNivZFast = self.waveform1.plot(pen='g', width=3)  # (124, 138, 1)
         self.ptNivZInst = self.waveform1.plot(pen='b', width=3)  # (70, 138, 1)
         self.ptNivZPico = self.waveform1.plot(pen='r', width=3)  # (3, 138, 1)
+        self.ptNivZInstMin = self.waveform1.plot(pen='b', width=1, style=QtCore.Qt.DashLine)
+        self.ptNivZInstMax = self.waveform1.plot(pen='b', width=1, style=QtCore.Qt.DashLine)
+        self.ptNivZFastMin = self.waveform1.plot(pen='g', width=1, style=QtCore.Qt.DashLine)
+        self.ptNivZFastMax = self.waveform1.plot(pen='g', width=1, style=QtCore.Qt.DashLine)
+        self.ptNivZSlowMin = self.waveform1.plot(pen='k', width=1, style=QtCore.Qt.DashLine)
+        self.ptNivZSlowMax = self.waveform1.plot(pen='k', width=1, style=QtCore.Qt.DashLine)
         print("DEBUG: Plots Z creados:", self.ptNivZSlow, self.ptNivZFast, self.ptNivZInst, self.ptNivZPico)
         
         # Plots para nivel C
@@ -296,6 +302,12 @@ class vista(QMainWindow):
         self.ptNivCFast = self.waveform1.plot(pen=(1, 138, 92), width=3)
         self.ptNivCInst = self.waveform1.plot(pen=(1, 117, 138), width=3)
         self.ptNivCPico = self.waveform1.plot(pen=(1, 54, 138), width=3)
+        self.ptNivCInstMin = self.waveform1.plot(pen=(1, 117, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivCInstMax = self.waveform1.plot(pen=(1, 117, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivCFastMin = self.waveform1.plot(pen=(1, 138, 92), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivCFastMax = self.waveform1.plot(pen=(1, 138, 92), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivCSlowMin = self.waveform1.plot(pen=(1, 138, 42), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivCSlowMax = self.waveform1.plot(pen=(1, 138, 42), width=1, style=QtCore.Qt.DashLine)
         print("DEBUG: Plots C creados:", self.ptNivCSlow, self.ptNivCFast, self.ptNivCInst, self.ptNivCPico)
         
         # Plots para nivel A
@@ -303,6 +315,12 @@ class vista(QMainWindow):
         self.ptNivAFast = self.waveform1.plot(pen=(51, 1, 138), width=3)
         self.ptNivAInst = self.waveform1.plot(pen=(108, 1, 138), width=3)
         self.ptNivAPico = self.waveform1.plot(pen=(138, 1, 63), width=3)
+        self.ptNivAInstMin = self.waveform1.plot(pen=(108, 1, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivAInstMax = self.waveform1.plot(pen=(108, 1, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivAFastMin = self.waveform1.plot(pen=(51, 1, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivAFastMax = self.waveform1.plot(pen=(51, 1, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivASlowMin = self.waveform1.plot(pen=(28, 1, 138), width=1, style=QtCore.Qt.DashLine)
+        self.ptNivASlowMax = self.waveform1.plot(pen=(28, 1, 138), width=1, style=QtCore.Qt.DashLine)
         print("DEBUG: Plots A creados:", self.ptNivASlow, self.ptNivAFast, self.ptNivAInst, self.ptNivAPico)
         
         # Botones y cronómetro
@@ -599,6 +617,25 @@ class vista(QMainWindow):
         self.cbNivSlowA.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowC.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowZ.toggled.connect(self.actualizarGraficoNivel)
+        
+        self.cbNivInstMinA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivInstMinC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivInstMinZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivInstMaxA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivInstMaxC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivInstMaxZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMinA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMinC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMinZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMaxA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMaxC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivFastMaxZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMinA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMinC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMinZ.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMaxA.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMaxC.toggled.connect(self.actualizarGraficoNivel)
+        self.cbNivSlowMaxZ.toggled.connect(self.actualizarGraficoNivel)
         
         self.cbEqA.toggled.connect(self.actualizarGraficoNivel)
         self.cb01A.toggled.connect(self.actualizarGraficoNivel)
@@ -1494,18 +1531,36 @@ class vista(QMainWindow):
                         print(f"DEBUG INST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DashLine), name='Z Inst')
                         print(f"DEBUG INST Z: Plot creado")
+                    if self.cbNivInstMinZ.isChecked() and len(niveles_Z.get('inst_min', [])) > 0:
+                        ydata = np.array(niveles_Z['inst_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Inst Min')
+                    if self.cbNivInstMaxZ.isChecked() and len(niveles_Z.get('inst_max', [])) > 0:
+                        ydata = np.array(niveles_Z['inst_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Inst Max')
 
                     if self.cbNivFastZ.isChecked() and len(niveles_Z.get('fast', [])) > 0:
                         ydata = np.array(niveles_Z['fast'])
                         print(f"DEBUG FAST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DotLine), name='Z Fast')
                         print(f"DEBUG FAST Z: Plot creado")
+                    if self.cbNivFastMinZ.isChecked() and len(niveles_Z.get('fast_min', [])) > 0:
+                        ydata = np.array(niveles_Z['fast_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Fast Min')
+                    if self.cbNivFastMaxZ.isChecked() and len(niveles_Z.get('fast_max', [])) > 0:
+                        ydata = np.array(niveles_Z['fast_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Fast Max')
 
                     if self.cbNivSlowZ.isChecked() and len(niveles_Z.get('slow', [])) > 0:
                         ydata = np.array(niveles_Z['slow'])
                         print(f"DEBUG SLOW Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=3, style=QtCore.Qt.SolidLine), name='Z Slow')
                         print(f"DEBUG SLOW Z: Plot creado")
+                    if self.cbNivSlowMinZ.isChecked() and len(niveles_Z.get('slow_min', [])) > 0:
+                        ydata = np.array(niveles_Z['slow_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Slow Min')
+                    if self.cbNivSlowMaxZ.isChecked() and len(niveles_Z.get('slow_max', [])) > 0:
+                        ydata = np.array(niveles_Z['slow_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Slow Max')
 
                     # C Weighting (verde)
                     print(f"DEBUG: Checkboxes C - Pico: {self.cbNivPicoC.isChecked()}, Inst: {self.cbNivInstC.isChecked()}, Fast: {self.cbNivFastC.isChecked()}, Slow: {self.cbNivSlowC.isChecked()}")
@@ -1522,18 +1577,36 @@ class vista(QMainWindow):
                         print(f"DEBUG INST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=2, style=QtCore.Qt.DashLine), name='C Inst')
                         print(f"DEBUG INST C: Plot creado")
+                    if self.cbNivInstMinC.isChecked() and len(niveles_C.get('inst_min', [])) > 0:
+                        ydata = np.array(niveles_C['inst_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Inst Min')
+                    if self.cbNivInstMaxC.isChecked() and len(niveles_C.get('inst_max', [])) > 0:
+                        ydata = np.array(niveles_C['inst_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Inst Max')
                     
                     if self.cbNivFastC.isChecked() and len(niveles_C.get('fast', [])) > 0:
                         ydata = np.array(niveles_C['fast'])
                         print(f"DEBUG FAST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=2, style=QtCore.Qt.DotLine), name='C Fast')
                         print(f"DEBUG FAST C: Plot creado")
+                    if self.cbNivFastMinC.isChecked() and len(niveles_C.get('fast_min', [])) > 0:
+                        ydata = np.array(niveles_C['fast_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Fast Min')
+                    if self.cbNivFastMaxC.isChecked() and len(niveles_C.get('fast_max', [])) > 0:
+                        ydata = np.array(niveles_C['fast_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Fast Max')
                     
                     if self.cbNivSlowC.isChecked() and len(niveles_C.get('slow', [])) > 0:
                         ydata = np.array(niveles_C['slow'])
                         print(f"DEBUG SLOW C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=3, style=QtCore.Qt.SolidLine), name='C Slow')
                         print(f"DEBUG SLOW C: Plot creado")
+                    if self.cbNivSlowMinC.isChecked() and len(niveles_C.get('slow_min', [])) > 0:
+                        ydata = np.array(niveles_C['slow_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Slow Min')
+                    if self.cbNivSlowMaxC.isChecked() and len(niveles_C.get('slow_max', [])) > 0:
+                        ydata = np.array(niveles_C['slow_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Slow Max')
                     
                     # A Weighting (azul)
                     print(f"DEBUG: Checkboxes A - Pico: {self.cbNivPicoA.isChecked()}, Inst: {self.cbNivInstA.isChecked()}, Fast: {self.cbNivFastA.isChecked()}, Slow: {self.cbNivSlowA.isChecked()}")
@@ -1550,18 +1623,36 @@ class vista(QMainWindow):
                         print(f"DEBUG INST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=2, style=QtCore.Qt.DashLine), name='A Inst')
                         print(f"DEBUG INST A: Plot creado")
+                    if self.cbNivInstMinA.isChecked() and len(niveles_A.get('inst_min', [])) > 0:
+                        ydata = np.array(niveles_A['inst_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Min')
+                    if self.cbNivInstMaxA.isChecked() and len(niveles_A.get('inst_max', [])) > 0:
+                        ydata = np.array(niveles_A['inst_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Max')
                     
                     if self.cbNivFastA.isChecked() and len(niveles_A.get('fast', [])) > 0:
                         ydata = np.array(niveles_A['fast'])
                         print(f"DEBUG FAST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=2, style=QtCore.Qt.DotLine), name='A Fast')
                         print(f"DEBUG FAST A: Plot creado")
+                    if self.cbNivFastMinA.isChecked() and len(niveles_A.get('fast_min', [])) > 0:
+                        ydata = np.array(niveles_A['fast_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Min')
+                    if self.cbNivFastMaxA.isChecked() and len(niveles_A.get('fast_max', [])) > 0:
+                        ydata = np.array(niveles_A['fast_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Max')
                     
                     if self.cbNivSlowA.isChecked() and len(niveles_A.get('slow', [])) > 0:
                         ydata = np.array(niveles_A['slow'])
                         print(f"DEBUG SLOW A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
                         plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=3, style=QtCore.Qt.SolidLine), name='A Slow')
                         print(f"DEBUG SLOW A: Plot creado")
+                    if self.cbNivSlowMinA.isChecked() and len(niveles_A.get('slow_min', [])) > 0:
+                        ydata = np.array(niveles_A['slow_min'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Min')
+                    if self.cbNivSlowMaxA.isChecked() and len(niveles_A.get('slow_max', [])) > 0:
+                        ydata = np.array(niveles_A['slow_max'])
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Max')
 
                     # --- Ploteo de niveles estadísticos (horizontales constantes) ---
                     # Colores fijos por tipo de Ln (para parecerse al ejemplo: L10 rojo, L50 verde, L90 naranja)
