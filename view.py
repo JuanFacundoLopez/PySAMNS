@@ -1218,23 +1218,23 @@ class vista(QMainWindow):
                     self.waveform1.setAxisItems({'bottom': self.time_axis})
                     self.waveform1.setLabel('bottom', 'Tiempo (s)')
                 
-                # Aplicar suavizado SOLO para visualización
-                smooth_data = np.interp(
-                    np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
-                    np.arange(len(normalized_all)),
-                    normalized_all
-                )
-                # Crear array de tiempo suavizado
-                smooth_times = np.interp(
-                    np.linspace(0, len(times)-1, len(smooth_data)),
-                    np.arange(len(times)),
-                    times
-                )
+                # # Aplicar suavizado SOLO para visualización
+                # smooth_data = np.interp(
+                #     np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
+                #     np.arange(len(normalized_all)),
+                #     normalized_all
+                # )
+                # # Crear array de tiempo suavizado
+                # smooth_times = np.interp(
+                #     np.linspace(0, len(times)-1, len(smooth_data)),
+                #     np.arange(len(times)),
+                #     times
+                # )
                 
                 # Mostrar solo los últimos N puntos
                 N = 2000
-                xdata = smooth_times[-N:]
-                ydata = smooth_data[-N:]
+                xdata = times[-N:]
+                ydata = normalized_all[-N:]
                 print("Graficando:", len(xdata), len(ydata), "Ejemplo:", ydata[:5])
                 print("Eje X:", xdata[:10])
                 # Eliminar la línea anterior si existe

@@ -93,12 +93,31 @@ class CalibracionWin(QMainWindow):
         self.lblRutaArchivoCal.setWordWrap(True)
         self.lblValRefExterna = QLabel("Nivel de referencia (dBSPL):")
         self.txtValorRefExterna = QLineEdit("94.0")
+
+        # Controles de zoom del grafico
+        self.zoomLayout = QHBoxLayout()
+        self.lblZoom = QLabel("Escala de tiempo:")
+        self.cboZoom = QComboBox()
+        self.cboZoom.addItem("50 ms", 0.05)
+        self.cboZoom.addItem("100 ms", 0.1)
+        self.cboZoom.addItem("200 ms", 0.2)
+        self.cboZoom.addItem("500 ms", 0.5)
+        self.cboZoom.addItem("1 s", 1.0)
+        self.cboZoom.addItem("3 s", 3.0)
+        self.cboZoom.setCurrentIndex(self.cboZoom.count() - 1)
+        self.cboZoom.currentIndexChanged.connect(self._aplicar_zoom_calibracion)
+        self.zoomLayout.addWidget(self.lblZoom)
+        self.zoomLayout.addWidget(self.cboZoom)
+        self.zoomLayout.addStretch()
+
         #self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
         # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
         layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
         layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
+        layoutExterna.addLayout(self.zoomLayout, 3, 0, 1, 2)
+
         #layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
 
         # --- Grafico ---
@@ -128,21 +147,7 @@ class CalibracionWin(QMainWindow):
         self.axisY2 = QValueAxis()
         self.axisY2.setTitleText("Amplitud Normalizada")
         self.axisY2.setRange(-1.2, 1.2)
-        # Controles de zoom del grafico
-        self.zoomLayout = QHBoxLayout()
-        self.lblZoom = QLabel("Escala de tiempo:")
-        self.cboZoom = QComboBox()
-        self.cboZoom.addItem("50 ms", 0.05)
-        self.cboZoom.addItem("100 ms", 0.1)
-        self.cboZoom.addItem("200 ms", 0.2)
-        self.cboZoom.addItem("500 ms", 0.5)
-        self.cboZoom.addItem("1 s", 1.0)
-        self.cboZoom.addItem("3 s", 3.0)
-        self.cboZoom.setCurrentIndex(self.cboZoom.count() - 1)
-        self.cboZoom.currentIndexChanged.connect(self._aplicar_zoom_calibracion)
-        self.zoomLayout.addWidget(self.lblZoom)
-        self.zoomLayout.addWidget(self.cboZoom)
-        self.zoomLayout.addStretch()
+        
         
         self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
         self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
@@ -170,7 +175,7 @@ class CalibracionWin(QMainWindow):
         mainLayout.addLayout(gridHardLayout)
         mainLayout.addLayout(self.valorRefLayout)
         mainLayout.addWidget(self.calExternaGroup)
-        mainLayout.addLayout(self.zoomLayout)
+        #mainLayout.addLayout(self.zoomLayout)
         mainLayout.addWidget(self.winGraph2)
         mainLayout.addLayout(botonesLayout)
 
