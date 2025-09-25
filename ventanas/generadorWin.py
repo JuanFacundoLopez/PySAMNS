@@ -87,7 +87,7 @@ class GeneradorWin(QMainWindow):
         axisX = self.chartGenSig.axisX(self.seriesGenSig)
         if axisX is not None:
             axisX.setRange(0, 10)
-        self.chartGenSig.setTitle("Señal Generada")
+        self.chartGenSig.setTitle("Señal generada")
         self.chartGenSig.legend().hide()
         
         
@@ -286,7 +286,7 @@ class GeneradorWin(QMainWindow):
 
         axisY = QValueAxis()
         axisY.setRange(-1, 1)
-        axisY.setTitleText("Amplitud relativa")
+        axisY.setTitleText("Amplitud normalizada")
         axisY.setTitleVisible(True)
         axisY.setTitleBrush(QBrush(Qt.black))
         axisY.setLabelsBrush(QBrush(Qt.black))
