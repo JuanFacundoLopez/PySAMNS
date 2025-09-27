@@ -3,7 +3,7 @@ from ventanas.generadorWin import GeneradorWin
 from ventanas.configDispWin import ConfigDispWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
-                             QLabel, QLineEdit, QGroupBox, QRadioButton, QWidget, QGridLayout, QMessageBox, QFileDialog)
+                             QLabel, QLineEdit, QGroupBox, QRadioButton, QWidget, QGridLayout, QMessageBox, QFileDialog, QComboBox)
 
 from PyQt5.QtGui import  QPainter, QIcon
 
@@ -12,6 +12,7 @@ from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
 from PyQt5.QtCore import Qt
 from utils import norm
 import os
+import numpy as np
 
 
 
@@ -30,6 +31,9 @@ class CalibracionWin(QMainWindow):
           
         self.vController = vController
         self.vVista = vVista
+        self._cal_times = None
+        self._cal_duration = 0.0
+        self._last_samplerate = None
         # Widget central y layout principal
         centralWidget = QWidget()
         mainLayout = QVBoxLayout(centralWidget)
@@ -89,12 +93,31 @@ class CalibracionWin(QMainWindow):
         self.lblRutaArchivoCal.setWordWrap(True)
         self.lblValRefExterna = QLabel("Nivel de referencia (dBSPL):")
         self.txtValorRefExterna = QLineEdit("94.0")
+
+        # Controles de zoom del grafico
+        self.zoomLayout = QHBoxLayout()
+        self.lblZoom = QLabel("Escala de tiempo:")
+        self.cboZoom = QComboBox()
+        self.cboZoom.addItem("50 ms", 0.05)
+        self.cboZoom.addItem("100 ms", 0.1)
+        self.cboZoom.addItem("200 ms", 0.2)
+        self.cboZoom.addItem("500 ms", 0.5)
+        self.cboZoom.addItem("1 s", 1.0)
+        self.cboZoom.addItem("3 s", 3.0)
+        self.cboZoom.setCurrentIndex(self.cboZoom.count() - 1)
+        self.cboZoom.currentIndexChanged.connect(self._aplicar_zoom_calibracion)
+        self.zoomLayout.addWidget(self.lblZoom)
+        self.zoomLayout.addWidget(self.cboZoom)
+        self.zoomLayout.addStretch()
+
         #self.btnReproducirCal = QPushButton("Reproducir señal de referencia")
         # self.btnReproducirCal.clicked.connect(self.vController.reproducir_audio_calibracion)
         layoutExterna.addWidget(self.btnImportSig, 0, 0, 1, 2)
         layoutExterna.addWidget(self.lblRutaArchivoCal, 1, 0, 1, 2)
         layoutExterna.addWidget(self.lblValRefExterna, 2, 0)
         layoutExterna.addWidget(self.txtValorRefExterna, 2, 1)
+        layoutExterna.addLayout(self.zoomLayout, 3, 0, 1, 2)
+
         #layoutExterna.addWidget(self.btnReproducirCal, 3, 0, 1, 2)
 
         # --- Grafico ---
@@ -105,18 +128,26 @@ class CalibracionWin(QMainWindow):
         # Crear QChartView para mostrar el gráfico
         self.winGraph2 = QChartView(self.chart2)
         self.winGraph2.setRenderHint(QPainter.Antialiasing)
-        
+        self.winGraph2.setRubberBand(QChartView.RectangleRubberBand)
+
         # Crear series para el gráfico de calibración
         self.plot_line_cal = QLineSeries()
-        
+        if hasattr(self.plot_line_cal, "setUseOpenGL"):
+            self.plot_line_cal.setUseOpenGL(True)
+        self.chart2.addSeries(self.plot_line_cal)
+        pen = self.plot_line_cal.pen()
+        pen.setWidthF(1.0)
+        self.plot_line_cal.setPen(pen)
+
         # Configurar ejes para el gráfico de calibración
         self.axisX2 = QValueAxis()
-        self.axisX2.setTitleText("Tiempo")
-        self.axisX2.setRange(0, 1024)
+        self.axisX2.setTitleText("Tiempo [s]")
+        self.axisX2.setRange(0.0, 3.0)
         
         self.axisY2 = QValueAxis()
         self.axisY2.setTitleText("Amplitud Normalizada")
         self.axisY2.setRange(-1.2, 1.2)
+        
         
         self.chart2.setAxisX(self.axisX2, self.plot_line_cal)
         self.chart2.setAxisY(self.axisY2, self.plot_line_cal)
@@ -144,6 +175,7 @@ class CalibracionWin(QMainWindow):
         mainLayout.addLayout(gridHardLayout)
         mainLayout.addLayout(self.valorRefLayout)
         mainLayout.addWidget(self.calExternaGroup)
+        #mainLayout.addLayout(self.zoomLayout)
         mainLayout.addWidget(self.winGraph2)
         mainLayout.addLayout(botonesLayout)
 
@@ -156,6 +188,9 @@ class CalibracionWin(QMainWindow):
         self.actualizarNombreDispositivos()
         
         self.setCentralWidget(centralWidget)
+
+        # Inicializar rango del grafico segun la seleccion actual
+        self._aplicar_zoom_calibracion()
       
     
     def iniciarCalibracion(self):
@@ -283,31 +318,135 @@ class CalibracionWin(QMainWindow):
         self.configDispWin = ConfigDispWin(self.vController, parent_cal_win=self)
         self.configDispWin.show()
     
-    def importarSenalCalibracion(self):
-        """Importa un archivo .wav y lo grafica en chart2"""
-        try:
-            from scipy.io.wavfile import read as wavread
-            
-            # Abrir explorador de archivos para seleccionar archivo .wav
-            fileName, _ = QFileDialog.getOpenFileName(
-                self, 
-                "Seleccionar archivo de audio", 
-                "", 
-                "Archivos de audio (*.wav);;Todos los archivos (*)"
-            )
-            
-            if fileName:
-                # Actualizar label con la ruta del archivo
-                if hasattr(self, 'lblRutaArchivoCal'):
-                    self.lblRutaArchivoCal.setText(os.path.basename(fileName))
-                
-                # Guardar la ruta en el controlador para que la lógica la use
-                self.vController.establecer_ruta_archivo_calibracion(fileName)
 
+    def _aplicar_zoom_calibracion(self):
+        """Actualiza el rango del eje X segun la seleccion del usuario."""
+        if not hasattr(self, 'axisX2'):
+            return
+
+        selected_window = 3.0
+        if hasattr(self, 'cboZoom') and self.cboZoom is not None:
+            data = self.cboZoom.currentData()
+            if data is not None:
+                selected_window = float(data)
+
+        duration = float(getattr(self, '_cal_duration', 0.0) or 0.0)
+        if duration <= 0.0:
+            duration = min(selected_window, 3.0)
+
+        min_step = 0.001
+        samplerate = getattr(self, '_last_samplerate', None)
+        if samplerate is not None and samplerate > 0:
+            min_step = max(min_step, 1.0 / float(samplerate))
+
+        display_window = min(selected_window, max(duration, min_step))
+        self.axisX2.setRange(0.0, display_window)
+
+
+    def _actualizar_grafico_calibracion(self, data, samplerate, file_path):
+        # Actualiza el grafico con la senal importada.
+        if data is None or samplerate is None or samplerate <= 0:
+            raise ValueError("Datos de audio invalidos.")
+
+        waveform = np.asarray(data)
+        if waveform.size == 0:
+            raise ValueError("El archivo de audio no contiene muestras.")
+
+        original_dtype = waveform.dtype
+        if waveform.ndim > 1:
+            waveform = waveform.astype(np.float64)
+            waveform = waveform.mean(axis=1)
+        else:
+            waveform = waveform.astype(np.float64)
+
+        if np.issubdtype(original_dtype, np.integer):
+            info = np.iinfo(original_dtype)
+            max_abs = float(max(abs(info.min), abs(info.max)))
+            if max_abs > 0:
+                waveform /= max_abs
+
+        limited_to_window = False
+        max_duration_sec = 3.0
+        max_samples = max(int(round(max_duration_sec * float(samplerate))), 1)
+        if waveform.size > max_samples:
+            waveform = waveform[:max_samples]
+            limited_to_window = True
+
+        total_samples = waveform.size
+        if total_samples == 0:
+            raise ValueError("No hay muestras para graficar.")
+
+        max_points = min(60000, total_samples)
+        if total_samples <= max_points:
+            indices = np.arange(total_samples, dtype=np.int64)
+        else:
+            indices = np.linspace(0, total_samples - 1, num=max_points, dtype=np.int64)
+
+        waveform_plot = waveform[indices]
+        times_plot = indices.astype(np.float64) / float(samplerate)
+
+        self.plot_line_cal.clear()
+        for t, y in zip(times_plot, waveform_plot):
+            self.plot_line_cal.append(float(t), float(y))
+
+        peak = float(np.max(np.abs(waveform_plot))) if waveform_plot.size else 1.0
+        if peak <= 0.0:
+            peak = 1.0
+        padding = peak * 0.1
+        self.axisY2.setRange(-peak - padding, peak + padding)
+
+        self._cal_times = times_plot
+        self._cal_duration = float(times_plot[-1]) if times_plot.size else 0.0
+        if limited_to_window and self._cal_duration < max_duration_sec:
+            self._cal_duration = max_duration_sec
+        self._last_samplerate = float(samplerate)
+
+        self._aplicar_zoom_calibracion()
+
+
+        if file_path:
+            self.chart2.setTitle(os.path.basename(file_path))
+
+    def importarSenalCalibracion(self):
+        """Importa un archivo .wav y lo grafica en chart2."""
+        from scipy.io.wavfile import read as wavread
+
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar archivo de audio",
+            "",
+            "Archivos de audio (*.wav);;Todos los archivos (*)"
+        )
+
+        if not file_name:
+            return
+
+        try:
+            samplerate, data = wavread(file_name)
         except Exception as e:
-            QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
-            print(f"Error en importarSenalCalibracion: {e}")
-            
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"No se pudo leer el archivo de referencia: {e}"
+            )
+            print(f"Error al leer archivo de calibracion: {e}")
+            return
+
+        if hasattr(self, 'lblRutaArchivoCal'):
+            self.lblRutaArchivoCal.setText(os.path.basename(file_name))
+
+        self.vController.establecer_ruta_archivo_calibracion(file_name)
+
+        try:
+            self._actualizar_grafico_calibracion(data, samplerate, file_name)
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Advertencia",
+                f"No se pudo graficar el archivo seleccionado: {e}"
+            )
+            print(f"Error al graficar archivo de calibracion: {e}")
+
     def closeEvent(self, event):
         self.vController.ventanas_abiertas["calibracion"] = None
         event.accept()

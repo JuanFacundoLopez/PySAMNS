@@ -27,18 +27,36 @@ class modelo:
         self.recorderInstZ = np.empty(0)
         self.recorderFastZ = np.empty(0)
         self.recorderSlowZ = np.empty(0)
+        self.recorderInstZ_min = np.empty(0)
+        self.recorderInstZ_max = np.empty(0)
+        self.recorderFastZ_min = np.empty(0)
+        self.recorderFastZ_max = np.empty(0)
+        self.recorderSlowZ_min = np.empty(0)
+        self.recorderSlowZ_max = np.empty(0)
 
         #Valores de niveles con filtro C
         self.recorderPicoC = np.empty(0)
         self.recorderInstC = np.empty(0)
         self.recorderFastC = np.empty(0)
         self.recorderSlowC = np.empty(0)
+        self.recorderInstC_min = np.empty(0)
+        self.recorderInstC_max = np.empty(0)
+        self.recorderFastC_min = np.empty(0)
+        self.recorderFastC_max = np.empty(0)
+        self.recorderSlowC_min = np.empty(0)
+        self.recorderSlowC_max = np.empty(0)
 
         #Valores de niveles con filtro A
         self.recorderPicoA = np.empty(0)
         self.recorderInstA = np.empty(0)
         self.recorderFastA = np.empty(0)
         self.recorderSlowA = np.empty(0)
+        self.recorderInstA_min = np.empty(0)
+        self.recorderInstA_max = np.empty(0)
+        self.recorderFastA_min = np.empty(0)
+        self.recorderFastA_max = np.empty(0)
+        self.recorderSlowA_min = np.empty(0)
+        self.recorderSlowA_max = np.empty(0)
 
         # Arrays para almacenar valores históricos de niveles estadísticos
         # Filtro Z
@@ -219,39 +237,120 @@ class modelo:
     def setNivelesZ(self, recorderPicoZ=0, recorderInstZ=0, recorderFastZ=0, recorderSlowZ=0, mode='a'):
         if mode == 'a': # voy concatenando los vectores
             self.recorderPicoZ = np.append(self.recorderPicoZ, self.aplicar_calibracion_spl(recorderPicoZ))
-            self.recorderInstZ = np.append(self.recorderInstZ, self.aplicar_calibracion_spl(recorderInstZ))
-            self.recorderFastZ = np.append(self.recorderFastZ, self.aplicar_calibracion_spl(recorderFastZ))
-            self.recorderSlowZ = np.append(self.recorderSlowZ, self.aplicar_calibracion_spl(recorderSlowZ))
+            
+            # Inst
+            new_inst_val = self.aplicar_calibracion_spl(recorderInstZ)
+            self.recorderInstZ = np.append(self.recorderInstZ, new_inst_val)
+            new_inst_min = np.min(self.recorderInstZ)
+            new_inst_max = np.max(self.recorderInstZ)
+            self.recorderInstZ_min = np.append(self.recorderInstZ_min, new_inst_min)
+            self.recorderInstZ_max = np.append(self.recorderInstZ_max, new_inst_max)
+
+            # Fast
+            new_fast_val = self.aplicar_calibracion_spl(recorderFastZ)
+            self.recorderFastZ = np.append(self.recorderFastZ, new_fast_val)
+            new_fast_min = np.min(self.recorderFastZ)
+            new_fast_max = np.max(self.recorderFastZ)
+            self.recorderFastZ_min = np.append(self.recorderFastZ_min, new_fast_min)
+            self.recorderFastZ_max = np.append(self.recorderFastZ_max, new_fast_max)
+
+            # Slow
+            new_slow_val = self.aplicar_calibracion_spl(recorderSlowZ)
+            self.recorderSlowZ = np.append(self.recorderSlowZ, new_slow_val)
+            new_slow_min = np.min(self.recorderSlowZ)
+            new_slow_max = np.max(self.recorderSlowZ)
+            self.recorderSlowZ_min = np.append(self.recorderSlowZ_min, new_slow_min)
+            self.recorderSlowZ_max = np.append(self.recorderSlowZ_max, new_slow_max)
 
         if mode == 'r': # reseteo los vectores a 0
             self.recorderPicoZ = np.empty(0)
             self.recorderInstZ = np.empty(0)
             self.recorderFastZ = np.empty(0)
             self.recorderSlowZ = np.empty(0)
+            self.recorderInstZ_min = np.empty(0)
+            self.recorderInstZ_max = np.empty(0)
+            self.recorderFastZ_min = np.empty(0)
+            self.recorderFastZ_max = np.empty(0)
+            self.recorderSlowZ_min = np.empty(0)
+            self.recorderSlowZ_max = np.empty(0)
     def setNivelesC(self, recorderPicoC=0, recorderInstC=0, recorderFastC=0, recorderSlowC=0, mode='a'):
         if mode == 'a':
             self.recorderPicoC = np.append(self.recorderPicoC, self.aplicar_calibracion_spl(recorderPicoC))
-            self.recorderInstC = np.append(self.recorderInstC, self.aplicar_calibracion_spl(recorderInstC))
-            self.recorderFastC = np.append(self.recorderFastC, self.aplicar_calibracion_spl(recorderFastC))
-            self.recorderSlowC = np.append(self.recorderSlowC, self.aplicar_calibracion_spl(recorderSlowC))
+            
+            # Inst
+            new_inst_val = self.aplicar_calibracion_spl(recorderInstC)
+            self.recorderInstC = np.append(self.recorderInstC, new_inst_val)
+            new_inst_min = np.min(self.recorderInstC)
+            new_inst_max = np.max(self.recorderInstC)
+            self.recorderInstC_min = np.append(self.recorderInstC_min, new_inst_min)
+            self.recorderInstC_max = np.append(self.recorderInstC_max, new_inst_max)
+
+            # Fast
+            new_fast_val = self.aplicar_calibracion_spl(recorderFastC)
+            self.recorderFastC = np.append(self.recorderFastC, new_fast_val)
+            new_fast_min = np.min(self.recorderFastC)
+            new_fast_max = np.max(self.recorderFastC)
+            self.recorderFastC_min = np.append(self.recorderFastC_min, new_fast_min)
+            self.recorderFastC_max = np.append(self.recorderFastC_max, new_fast_max)
+
+            # Slow
+            new_slow_val = self.aplicar_calibracion_spl(recorderSlowC)
+            self.recorderSlowC = np.append(self.recorderSlowC, new_slow_val)
+            new_slow_min = np.min(self.recorderSlowC)
+            new_slow_max = np.max(self.recorderSlowC)
+            self.recorderSlowC_min = np.append(self.recorderSlowC_min, new_slow_min)
+            self.recorderSlowC_max = np.append(self.recorderSlowC_max, new_slow_max)
 
         if mode == 'r':
             self.recorderPicoC = np.empty(0)
             self.recorderInstC = np.empty(0)
             self.recorderFastC = np.empty(0)
             self.recorderSlowC = np.empty(0)
+            self.recorderInstC_min = np.empty(0)
+            self.recorderInstC_max = np.empty(0)
+            self.recorderFastC_min = np.empty(0)
+            self.recorderFastC_max = np.empty(0)
+            self.recorderSlowC_min = np.empty(0)
+            self.recorderSlowC_max = np.empty(0)
     def setNivelesA(self, recorderPicoA = 0, recorderInstA = 0, recorderFastA = 0, recorderSlowA = 0, mode='a'):
         if mode == 'a':
             self.recorderPicoA = np.append(self.recorderPicoA, self.aplicar_calibracion_spl(recorderPicoA))
-            self.recorderInstA = np.append(self.recorderInstA, self.aplicar_calibracion_spl(recorderInstA))
-            self.recorderFastA = np.append(self.recorderFastA, self.aplicar_calibracion_spl(recorderFastA))
-            self.recorderSlowA = np.append(self.recorderSlowA, self.aplicar_calibracion_spl(recorderSlowA))
+
+            # Inst
+            new_inst_val = self.aplicar_calibracion_spl(recorderInstA)
+            self.recorderInstA = np.append(self.recorderInstA, new_inst_val)
+            new_inst_min = np.min(self.recorderInstA)
+            new_inst_max = np.max(self.recorderInstA)
+            self.recorderInstA_min = np.append(self.recorderInstA_min, new_inst_min)
+            self.recorderInstA_max = np.append(self.recorderInstA_max, new_inst_max)
+
+            # Fast
+            new_fast_val = self.aplicar_calibracion_spl(recorderFastA)
+            self.recorderFastA = np.append(self.recorderFastA, new_fast_val)
+            new_fast_min = np.min(self.recorderFastA)
+            new_fast_max = np.max(self.recorderFastA)
+            self.recorderFastA_min = np.append(self.recorderFastA_min, new_fast_min)
+            self.recorderFastA_max = np.append(self.recorderFastA_max, new_fast_max)
+
+            # Slow
+            new_slow_val = self.aplicar_calibracion_spl(recorderSlowA)
+            self.recorderSlowA = np.append(self.recorderSlowA, new_slow_val)
+            new_slow_min = np.min(self.recorderSlowA)
+            new_slow_max = np.max(self.recorderSlowA)
+            self.recorderSlowA_min = np.append(self.recorderSlowA_min, new_slow_min)
+            self.recorderSlowA_max = np.append(self.recorderSlowA_max, new_slow_max)
 
         if mode == 'r':
             self.recorderPicoA = np.empty(0)
             self.recorderInstA = np.empty(0)
             self.recorderFastA = np.empty(0)
-            self.recorderSlowA = np.empty(0)    
+            self.recorderSlowA = np.empty(0)
+            self.recorderInstA_min = np.empty(0)
+            self.recorderInstA_max = np.empty(0)
+            self.recorderFastA_min = np.empty(0)
+            self.recorderFastA_max = np.empty(0)
+            self.recorderSlowA_min = np.empty(0)
+            self.recorderSlowA_max = np.empty(0)    
     def setSignalFrec(self, SignalFrec):
         #print("\n=== setSignalFrec llamado ===")
         #print(f"Tipo de SignalFrec: {type(SignalFrec)}")
@@ -371,56 +470,47 @@ class modelo:
     def setDispositivoSalida(self, device_index_salida):
         """Establece el dispositivo de salida"""
         self.device_index_salida = device_index_salida
-    def getNivelesA(self, NP='A'):
-        pico = self.recorderPicoA
-        inst = self.recorderInstA
-        fast = self.recorderFastA
-        slow = self.recorderSlowA
-        
-        if NP == 'P':
-            return pico
-        if NP == 'I':
-            return inst
-        if NP == 'F':
-            return fast
-        if NP == 'S':
-            return slow
-        if NP == 'A':
-            return (pico, inst, fast, slow)
+    def getNivelesA(self):
+        return {
+            'pico': self.recorderPicoA,
+            'inst': self.recorderInstA, 'inst_min': self.recorderInstA_min, 'inst_max': self.recorderInstA_max,
+            'fast': self.recorderFastA, 'fast_min': self.recorderFastA_min, 'fast_max': self.recorderFastA_max,
+            'slow': self.recorderSlowA, 'slow_min': self.recorderSlowA_min, 'slow_max': self.recorderSlowA_max,
+            'leq': self.recorderLeqA,
+            'l01': self.recorderL01A,
+            'l10': self.recorderL10A,
+            'l50': self.recorderL50A,
+            'l90': self.recorderL90A,
+            'l99': self.recorderL99A
+        }
             
-    def getNivelesC(self, NP='A'):
-        pico = self.recorderPicoC
-        inst = self.recorderInstC
-        fast = self.recorderFastC
-        slow = self.recorderSlowC
+    def getNivelesC(self):
+        return {
+            'pico': self.recorderPicoC,
+            'inst': self.recorderInstC, 'inst_min': self.recorderInstC_min, 'inst_max': self.recorderInstC_max,
+            'fast': self.recorderFastC, 'fast_min': self.recorderFastC_min, 'fast_max': self.recorderFastC_max,
+            'slow': self.recorderSlowC, 'slow_min': self.recorderSlowC_min, 'slow_max': self.recorderSlowC_max,
+            'leq': self.recorderLeqC,
+            'l01': self.recorderL01C,
+            'l10': self.recorderL10C,
+            'l50': self.recorderL50C,
+            'l90': self.recorderL90C,
+            'l99': self.recorderL99C
+        }
 
-        if NP == 'P':
-            return pico
-        if NP == 'I':
-            return inst
-        if NP == 'F':
-            return fast
-        if NP == 'S':
-            return slow
-        if NP == 'A':
-            return (pico, inst, fast, slow)
-
-    def getNivelesZ(self, NP='A'):
-        pico = self.recorderPicoZ
-        inst = self.recorderInstZ
-        fast = self.recorderFastZ
-        slow = self.recorderSlowZ
-
-        if NP == 'P':
-            return pico
-        if NP == 'I':
-            return inst
-        if NP == 'F':
-            return fast
-        if NP == 'S':
-            return slow
-        if NP == 'A':
-            return (pico, inst, fast, slow)
+    def getNivelesZ(self):
+        return {
+            'pico': self.recorderPicoZ,
+            'inst': self.recorderInstZ, 'inst_min': self.recorderInstZ_min, 'inst_max': self.recorderInstZ_max,
+            'fast': self.recorderFastZ, 'fast_min': self.recorderFastZ_min, 'fast_max': self.recorderFastZ_max,
+            'slow': self.recorderSlowZ, 'slow_min': self.recorderSlowZ_min, 'slow_max': self.recorderSlowZ_max,
+            'leq': self.recorderLeqZ,
+            'l01': self.recorderL01Z,
+            'l10': self.recorderL10Z,
+            'l50': self.recorderL50Z,
+            'l90': self.recorderL90Z,
+            'l99': self.recorderL99Z
+        }
     def activar_calibracion(self, activar=True):
         self.calibracion_activa = activar
         
