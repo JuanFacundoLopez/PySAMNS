@@ -524,7 +524,7 @@ class modelo:
             dict: Diccionario con los resultados para cada filtro (A, C, Z)
         """
         results = {}
-        
+        sel_datos = -1000 # cantidad de datos para utilizar en el calculo de los percentiles
         # Para cada tipo de filtro (A, C, Z)
         for filtro in ['A', 'C', 'Z']:
             # Obtener los datos Fast del filtro correspondiente
@@ -544,8 +544,11 @@ class modelo:
             leq = self._calculate_leq(fast_data)
             
             # Calcular percentiles
-            percentiles = self._calculate_percentiles(fast_data)
-            
+            if len(fast_data) < 1000:
+                percentiles = self._calculate_percentiles(fast_data)
+            else:
+                percentiles = self._calculate_percentiles(fast_data[sel_datos:])
+
             # Los datos ya están calibrados, no se aplica de nuevo
             leq_calibrado = leq
             percentiles_calibrados = percentiles
@@ -620,8 +623,8 @@ class modelo:
         # Función auxiliar para agregar valor a un array con límite de tamaño
         def append_with_limit(array, value, max_size=1000):
             new_array = np.append(array, value)
-            if len(new_array) > max_size:
-                new_array = new_array[-max_size:]  # Mantener solo los últimos max_size valores
+            #if len(new_array) > max_size:
+            #    new_array = new_array[-max_size:]  # Mantener solo los últimos max_size valores
             return new_array
         
         # Actualizar arrays del filtro Z
