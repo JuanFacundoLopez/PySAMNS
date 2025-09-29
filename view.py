@@ -812,30 +812,7 @@ class vista(QMainWindow):
                 self.fft_ymax = y_max
 
         return self.fft_ymin, self.fft_ymax  
-    
-    def abrirprogramarWin(self):
-        self.programar_win = ProgramarWin()
-        self.programar_win.show()
-
-    def GeneradorSenales(self):
-        self.genSenalesWin = GeneradorWin(self.vController)
-        self.genSenalesWin.show()
-        
-    def configuracionDispositivo(self):
-        self.calWin = CalibracionWin(self.vController)
-        self.configDispWin = ConfigDispWin(self.vController,self.calWin )
-        self.configDispWin.show()
-        
-    def calibracionWin(self):
-        self.calWin = CalibracionWin(self.vController,self)
-        self.calWin.show()
-        
-    # CODIGO configuracion del graficos
-    def configuracion(self):
-        self.confWin = ConfiguracionWin(self)
-        self.confWin.show()
-
-    
+ 
     def grabar(self):
         self.editar_botonGrabar() 
         if self.btngbr.isChecked():
@@ -1055,7 +1032,6 @@ class vista(QMainWindow):
             webbrowser.open("https://cintra.ar")
         except Exception as e:
             print(f"Error al abrir el sitio web de CINTRA: {e}")
-
 
     def aplicarConfiguracionTiempo(self):
         """Aplica la configuración personalizada para el gráfico de tiempo"""
@@ -1681,7 +1657,6 @@ class vista(QMainWindow):
         except Exception as e:
             print(f"Error en update_plot: {e}")
     
-    
     def importarSenalCalibracion(self):
         """Abre un diálogo para seleccionar un archivo .wav y guarda su ruta."""
         try:
@@ -1701,7 +1676,6 @@ class vista(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self.calWin, "Error", f"Error al importar archivo: {str(e)}")
             print(f"Error en importarSenalCalibracion: {e}")
-    
     
     def aplicarConfiguracionExterna(self, config):
         """Aplica la configuración recibida desde la ventana externa de configuración"""

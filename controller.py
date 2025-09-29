@@ -6,6 +6,7 @@ from ventanas.configDispWin import ConfigDispWin
 from ventanas.configuracionWin import ConfiguracionWin
 from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
+import threading
 
 from db import leer_todas_grabaciones, actualizar_estado
 from datetime import datetime, timedelta
@@ -1069,43 +1070,164 @@ class controlador():
                     self.iniciar_grabacion_automatica(id_reg, duracion, ruta, ext)
     
     def iniciar_grabacion_automatica(self, id_reg, duracion_str, ruta, ext):
-        # Preparar duración
-        h, m, s = map(int, duracion_str.split(":"))
-        duracion_seg = h * 3600 + m * 60 + s
-
-        # Crear nombre de archivo
-        nombre_archivo = f"grabacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
-        path_completo = os.path.join(ruta, nombre_archivo)
-
         try:
-            # Iniciar grabación
-            #print(f"[INFO] Grabando {duracion_seg}s en {path_completo}")
-            self.grabar_audio_y_guardar(path_completo, duracion_seg)
+            print(f"[DEBUG] Duración original: '{duracion_str}'")
+            duracion_str = duracion_str.strip()
+            if "d" in duracion_str:
+                partes = duracion_str.split("d")
+                duracion_str = partes[-1].strip()
+            partes = duracion_str.split(":")
+            partes = [p.strip() for p in partes if p.strip()]
+            while len(partes) < 3:
+                partes.insert(0, "0")
+            h, m, s = map(int, partes)
+            duracion_seg = h * 3600 + m * 60 + s
+            print(f"[DEBUG] Duración en segundos: {duracion_seg}")
+            nombre_archivo = f"grabacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+            path_completo = os.path.join(ruta, nombre_archivo)
 
-            # Actualizar estado a 'realizada'
+            self._grabacion_automatica_info = {
+                "id_reg": id_reg,
+                "path_completo": path_completo,
+                "ext": ext
+            }
+            print(f"[DEBUG] Iniciando grabación automática: {id_reg}")
             actualizar_estado(id_reg, "realizada")
+            self.cVista.btngbr.setChecked(True)
+            self.dalePlay()
+            if not self.timer.isActive():
+                self.timer.start(30)
+            print(f"[DEBUG] Grabación automática iniciada: {id_reg}")
 
-            # Reproducir en vista (como grabación manual)
-            from scipy.io.wavfile import read as wavread
-            Fs, data = wavread(path_completo)
-            if data.ndim > 1:
-                data = data.mean(axis=1)
-            max_val = np.max(np.abs(data))
-            normalizado = data / max_val if max_val > 0 else data
-            self.cModel.setSignalData(normalizado)
-            self.graficar()
+            # Lanzar el hilo de grabación
+            threading.Thread(
+                target=self.grabar_audio_automatica,
+                args=(path_completo, duracion_seg, ext),
+                daemon=True
+            ).start()
+
+            # Detener la grabación visual y lógica después del tiempo
+            QtCore.QTimer.singleShot(
+                duracion_seg * 1000,
+                lambda: self.detener_grabacion_automatica(id_reg)
+            )
 
         except Exception as e:
-            print(f"[ERROR] Falló la grabación automática: {e}")
+            print(f"[ERROR] Error al iniciar grabación automática: {e}")
+        #     # Iniciar grabación automática
+        #     print(f"[DEBUG] Iniciando grabación automática: {id_reg}")
+        #     actualizar_estado(id_reg, "realizada")
+        #     self.cVista.btngbr.setChecked(True)
+        #     self.dalePlay()
+        #     # Asegúrate de que el timer esté activo
+        #     if not self.timer.isActive():
+        #         self.timer.start(30)
+        #     print(f"[DEBUG] Grabación automática iniciada: {id_reg}")
+
+        #     # Usar QTimer.singleShot para detener la grabación después de la duración
+        #     QtCore.QTimer.singleShot(
+        #         duracion_seg * 1000,  # milisegundos
+        #         lambda: self.detener_grabacion_automatica(id_reg)
+        #     )
+
+        # except Exception as e:
+        #     print(f"[ERROR] Error al iniciar grabación automática: {e}")
+
+    # def detener_grabacion_automatica(self, id_reg):
+    #     print(f"[DEBUG] Deteniendo grabación automática: {id_reg}")
+    #     self.cVista.btngbr.setChecked(False)
+
+    #     # Guardar el archivo de audio grabado ANTES de resetear
+    #     info = getattr(self, "_grabacion_automatica_info", None)
+    #     if info and info["id_reg"] == id_reg:
+    #         try:
+    #             audio_data = np.concatenate(self.cModel.buffer) if self.cModel.buffer else np.array([], dtype=np.int16)
+    #             if len(audio_data) == 0:
+    #                 print("[ERROR] No hay datos de audio para guardar.")
+    #                 return
+
+    #             if info["ext"].lower() == "wav":
+    #                 sf.write(info["path_completo"], audio_data, self.cModel.rate, subtype='PCM_16')
+    #                 print(f"[INFO] Archivo WAV guardado en: {info['path_completo']}")
+    #             elif info["ext"].lower() == "mp3":
+    #                 try:
+    #                     from pydub import AudioSegment
+    #                     audio_segment = AudioSegment(
+    #                         audio_data.tobytes(),
+    #                         frame_rate=self.cModel.rate,
+    #                         sample_width=2,
+    #                         channels=1
+    #                     )
+    #                     audio_segment.export(info["path_completo"], format="mp3")
+    #                     print(f"[INFO] Archivo MP3 guardado en: {info['path_completo']}")
+    #                 except ImportError:
+    #                     print("[ERROR] pydub no está instalado. No se puede guardar como MP3.")
+    #             else:
+    #                 print(f"[ERROR] Extensión no soportada: {info['ext']}")
+    #         except Exception as e:
+    #             print(f"[ERROR] Error al guardar el archivo de grabación automática: {e}")
+
+    #     # Ahora sí, detener y resetear todo
+    #     self.dalePlay()  # Esto hace el reset
+       
+    def detener_grabacion_automatica(self, id_reg):
+        print(f"[DEBUG] Deteniendo grabación automática: {id_reg}")
+        self.cVista.btngbr.setChecked(False)
+        self.dalePlay()  # Esto hace el reset 
     
-    def grabar_audio_y_guardar(self, path_completo, duracion):
-        import sounddevice as sd
-        import soundfile as sf
-
-        fs = self.frecuencia_muestreo_actual
-        #print(f"[INFO] Grabando a {fs} Hz...")
-        grabacion = sd.rec(int(duracion * fs), samplerate=fs, channels=1, dtype='int16')
-        sd.wait()  # esperar a que termine
-
-        sf.write(path_completo, grabacion, fs)
-
+        import pyaudio
+    
+    def grabar_audio_automatica(self, path_completo, duracion_seg, ext):
+        print(f"[DEBUG] Grabando audio automática en hilo: {path_completo} ({duracion_seg}s)")
+        buffer = []
+        try:
+            # Abre un stream propio
+            p = pyaudio.PyAudio()
+            rate = self.cModel.rate
+            chunk = self.cModel.chunk
+            device_index = self.cModel.device_index  # Ajusta según tu modelo
+    
+            stream = p.open(format=pyaudio.paInt16,
+                            channels=1,
+                            rate=rate,
+                            input=True,
+                            input_device_index=device_index,
+                            frames_per_buffer=chunk)
+    
+            total_frames = int(rate * duracion_seg)
+            frames_grabados = 0
+    
+            while frames_grabados < total_frames:
+                data = stream.read(chunk, exception_on_overflow=False)
+                buffer.append(data)
+                frames_grabados += chunk
+    
+            stream.stop_stream()
+            stream.close()
+            p.terminate()
+    
+            # Concatenar y guardar
+            audio_data = b''.join(buffer)
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)
+    
+            if ext.lower() == "wav":
+                sf.write(path_completo, audio_np, rate, subtype='PCM_16')
+                print(f"[INFO] Archivo WAV guardado en: {path_completo}")
+            elif ext.lower() == "mp3":
+                try:
+                    from pydub import AudioSegment
+                    audio_segment = AudioSegment(
+                        audio_np.tobytes(),
+                        frame_rate=rate,
+                        sample_width=2,
+                        channels=1
+                    )
+                    audio_segment.export(path_completo, format="mp3")
+                    print(f"[INFO] Archivo MP3 guardado en: {path_completo}")
+                except ImportError:
+                    print("[ERROR] pydub no está instalado. No se puede guardar como MP3.")
+            else:
+                print(f"[ERROR] Extensión no soportada: {ext}")
+    
+        except Exception as e:
+            print(f"[ERROR] Error en grabación automática en hilo: {e}")

@@ -71,9 +71,7 @@ class GrabacionesWin(QMainWindow):
     def abrir_explorador_en_ruta(self, ruta):
         
         if os.path.exists(ruta):
-            carpeta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta", ruta)
-            if carpeta:
-                print("Carpeta seleccionada:", carpeta)
+            os.startfile(ruta)  # Abre el explorador en la ruta
         else:
             print("La ruta no existe:", ruta)
             
