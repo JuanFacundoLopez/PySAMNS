@@ -1628,7 +1628,7 @@ class vista(QMainWindow):
                         self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Min')
                     if self.cbNivInstMaxA.isChecked() and len(niveles_A.get('inst_max', [])) > 0:
                         ydata = np.array(niveles_A['inst_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Max')
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Max')
                     
                     if self.cbNivFastA.isChecked() and len(niveles_A.get('fast', [])) > 0:
                         ydata = np.array(niveles_A['fast'])
@@ -1640,7 +1640,7 @@ class vista(QMainWindow):
                         self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Min')
                     if self.cbNivFastMaxA.isChecked() and len(niveles_A.get('fast_max', [])) > 0:
                         ydata = np.array(niveles_A['fast_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Max')
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Max')
                     
                     if self.cbNivSlowA.isChecked() and len(niveles_A.get('slow', [])) > 0:
                         ydata = np.array(niveles_A['slow'])
@@ -1652,7 +1652,7 @@ class vista(QMainWindow):
                         self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Min')
                     if self.cbNivSlowMaxA.isChecked() and len(niveles_A.get('slow_max', [])) > 0:
                         ydata = np.array(niveles_A['slow_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkYellow', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Max')
+                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Max')
 
                     # --- Ploteo de niveles estadísticos (horizontales constantes) ---
                     # Colores fijos por tipo de Ln (para parecerse al ejemplo: L10 rojo, L50 verde, L90 naranja)
