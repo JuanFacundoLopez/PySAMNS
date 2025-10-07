@@ -661,9 +661,9 @@ class controlador():
             return False
 
         # --- 2. Parámetros ---
-        fs = self.RATE
+        fs = getattr(self.cModel, 'rate', self.RATE)
         duracion = 1.0  # segundos por paso
-        amplitudes = np.arange(0.1, 1, 0.05)
+        amplitudes = np.arange(0.1, 1, 0.1)
         freq = 1000
         umbral_thd = 1.0  # 1 %
         frames_per_buffer = 1024
@@ -681,20 +681,6 @@ class controlador():
                 f"No se pudo abrir el dispositivo de salida: {str(e)}"
             )
             return False
-
-        try:
-            input_stream = p.open(format=pyaudio.paFloat32, channels=1, rate=fs,
-                                input=True, input_device_index=input_device_index,
-                                frames_per_buffer=frames_per_buffer)
-        except Exception as e:
-            output_stream.close()
-            QMessageBox.warning(
-                self.ventanas_abiertas["calibracion"],
-                "Error de Audio",
-                f"No se pudo abrir el dispositivo de entrada: {str(e)}"
-            )
-            return False
-
         # --- 4. Variables de calibración ---
         ultima_amp_valida, ultimo_thd, ultimo_nivel = None, None, None
 
@@ -748,6 +734,12 @@ class controlador():
 
         # --- 6. Bucle de calibración ---
         try:
+            # Asegurar que el stream del modelo esté activo para capturar
+            try:
+                if hasattr(self.cModel, 'stream') and not self.cModel.stream.is_active():
+                    self.cModel.stream.start_stream()
+            except Exception:
+                pass
             for amp in amplitudes:
                 # Generar señal
                 t = np.linspace(0, duracion, int(fs*duracion), endpoint=False)
@@ -757,22 +749,28 @@ class controlador():
                 output_stream.write(signal.tobytes())
 
                 # Capturar
-                grabacion_data = []
+                grabacion_data = np.array([], dtype=np.float32)
                 try:
-                    while (len(grabacion_data)/fs) < duracion :  # Grabar por 1 segundos
+                    while (len(grabacion_data)/fs) < duracion :
                         audio_data = self.cModel.get_audio_data()
-                        if len(audio_data) > 5:
-                            current_data, _, _, _, _, _, _ = audio_data
+                        # Aceptar tuplas de 7 u 8 elementos, tomar el primer elemento como current_data
+                        if isinstance(audio_data, (list, tuple)) and len(audio_data) >= 7:
+                            current_data = audio_data[0]
                             if len(current_data) > 0:
-                                # grabacion_data.append(current_data.astype(np.float32) / (32767.0 / 2))
-                                grabacion_data = np.concatenate((grabacion_data, current_data.astype(np.float32) / (32767.0 / 2)),axis=0)
+                                normalized_chunk = current_data.astype(np.float32) / (32767.0 / 2)
+                                grabacion_data = np.concatenate((grabacion_data, normalized_chunk), axis=0)
                 except Exception as e:
                     print(f"Error al capturar audio: {e}")
                 time.sleep(0.01)  # Pequeña pausa
 
                 # Calcular métricas
-                thd = compute_thd(grabacion_data, fs, f0=freq)
-                rms = np.sqrt(np.mean(grabacion_data**2))
+                if grabacion_data.size == 0:
+                    print("Señal vacía.")
+                    thd = 100.0
+                    rms = 0.0
+                else:
+                    thd = compute_thd(grabacion_data, fs, f0=freq)
+                    rms = np.sqrt(np.mean(grabacion_data**2))
                 nivel_dbfs = 20*np.log10(rms) if rms > 0 else -np.inf
 
                 print(f"Amplitud: {amp:.1f}, THD: {thd:.3f}%, Nivel: {nivel_dbfs:.2f} dBFS")
@@ -792,8 +790,12 @@ class controlador():
         finally:
             output_stream.stop_stream()
             output_stream.close()
-            input_stream.stop_stream()
-            input_stream.close()
+            # Detener el stream del modelo si lo iniciamos aquí
+            try:
+                if hasattr(self.cModel, 'stream') and self.cModel.stream.is_active():
+                    self.cModel.stream.stop_stream()
+            except Exception:
+                pass
             p.terminate()
 
         # --- 7. Resultados ---
