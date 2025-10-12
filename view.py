@@ -22,18 +22,6 @@ import numpy as np
 import sys
 import os
 
-# --- Eje logarítmico personalizado para frecuencia ---
-class LogAxis(pg.AxisItem):
-    def tickStrings(self, values, scale, spacing):
-        strings = []
-        for val in values:
-            exp = int(np.round(val))
-            if np.isclose(val, exp, atol=0.01) and 0 <= exp <= 5:
-                strings.append(f"10^{exp}")
-            else:
-                strings.append(" ")  # Espacio en vez de string vacío para evitar duplicados
-        return strings
-
 # --- Eje de tiempo personalizado para mostrar segundos ---
 class TimeAxisItem(pg.AxisItem):
     def __init__(self, *args, **kwargs):
@@ -47,6 +35,7 @@ class TimeAxisItem(pg.AxisItem):
             strings.append(f"{val:.2f}")
         return strings
 
+# --- Eje de frecuencia personalizado para mostrar Hz separados por bandas ---
 class FrequencyAxisItem(pg.AxisItem):
     """
     Eje personalizado para mostrar etiquetas de frecuencia en gráficos de barras
@@ -1361,31 +1350,12 @@ class vista(QMainWindow):
                         y_min, y_max = self.configure_bar_chart_y_range(niveles)
                         self.waveform1.setYRange(y_min, y_max)
                         
-                        # Debug: mostrar información del rango Y
-                        # print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
-                        # print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
-                        # print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
-                        # print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
-                        # print(f"Posiciones X: {x_positions[:5]}...")
-                        # print(f"Ancho de barras: {bar_width}")
-                        # print(f"Piso de ruido: {piso_ruido}")
-                        
                         # Etiquetas de ejes
                         self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
                         self.waveform1.setLogMode(x=False, y=False)
-                        
-                        # Limpiar línea de tiempo si existe
-                        # if hasattr(self, 'plot_line'):
-                        #     self.plot_line.setData([], [])
-                        
-                        # Guardar referencia al item de barras para poder limpiarlo después
-                        #self.current_bar_item = bar_item
-                        
-                        #print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        #print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
                         
                 else:
                     # Por defecto, línea
