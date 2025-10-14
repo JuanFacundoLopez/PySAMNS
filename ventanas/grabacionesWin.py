@@ -1,13 +1,13 @@
-from PyQt5.QtCore import QTime
-from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout,  
-                            QWidget,  QLabel, QPushButton, QApplication,  QMessageBox,
-                            QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog )
+import sys
+import os
+from PyQt5.QtCore import QTime, Qt
+from PyQt5.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel, 
+                            QPushButton, QApplication, QMessageBox, QTableWidget, 
+                            QTableWidgetItem, QHeaderView, QFileDialog)
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt
 from utils import norm
 from db import leer_todas_grabaciones, actualizar_estado, borrar_registro
 from datetime import timedelta
-import os
 
 
 class GrabacionesWin(QMainWindow):
@@ -22,8 +22,22 @@ class GrabacionesWin(QMainWindow):
 
         self.vController = controller
         
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            QApplication.instance().setStyleSheet(f.read())
+        # Handle stylesheet path for both development and frozen executable
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            base_path = sys._MEIPASS
+        else:
+            # If running in development
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        # Path to stylesheet
+        estilos_path = os.path.join(base_path, 'estilos.qss')
+        
+        try:
+            with open(estilos_path, "r", encoding='utf-8') as f:
+                QApplication.instance().setStyleSheet(f.read())
+        except FileNotFoundError:
+            print(f"Warning: Could not load stylesheet at {estilos_path}")
             
         central_widget = QWidget()
         layout = QVBoxLayout(central_widget)

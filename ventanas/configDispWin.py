@@ -1,3 +1,5 @@
+import os
+import sys
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QGroupBox, QWidget, QMessageBox, QComboBox)
 from PyQt5.QtCore import pyqtSignal
@@ -18,8 +20,22 @@ class ConfigDispWin(QMainWindow):
         self.altoY = screen.height()
         self.setGeometry(norm(self.anchoX, self.altoY, 0.4, 0.4, 0.2, 0.2))
 
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            QApplication.instance().setStyleSheet(f.read())
+        # Handle stylesheet path for both development and frozen executable
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            base_path = sys._MEIPASS
+        else:
+            # If running in development
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        # Path to stylesheet
+        estilos_path = os.path.join(base_path, 'estilos.qss')
+        
+        try:
+            with open(estilos_path, "r", encoding='utf-8') as f:
+                QApplication.instance().setStyleSheet(f.read())
+        except FileNotFoundError:
+            print(f"Warning: Could not load stylesheet at {estilos_path}")
         
         self.vController = vController
         self.parent_cal_win = parent_cal_win

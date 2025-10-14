@@ -1,15 +1,16 @@
 # Importo librerias
+import os
+import sys
 import numpy as np
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QWidget, QMessageBox, QComboBox, QSpinBox)
 
-from PyQt5.QtGui import  QIcon, QPainter, QBrush
-from PyQt5.QtCore import QPointF, QTimer
+from PyQt5.QtGui import QIcon, QPainter, QBrush
+from PyQt5.QtCore import QPointF, QTimer, Qt
 from scipy.signal import chirp
 
 # Imports para QChart (solo para la ventana de calibración)
 from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
-from PyQt5.QtCore import Qt
 from utils import norm
 import time
 from scipy.interpolate import interp1d
@@ -32,8 +33,22 @@ class GeneradorWin(QMainWindow):
         self.timer_reproduccion.setSingleShot(True)
         self.timer_reproduccion.timeout.connect(self.fin_reproduccion)
 
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            QApplication.instance().setStyleSheet(f.read())
+        # Handle stylesheet path for both development and frozen executable
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            base_path = sys._MEIPASS
+        else:
+            # If running in development
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        # Path to stylesheet
+        estilos_path = os.path.join(base_path, 'estilos.qss')
+        
+        try:
+            with open(estilos_path, "r", encoding='utf-8') as f:
+                QApplication.instance().setStyleSheet(f.read())
+        except FileNotFoundError:
+            print(f"Warning: Could not load stylesheet at {estilos_path}")
         
         # Widget central y layout principal
         centralWidget = QWidget()

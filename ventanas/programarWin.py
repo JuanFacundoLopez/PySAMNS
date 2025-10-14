@@ -1,3 +1,5 @@
+import os
+import sys
 from PyQt5.QtCore import QTime
 from PyQt5.QtWidgets import ( QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QSpinBox, QLabel, QPushButton, QApplication, QDateEdit, QMessageBox,
@@ -16,7 +18,16 @@ class ProgramarWin(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.setWindowTitle("Configuracion de medicion automática")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        
+        # Set window icon with path that works in both dev and frozen environments
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            icon_path = os.path.join(sys._MEIPASS, 'img', 'LogoCINTRA1.png')
+        else:
+            # If running in development
+            icon_path = os.path.join('img', 'LogoCINTRA1.png')
+            
+        self.setWindowIcon(QIcon(icon_path))
         screen = QApplication.primaryScreen().size()
         anchoX = screen.width()
         altoY = screen.height()
@@ -24,8 +35,22 @@ class ProgramarWin(QMainWindow):
 
         self.vController = controller
         
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            QApplication.instance().setStyleSheet(f.read())
+        # Handle stylesheet path for both development and frozen executable
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            base_path = sys._MEIPASS
+        else:
+            # If running in development
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        # Path to stylesheet
+        estilos_path = os.path.join(base_path, 'estilos.qss')
+        
+        try:
+            with open(estilos_path, "r", encoding='utf-8') as f:
+                QApplication.instance().setStyleSheet(f.read())
+        except FileNotFoundError:
+            print(f"Warning: Could not load stylesheet at {estilos_path}")
             
         central_widget = QWidget()
         layoutVInicio = QVBoxLayout()
@@ -36,7 +61,14 @@ class ProgramarWin(QMainWindow):
         layoutHorizontal = QVBoxLayout()
         layout = QVBoxLayout(central_widget)
         
-        infoIconPath = "img/informacion.png"
+        # Determine the correct path for the info icon
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            infoIconPath = os.path.join(sys._MEIPASS, 'img', 'informacion.png')
+        else:
+            # If running in development
+            infoIconPath = os.path.join('img', 'informacion.png')
+            
         texto = "Se programará la grabación automática de audio para el día y horario seleccionados."
 
         self.lbl_info = QLabel("")
@@ -104,8 +136,16 @@ class ProgramarWin(QMainWindow):
         layoutHConfig.addWidget(self.txt_ruta)
 
         
-        # Botón para guardar la programación 
-        mas_img_path = "img/mas.png"
+        # Botón para guardar la programación
+        if getattr(sys, 'frozen', False):
+            # Si estamos en un ejecutable
+            mas_img_path = os.path.join(sys._MEIPASS, 'img', 'mas.png')
+            borrar_img_path = os.path.join(sys._MEIPASS, 'img', 'borrar.png')
+        else:
+            # Si estamos en desarrollo
+            mas_img_path = os.path.join('img', 'mas.png')
+            borrar_img_path = os.path.join('img', 'borrar.png')
+            
         self.save_btn = QPushButton("")
         self.save_btn.setIcon(QIcon(mas_img_path))
         self.save_btn.clicked.connect(self.guardar_registro)
@@ -213,6 +253,14 @@ class ProgramarWin(QMainWindow):
         }
     
     def cargar_registros(self):
+        # Determine the correct path for the delete icon
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            borrar_img_path = os.path.join(sys._MEIPASS, 'img', 'borrar.png')
+        else:
+            # If running in development
+            borrar_img_path = os.path.join('img', 'borrar.png')
+            
         registros = leer_proximas_grabaciones()
         self.table.setRowCount(len(registros))
         for row, (id_registro, fechaIni, inicio, fechaFin, fin, duracion) in enumerate(registros):
@@ -223,7 +271,7 @@ class ProgramarWin(QMainWindow):
             self.table.setItem(row, 4, QTableWidgetItem(duracion))
             # Botón de borrar
             btn_borrar = QPushButton()
-            btn_borrar.setIcon(QIcon("img/borrar.png"))
+            btn_borrar.setIcon(QIcon(borrar_img_path))
             btn_borrar.clicked.connect(
                 lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin, duracion): self.confirmar_borrado(r)
             )
