@@ -14,7 +14,20 @@ class GrabacionesWin(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.setWindowTitle("Mediciones automática")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        
+        # Set window icon with path that works in both dev and frozen environments
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            self.icon_path = os.path.join(sys._MEIPASS, 'img', 'LogoCINTRA1.png')
+            self.borrar_icon = os.path.join(sys._MEIPASS, 'img', 'borrar.png')
+            self.folder_icon = os.path.join(sys._MEIPASS, 'img', 'carpeta-abierta.png')
+        else:
+            # If running in development
+            self.icon_path = os.path.join('img', 'LogoCINTRA1.png')
+            self.borrar_icon = os.path.join('img', 'borrar.png')
+            self.folder_icon = os.path.join('img', 'carpeta-abierta.png')
+            
+        self.setWindowIcon(QIcon(self.icon_path))
         screen = QApplication.primaryScreen().size()
         anchoX = screen.width()
         altoY = screen.height()
@@ -69,7 +82,7 @@ class GrabacionesWin(QMainWindow):
 
             # Botón de borrar
             btn_borrar = QPushButton()
-            btn_borrar.setIcon(QIcon("img/borrar.png"))
+            btn_borrar.setIcon(QIcon(self.borrar_icon))
             btn_borrar.clicked.connect(
                 lambda checked, r=(id_registro, fechaIni, inicio, fechaFin, fin, duracion): self.confirmar_borrado(r)
             )
@@ -77,7 +90,7 @@ class GrabacionesWin(QMainWindow):
 
             # Botón de abrir ubicación
             btn_ubi = QPushButton()
-            btn_ubi.setIcon(QIcon("img/carpeta-abierta.png"))
+            btn_ubi.setIcon(QIcon(self.folder_icon))
             btn_ubi.clicked.connect(lambda _, ruta=ruta: self.abrir_explorador_en_ruta(ruta))
             self.table.setCellWidget(row, 9, btn_ubi)
     

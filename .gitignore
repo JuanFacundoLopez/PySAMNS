@@ -6,3 +6,6 @@ funciones/__pycache__
 env 
 __pycache__/
 *.pyc
+dist
+build
+
