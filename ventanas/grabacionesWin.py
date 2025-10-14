@@ -89,6 +89,7 @@ class GrabacionesWin(QMainWindow):
             if carpeta:
                 print("Carpeta seleccionada:", carpeta)
         else:
+            QMessageBox.warning(self, "Error", f"La ruta no existe: {ruta}")
             print("La ruta no existe:", ruta)
             
     def confirmar_borrado(self, registro):
