@@ -1129,5 +1129,11 @@ class controlador():
         if "calibracion" in self.ventanas_abiertas and self.ventanas_abiertas["calibracion"]:
             self.ventanas_abiertas["calibracion"].close()
             self.ventanas_abiertas["calibracion"] = None
-            
+        
+        # Mostrar mensaje de que la calibración se aplicó exitosamente
+        QMessageBox.information(
+                    self.ventanas_abiertas["calibracion"],
+                    "Éxito",
+                    "Calibración aplicada correctamente."
+                )
         print("Calibración aplicada correctamente")
