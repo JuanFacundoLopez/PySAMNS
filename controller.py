@@ -1021,6 +1021,7 @@ class controlador():
             
             print(f"Nivel de referencia: {ref_level} dB")
             print(f"Nivel RMS medido: {rms_db:.2f} dB")
+            print(f"Nivel RMS medido a fondo de escala: {rms_dbfs:.2f} dB")
             print(f"Factor de calibración: {cal:.2f} dB")
             
             # Guardar el factor de calibración
@@ -1028,6 +1029,9 @@ class controlador():
 
             # Guardar el offset en el modelo
             self.cModel.set_calibracion_offset_spl(offset)
+
+            # Activar la calibración
+            self.cModel.activar_calibracion(True)
             
             # # Actualizar la UI
             # self.cVista.txtValorRef.setText(f"{cal:.2f}")
@@ -1038,7 +1042,8 @@ class controlador():
                 "Calibración Exitosa",
                 f"Calibración relativa completada.\n\n"
                 f"Nivel de referencia: {ref_level:.2f} dB\n"
-                f"Nivel medido: {rms_db:.2f} dB\n"
+                f"Nivel medido: {rms_db:.2f} dBSPL\n"
+                f"Nivel medido a fondo de escala: {rms_dbfs:.2f} dBFS\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
             
@@ -1116,6 +1121,15 @@ class controlador():
         self.ventanas_abiertas["grabaciones"].activateWindow()
 
     def aceptar_calibracion(self):
+        # Asegurarse de que la calibración esté activa
         self.cModel.activar_calibracion(True)
-        if self.ventanas_abiertas["calibracion"]:
+        
+        # Forzar la actualización de la UI para mostrar los valores calibrados
+        self.update_view()
+        
+        # Cerrar la ventana de calibración
+        if "calibracion" in self.ventanas_abiertas and self.ventanas_abiertas["calibracion"]:
             self.ventanas_abiertas["calibracion"].close()
+            self.ventanas_abiertas["calibracion"] = None
+            
+        print("Calibración aplicada correctamente")
