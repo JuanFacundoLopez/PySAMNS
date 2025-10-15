@@ -1030,8 +1030,6 @@ class controlador():
             # Guardar el offset en el modelo
             self.cModel.set_calibracion_offset_spl(offset)
 
-            # Activar la calibración
-            self.cModel.activar_calibracion(True)
             
             # # Actualizar la UI
             # self.cVista.txtValorRef.setText(f"{cal:.2f}")
