@@ -6,20 +6,33 @@ from controller import controlador
 from db import crear_tabla
 
 def enable_lab_mode():
-    """Ejecuta el script PowerShell que configura el modo laboratorio."""
-    script_path = os.path.join(os.path.dirname(__file__), "enable_lab_mode.ps1")
+    """Configure system power settings for lab mode using Windows API."""
     try:
-        subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path], check=True)
-    except Exception as e:
-        print(f"⚠️ No se pudo aplicar el modo laboratorio: {e}")
+        # Set high performance power plan
+        subprocess.run(['powercfg', '/setactive', 'SCHEME_MIN'], check=True)
+        # Disable sleep modes
+        subprocess.run(['powercfg', '/change', 'standby-timeout-ac', '0'], check=True)
+        subprocess.run(['powercfg', '/change', 'standby-timeout-dc', '0'], check=True)
+        # Disable display timeout
+        subprocess.run(['powercfg', '/change', 'monitor-timeout-ac', '0'], check=True)
+        subprocess.run(['powercfg', '/change', 'monitor-timeout-dc', '0'], check=True)
+        print("✅ Lab mode activated successfully")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️ Warning: Could not fully configure lab mode: {e}")
 
 def restore_lab_mode():
-    """Restaura configuración de energía normal."""
-    script_path = os.path.join(os.path.dirname(__file__), "restore_lab_mode.ps1")
+    """Restore default power settings."""
     try:
-        subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path], check=True)
-    except Exception as e:
-        print(f"⚠️ No se pudo restaurar configuración: {e}")
+        # Restore balanced power plan
+        subprocess.run(['powercfg', '/setactive', 'SCHEME_BALANCED'], check=True)
+        # Set reasonable defaults (30 minutes for display, 1 hour for sleep)
+        subprocess.run(['powercfg', '/change', 'standby-timeout-ac', '60'], check=True)
+        subprocess.run(['powercfg', '/change', 'standby-timeout-dc', '30'], check=True)
+        subprocess.run(['powercfg', '/change', 'monitor-timeout-ac', '30'], check=True)
+        subprocess.run(['powercfg', '/change', 'monitor-timeout-dc', '15'], check=True)
+        print("✅ Normal power settings restored")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️ Warning: Could not fully restore power settings: {e}")
 
 if __name__ == "__main__":
     keep_awake()
