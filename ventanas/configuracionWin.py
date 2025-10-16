@@ -61,11 +61,12 @@ class ConfiguracionWin(QMainWindow):
         # Stretch
         self.confWinLayout.addStretch()
         
-        # Aplicar estilos
-        self.aplicarEstilos()
+        
         
         # Cargar valores actuales
         self.cargarValoresActuales()
+        # Aplicar estilos
+        self.aplicarEstilos()
     
     def crearGrupoTiempo(self):
         """Crea el grupo de configuración para gráficos de tiempo"""
@@ -142,12 +143,15 @@ class ConfiguracionWin(QMainWindow):
         
         # Tipo de línea
         tipoLineaGroupTiempo = QGroupBox("Tipo de línea")
-        tipoLineaLayoutTiempo = QHBoxLayout()
-        tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"))
+        tipoLineaLayoutTiempo = QGridLayout()
+        tipoLineaLayoutTiempo.addWidget(QLabel("Estilo:"),0,0)
         self.cmbTipoLineaTiempo = QComboBox()
         self.cmbTipoLineaTiempo.addItems(["Sólida", "Punteada", "Rayada"])
-        tipoLineaLayoutTiempo.addWidget(self.cmbTipoLineaTiempo)
-        tipoLineaLayoutTiempo.addStretch()
+        tipoLineaLayoutTiempo.addWidget(self.cmbTipoLineaTiempo,0,1)
+        tipoLineaLayoutTiempo.addWidget(QLabel("Ancho de línea:"),1,0)
+        self.cmbAnchoLineaTiempo = QComboBox()
+        self.cmbAnchoLineaTiempo.addItems(["1", "2", "3", "4"])
+        tipoLineaLayoutTiempo.addWidget(self.cmbAnchoLineaTiempo,1,1)
         tipoLineaGroupTiempo.setLayout(tipoLineaLayoutTiempo)
         ejesLayoutTiempo.addWidget(tipoLineaGroupTiempo)
         
@@ -232,16 +236,22 @@ class ConfiguracionWin(QMainWindow):
         
         # Tipo de gráfico
         tipoGraficoGroupEspectro = QGroupBox("Tipo de gráfico")
-        tipoGraficoLayoutEspectro = QHBoxLayout()
-        tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"))
+        tipoGraficoLayoutEspectro = QGridLayout()
+        tipoGraficoLayoutEspectro.addWidget(QLabel("Estilo:"),0,0)
         self.cmbTipoGraficoEspectro = QComboBox()
         self.cmbTipoGraficoEspectro.addItems(["Línea", "Barras-octavas", "Barras-tercios"])
         self.chkValoresColumna = QCheckBox("Agregar detalle a nivel")
         self.chkValoresColumna.setChecked(True)
         self.chkValoresColumna.setVisible(False)
-        tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro)
-        tipoGraficoLayoutEspectro.addWidget(self.chkValoresColumna)
-        tipoGraficoLayoutEspectro.addStretch()
+        tipoGraficoLayoutEspectro.addWidget(self.cmbTipoGraficoEspectro,0,1)
+        tipoGraficoLayoutEspectro.addWidget(self.chkValoresColumna,1,0,1,2, Qt.AlignCenter)
+        self.lblAnchoLineaEspectro = QLabel("Ancho de línea:")
+        tipoGraficoLayoutEspectro.addWidget(self.lblAnchoLineaEspectro,1,0)
+        self.cmbAnchoLineaEspectro = QComboBox()
+        self.cmbAnchoLineaEspectro.addItems(["1", "2", "3", "4"])
+        tipoGraficoLayoutEspectro.addWidget(self.cmbAnchoLineaEspectro,1,1)
+        self.lblAnchoLineaEspectro.setVisible(True)
+        self.cmbAnchoLineaEspectro.setVisible(True)
         tipoGraficoGroupEspectro.setLayout(tipoGraficoLayoutEspectro)
         ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
         self.cmbTipoGraficoEspectro.currentIndexChanged.connect(self.mostrarchkValores)
@@ -317,16 +327,21 @@ class ConfiguracionWin(QMainWindow):
         colorLayoutNivel.addWidget(self.btnColorNivel)
         colorLayoutNivel.addStretch()
         colorGroupNivel.setLayout(colorLayoutNivel)
-        ejesLayoutNivel.addWidget(colorGroupNivel)
+        #ejesLayoutNivel.addWidget(colorGroupNivel)
         
         # Tipo de línea
         tipoLineaGroupNivel = QGroupBox("Tipo de línea")
-        tipoLineaLayoutNivel = QHBoxLayout()
-        tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"))
+        tipoLineaLayoutNivel = QGridLayout()
+        tipoLineaLayoutNivel.addWidget(QLabel("Estilo:"),0,0)
         self.cmbTipoLineaNivel = QComboBox()
         self.cmbTipoLineaNivel.addItems(["Sólida", "Punteada", "Rayada"])
-        tipoLineaLayoutNivel.addWidget(self.cmbTipoLineaNivel)
-        tipoLineaLayoutNivel.addStretch()
+        tipoLineaLayoutNivel.addWidget(self.cmbTipoLineaNivel,0,1)
+        tipoLineaLayoutNivel.addWidget(QLabel("Ancho de línea:"),1,0)
+        self.cmbAnchoLineaNivel = QComboBox()
+        self.cmbAnchoLineaNivel.addItems(["1", "2", "3", "4"])
+        tipoLineaLayoutNivel.addWidget(self.cmbAnchoLineaNivel,1,1)
+        
+        
         tipoLineaGroupNivel.setLayout(tipoLineaLayoutNivel)
         ejesLayoutNivel.addWidget(tipoLineaGroupNivel)
         
@@ -335,7 +350,12 @@ class ConfiguracionWin(QMainWindow):
     def mostrarchkValores(self):
         if self.cmbTipoGraficoEspectro.currentText() in ["Barras-octavas", "Barras-tercios"]:
             self.chkValoresColumna.setVisible((True))
+            self.lblAnchoLineaEspectro.setVisible((False))
+            self.cmbAnchoLineaEspectro.setVisible((False))
             return
+        
+        self.lblAnchoLineaEspectro.setVisible((True))
+        self.cmbAnchoLineaEspectro.setVisible((True))    
         self.chkValoresColumna.setVisible((False))
         return
     
@@ -382,10 +402,10 @@ class ConfiguracionWin(QMainWindow):
             color_espectro = self.vista.get_color_str(self.vista.colorEspectro)
         self.colorFrameEspectro.setStyleSheet(f"background-color: {color_espectro}; border: 1px solid black;")
         
-        color_nivel = getattr(self.vista, 'default_color_nivel', "#8A2BE2")
-        if hasattr(self.vista, 'colorNivel'):
-            color_nivel = self.vista.get_color_str(self.vista.colorNivel)
-        self.colorFrameNivel.setStyleSheet(f"background-color: {color_nivel}; border: 1px solid black;")
+        # color_nivel = getattr(self.vista, 'default_color_nivel', "#8A2BE2")
+        # if hasattr(self.vista, 'colorNivel'):
+        #     color_nivel = self.vista.get_color_str(self.vista.colorNivel)
+        # self.colorFrameNivel.setStyleSheet(f"background-color: {color_nivel}; border: 1px solid black;")
         
         # Cargar tipos de línea/gráfico
         if hasattr(self.vista, 'var_tipoLineaTiempo') and self.vista.var_tipoLineaTiempo:
@@ -404,6 +424,21 @@ class ConfiguracionWin(QMainWindow):
             idx = self.cmbTipoLineaNivel.findText(self.vista.var_tipoLineaNivel)
             if idx >= 0:
                 self.cmbTipoLineaNivel.setCurrentIndex(idx)
+                
+        if hasattr(self.vista, 'var_anchoLineaNivel') and self.vista.var_anchoLineaNivel:
+            idx = self.cmbAnchoLineaNivel.findText(str(self.vista.var_anchoLineaNivel))
+            if idx >= 0:
+                self.cmbAnchoLineaNivel.setCurrentIndex(idx)
+        
+        if hasattr(self.vista, 'var_anchoLineaTiempo') and self.vista.var_anchoLineaTiempo:
+            idx = self.cmbAnchoLineaTiempo.findText(str(self.vista.var_anchoLineaTiempo))
+            if idx >= 0:
+                self.cmbAnchoLineaTiempo.setCurrentIndex(idx)
+        
+        if hasattr(self.vista, 'var_anchoLineaEspectro') and self.vista.var_anchoLineaEspectro:
+            idx = self.cmbAnchoLineaEspectro.findText(str(self.vista.var_anchoLineaEspectro))
+            if idx >= 0:
+                self.cmbAnchoLineaEspectro.setCurrentIndex(idx)
     
     def seleccionarColor(self, colorFrame, tipoGrafico):
         """Abre el diálogo de selección de color"""
@@ -432,7 +467,8 @@ class ConfiguracionWin(QMainWindow):
                     'yMax': float(self.txtYMaxTiempo.text()),
                     'etiquetaX': self.txtEtiquetaXTiempo.text(),
                     'etiquetaY': self.txtEtiquetaYTiempo.text(),
-                    'tipoLinea': self.cmbTipoLineaTiempo.currentText()
+                    'tipoLinea': self.cmbTipoLineaTiempo.currentText(),
+                    'anchoLinea': int(self.cmbAnchoLineaTiempo.currentText())
                 },
                 'espectro': {
                     'logModeX': self.cbEscalaXEspectro.isChecked(),
@@ -445,7 +481,8 @@ class ConfiguracionWin(QMainWindow):
                     'etiquetaY': self.txtEtiquetaYEspectro.text(),
                     'eje2':self.chkEjeY2.isChecked(),
                     'tipoGrafico': self.cmbTipoGraficoEspectro.currentText(),
-                    'valoresOcta': self.chkValoresColumna.isChecked()
+                    'valoresOcta': self.chkValoresColumna.isChecked(),
+                    'anchoLinea': int(self.cmbAnchoLineaEspectro.currentText())
                 },
                 'nivel': {
                     'logModeY': self.cbEscalaYNivel.isChecked(),
@@ -455,7 +492,8 @@ class ConfiguracionWin(QMainWindow):
                     'yMax': float(self.txtYMaxNivel.text()),
                     'etiquetaX': self.txtEtiquetaXNivel.text(),
                     'etiquetaY': self.txtEtiquetaYNivel.text(),
-                    'tipoLinea': self.cmbTipoLineaNivel.currentText()
+                    'tipoLinea': self.cmbTipoLineaNivel.currentText(),
+                    'anchoLinea': int(self.cmbAnchoLineaNivel.currentText())
                 }
             }
             
@@ -473,12 +511,18 @@ class ConfiguracionWin(QMainWindow):
     
     def aplicarEstilos(self):
         """Aplica estilos a los botones y combos"""
-        for boton in [self.btnColorTiempo, self.btnColorEspectro, self.btnColorNivel, 
-                     self.btnConfigAplicar, self.btnConfigCancelar]:
-            boton.setProperty("class", "ventanasSec")
+        botones = [self.btnColorTiempo, self.btnColorEspectro, 
+               self.btnConfigAplicar, self.btnConfigCancelar]
+    
+        combos = [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel, self.cmbAnchoLineaNivel, self.cmbAnchoLineaTiempo, self.cmbAnchoLineaEspectro]
+        
+        for boton in botones:
+            if boton is not None:
+                boton.setProperty("class", "ventanasSec")
 
-        for combo in [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel]:
-            combo.setProperty("class", "ventanasSec")
+        for combo in combos:
+            if combo is not None:
+                combo.setProperty("class", "ventanasSec")
      
     def validarLimiteXMaxEspectro(self):
         try:
