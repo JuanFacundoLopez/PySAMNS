@@ -6,6 +6,11 @@ from ventanas.configDispWin import ConfigDispWin
 from ventanas.configuracionWin import ConfiguracionWin
 from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
+import threading
+
+from db import leer_todas_grabaciones, actualizar_estado
+from datetime import datetime, timedelta
+import os
 
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph.Qt import QtCore
@@ -17,6 +22,10 @@ import pyaudio
 # from scipy.fftpack import fft
 
 import numpy as np 
+
+import soundfile as sf
+import threading
+from pydub import AudioSegment
 
 # import sys
 # sys.path.append('./funciones')
@@ -1137,3 +1146,178 @@ class controlador():
                     "Calibración aplicada correctamente."
                 )
         print("Calibración aplicada correctamente")
+            
+    def verificar_grabaciones_programadas(self):
+        ahora = datetime.now()
+        registros = leer_todas_grabaciones()
+        for registro in registros:
+            id_reg, fecha_ini, hora_ini, fecha_fin, hora_fin, duracion, ext, estado, ruta = registro
+            if estado == "Pendiente":
+                fecha_hora_inicio = datetime.strptime(f"{fecha_ini} {hora_ini}", "%Y-%m-%d %H:%M:%S")
+                fecha_hora_fin = datetime.strptime(f"{fecha_fin} {hora_fin}", "%Y-%m-%d %H:%M:%S")
+                if fecha_hora_inicio <= ahora <= fecha_hora_inicio + timedelta(seconds=10):  # margen de 10s
+                    #print(f"[INFO] Iniciando grabación automática: {id_reg}")
+                    self.iniciar_grabacion_automatica(id_reg, duracion, ruta, ext)
+    
+    def iniciar_grabacion_automatica(self, id_reg, duracion_str, ruta, ext):
+        try:
+            print(f"[DEBUG] Duración original: '{duracion_str}'")
+            duracion_str = duracion_str.strip()
+            if "d" in duracion_str:
+                partes = duracion_str.split("d")
+                duracion_str = partes[-1].strip()
+            partes = duracion_str.split(":")
+            partes = [p.strip() for p in partes if p.strip()]
+            while len(partes) < 3:
+                partes.insert(0, "0")
+            h, m, s = map(int, partes)
+            duracion_seg = h * 3600 + m * 60 + s
+            print(f"[DEBUG] Duración en segundos: {duracion_seg}")
+            nombre_archivo = f"grabacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+            path_completo = os.path.join(ruta, nombre_archivo)
+
+            self._grabacion_automatica_info = {
+                "id_reg": id_reg,
+                "path_completo": path_completo,
+                "ext": ext
+            }
+            print(f"[DEBUG] Iniciando grabación automática: {id_reg}")
+            actualizar_estado(id_reg, "realizada")
+            self.cVista.btngbr.setChecked(True)
+            self.dalePlay()
+            if not self.timer.isActive():
+                self.timer.start(30)
+            print(f"[DEBUG] Grabación automática iniciada: {id_reg}")
+
+            # Lanzar el hilo de grabación
+            threading.Thread(
+                target=self.grabar_audio_automatica,
+                args=(path_completo, duracion_seg, ext),
+                daemon=True
+            ).start()
+
+            # Detener la grabación visual y lógica después del tiempo
+            QtCore.QTimer.singleShot(
+                duracion_seg * 1000,
+                lambda: self.detener_grabacion_automatica(id_reg)
+            )
+
+        except Exception as e:
+            print(f"[ERROR] Error al iniciar grabación automática: {e}")
+       
+    def detener_grabacion_automatica(self, id_reg):
+        print(f"[DEBUG] Deteniendo grabación automática: {id_reg}")
+        self.cVista.btngbr.setChecked(False)
+        self.dalePlay()  # Esto hace el reset 
+    
+        import pyaudio
+    
+    def grabar_audio_automatica(self, path_completo, duracion_seg, ext):
+        print(f"[DEBUG] Grabando audio automática en hilo: {path_completo} ({duracion_seg}s)")
+        buffer = []
+        try:
+            # Abre un stream propio
+            p = pyaudio.PyAudio()
+            rate = self.cModel.rate
+            chunk = self.cModel.chunk
+            device_index = self.cModel.device_index  # Ajusta según tu modelo
+    
+            stream = p.open(format=pyaudio.paInt16,
+                            channels=1,
+                            rate=rate,
+                            input=True,
+                            input_device_index=device_index,
+                            frames_per_buffer=chunk)
+    
+            total_frames = int(rate * duracion_seg)
+            frames_grabados = 0
+    
+            while frames_grabados < total_frames:
+                data = stream.read(chunk, exception_on_overflow=False)
+                buffer.append(data)
+                frames_grabados += chunk
+    
+            stream.stop_stream()
+            stream.close()
+            p.terminate()
+    
+            # Concatenar y guardar
+            audio_data = b''.join(buffer)
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)
+    
+            if ext.lower() == "wav":
+                sf.write(path_completo, audio_np, rate, subtype='PCM_16')
+                print(f"[INFO] Archivo WAV guardado en: {path_completo}")
+            elif ext.lower() == "mp3":
+                try:
+                    from pydub import AudioSegment
+                    audio_segment = AudioSegment(
+                        audio_np.tobytes(),
+                        frame_rate=rate,
+                        sample_width=2,
+                        channels=1
+                    )
+                    audio_segment.export(path_completo, format="mp3")
+                    print(f"[INFO] Archivo MP3 guardado en: {path_completo}")
+                except ImportError:
+                    print("[ERROR] pydub no está instalado. No se puede guardar como MP3.")
+            else:
+                print(f"[ERROR] Extensión no soportada: {ext}")
+    
+        except Exception as e:
+            print(f"[ERROR] Error en grabación automática en hilo: {e}") 
+    
+    def grabar_audio_automatica1(self, ruta, duracion_seg, extension):
+        """
+        Graba directamente a disco durante `duracion_seg` segundos en el archivo `ruta`.
+        Puede ser .wav o .mp3 según `extension`.
+        """
+        print(f"[INFO] Iniciando grabación automática directa a disco: {ruta} ({duracion_seg}s)")
+
+        ruta_wav = ruta if extension == ".wav" else ruta.replace(".mp3", "_temp.wav")
+        os.makedirs(os.path.dirname(ruta_wav), exist_ok=True)
+
+        formato = pyaudio.paInt16
+        rate = self.cModel.rate
+        chunk = self.cModel.chunk
+        canales = 1
+        device_index = self.cModel.device_index
+
+        p = pyaudio.PyAudio()
+        try:
+            stream = p.open(format=formato,
+                            channels=canales,
+                            rate=rate,
+                            input=True,
+                            input_device_index=device_index,
+                            frames_per_buffer=chunk)
+        except Exception as e:
+            print(f"[ERROR] No se pudo abrir el stream de audio: {e}")
+            return
+
+        tiempo_inicio = time.time()
+        try:
+            with sf.SoundFile(ruta_wav, mode='w', samplerate=rate, channels=canales, subtype='PCM_16') as f:
+                while time.time() - tiempo_inicio < duracion_seg:
+                    data = stream.read(chunk, exception_on_overflow=False)
+                    f.write(np.frombuffer(data, dtype=np.int16))
+        except Exception as e:
+            print(f"[ERROR] Durante la grabación: {e}")
+        finally:
+            stream.stop_stream()
+            stream.close()
+            p.terminate()
+
+        # Si se pidió .mp3, convertir
+        if extension == ".mp3":
+            try:
+                from pydub import AudioSegment
+                audio = AudioSegment.from_wav(ruta_wav)
+                audio.export(ruta, format="mp3")
+                os.remove(ruta_wav)
+                print(f"[INFO] Grabación convertida a MP3: {ruta}")
+            except Exception as e:
+                print(f"[ERROR] Fallo la conversión a MP3: {e}")
+                return
+
+        print(f"[INFO] Grabación automática finalizada y guardada en: {ruta}")

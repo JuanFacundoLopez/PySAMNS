@@ -55,6 +55,8 @@ class FrequencyAxisItem(pg.AxisItem):
     def __init__(self, orientation='bottom', bandas=None):
         super().__init__(orientation)
         self.bandas = bandas if bandas is not None else []
+         # Forzar actualización inicial
+        self.picture = None  # Invalida el cache del dibujo
     
     def tickValues(self, minVal, maxVal, size):
         """
@@ -91,13 +93,6 @@ class FrequencyAxisItem(pg.AxisItem):
             else:
                 strings.append('')
         return strings
-    
-    def update_bandas(self, new_bandas):
-        """
-        Actualizar las bandas de frecuencia
-        """
-        self.bandas = new_bandas
-        self.update()
     
     def update_bandas(self, new_bandas):
         """
@@ -223,8 +218,14 @@ class vista(QMainWindow):
         self.winGraph1.setBackground('w')
         self.columna1tab1.addWidget(self.winGraph1)
         
+        # Initialize the log axis
+        self.log_x_axis = LogAxis(orientation='bottom')
+        
+        self.level_last_labels = {}
+        
         #variables para configuracion de grafico
         #self.var_logModeXTiempo = False
+        self.ejexcreado = False
         self.var_logModeYTiempo = False
         self.var_logModeXEspectro = True
         self.var_logModeYEspectro = False
@@ -252,10 +253,35 @@ class vista(QMainWindow):
         self.var_etiquetaYNivel = "Nivel fondo de escala (dB)"
         self.var_tipoLineaTiempo = ""
         self.var_tipoGraficoEspectro = ""
-        self.var_tipoLineaNivel = ""
+        self.var_tipoLineaNivel = "Sólida"
         self.var_colorTiempo = ""
         self.var_colorEspectro = ""
         self.var_colorNivel = ""
+        self.var_anchoLineaTiempo = 2
+        self.var_anchoLineaEspectro = 2
+        self.var_anchoLineaNivel = 2
+        self.coloresNiveles = [
+            # pico
+            "#E74C3C","#1F77B4","#27AE60",
+            # impulsivo
+            "#FF6B57","#4FA3E0","#2ECC71",
+            # rapido
+            "#C0392B","#125E91","#28B463",
+            # lento
+            "#FF8E7B","#7FB8EA","#58D68D",
+            # continua equivalente
+            "#B03A2E","#0E4A6F","#239B56",
+            # p01
+            "#F1948A","#A5CBEF","#52BE80",
+            # p10
+            "#EC7063","#5DADE2","#45B39D",
+            # p50
+            "#CD6155","#2E86C1","#1ABC9C",
+            # p90
+            "#A93226","#1A5276","#16A085",
+            # p99
+            "#922B21","#154360","#117A65",
+            ]
         
         # Centralización de colores por defecto
         self.default_color_tiempo = "#006400"      # Verde oscuro
@@ -290,39 +316,21 @@ class vista(QMainWindow):
         self.ptNivZFast = self.waveform1.plot(pen='g', width=3)  # (124, 138, 1)
         self.ptNivZInst = self.waveform1.plot(pen='b', width=3)  # (70, 138, 1)
         self.ptNivZPico = self.waveform1.plot(pen='r', width=3)  # (3, 138, 1)
-        self.ptNivZInstMin = self.waveform1.plot(pen='b', width=1, style=QtCore.Qt.DashLine)
-        self.ptNivZInstMax = self.waveform1.plot(pen='b', width=1, style=QtCore.Qt.DashLine)
-        self.ptNivZFastMin = self.waveform1.plot(pen='g', width=1, style=QtCore.Qt.DashLine)
-        self.ptNivZFastMax = self.waveform1.plot(pen='g', width=1, style=QtCore.Qt.DashLine)
-        self.ptNivZSlowMin = self.waveform1.plot(pen='k', width=1, style=QtCore.Qt.DashLine)
-        self.ptNivZSlowMax = self.waveform1.plot(pen='k', width=1, style=QtCore.Qt.DashLine)
-        print("DEBUG: Plots Z creados:", self.ptNivZSlow, self.ptNivZFast, self.ptNivZInst, self.ptNivZPico)
+        #print("DEBUG: Plots Z creados:", self.ptNivZSlow, self.ptNivZFast, self.ptNivZInst, self.ptNivZPico)
         
         # Plots para nivel C
         self.ptNivCSlow = self.waveform1.plot(pen=(1, 138, 42), width=3)
         self.ptNivCFast = self.waveform1.plot(pen=(1, 138, 92), width=3)
         self.ptNivCInst = self.waveform1.plot(pen=(1, 117, 138), width=3)
         self.ptNivCPico = self.waveform1.plot(pen=(1, 54, 138), width=3)
-        self.ptNivCInstMin = self.waveform1.plot(pen=(1, 117, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivCInstMax = self.waveform1.plot(pen=(1, 117, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivCFastMin = self.waveform1.plot(pen=(1, 138, 92), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivCFastMax = self.waveform1.plot(pen=(1, 138, 92), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivCSlowMin = self.waveform1.plot(pen=(1, 138, 42), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivCSlowMax = self.waveform1.plot(pen=(1, 138, 42), width=1, style=QtCore.Qt.DashLine)
-        print("DEBUG: Plots C creados:", self.ptNivCSlow, self.ptNivCFast, self.ptNivCInst, self.ptNivCPico)
+        #print("DEBUG: Plots C creados:", self.ptNivCSlow, self.ptNivCFast, self.ptNivCInst, self.ptNivCPico)
         
         # Plots para nivel A
         self.ptNivASlow = self.waveform1.plot(pen=(28, 1, 138), width=3)
         self.ptNivAFast = self.waveform1.plot(pen=(51, 1, 138), width=3)
         self.ptNivAInst = self.waveform1.plot(pen=(108, 1, 138), width=3)
         self.ptNivAPico = self.waveform1.plot(pen=(138, 1, 63), width=3)
-        self.ptNivAInstMin = self.waveform1.plot(pen=(108, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivAInstMax = self.waveform1.plot(pen=(108, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivAFastMin = self.waveform1.plot(pen=(51, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivAFastMax = self.waveform1.plot(pen=(51, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivASlowMin = self.waveform1.plot(pen=(28, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        self.ptNivASlowMax = self.waveform1.plot(pen=(28, 1, 138), width=1, style=QtCore.Qt.DashLine)
-        print("DEBUG: Plots A creados:", self.ptNivASlow, self.ptNivAFast, self.ptNivAInst, self.ptNivAPico)
+        #print("DEBUG: Plots A creados:", self.ptNivASlow, self.ptNivAFast, self.ptNivAInst, self.ptNivAPico)
         
         # Botones y cronómetro
         buttonLayout = QHBoxLayout()
@@ -619,25 +627,6 @@ class vista(QMainWindow):
         self.cbNivSlowC.toggled.connect(self.actualizarGraficoNivel)
         self.cbNivSlowZ.toggled.connect(self.actualizarGraficoNivel)
         
-        self.cbNivInstMinA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivInstMinC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivInstMinZ.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivInstMaxA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivInstMaxC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivInstMaxZ.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMinA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMinC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMinZ.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMaxA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMaxC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivFastMaxZ.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMinA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMinC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMinZ.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMaxA.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMaxC.toggled.connect(self.actualizarGraficoNivel)
-        self.cbNivSlowMaxZ.toggled.connect(self.actualizarGraficoNivel)
-        
         self.cbEqA.toggled.connect(self.actualizarGraficoNivel)
         self.cb01A.toggled.connect(self.actualizarGraficoNivel)
         self.cb10A.toggled.connect(self.actualizarGraficoNivel)
@@ -660,7 +649,7 @@ class vista(QMainWindow):
         
         
         # Debug para verificar el estado inicial de los checkboxes
-        print(f"DEBUG: Estado inicial cbNivSlowZ: {self.cbNivSlowZ.isChecked()}")
+        #print(f"DEBUG: Estado inicial cbNivSlowZ: {self.cbNivSlowZ.isChecked()}")
         
         self.rightLayout.addWidget(self.nivelesGroup)
         
@@ -905,6 +894,7 @@ class vista(QMainWindow):
             self.btngbr.setText("Pausar")
             self.btngbr.setIcon(QIcon("img/boton-de-pausa.png"))
         else:
+            self.ejexcreado = False
             self.btngbr.setText("Grabar")
             self.btngbr.setIcon(QIcon("img/boton-de-play.png"))
     
@@ -983,16 +973,14 @@ class vista(QMainWindow):
         self.filtrosGroup.setVisible(True)
         self.nivelesGroup.setVisible(False)
         
+        
+        self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+        
         # Resetear bandera de nivel
         self.nivel_configured = False
         
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
-        if self.var_eje2Visible:
-            self._ensure_right_axis()
-            self._ejeYDer_titulo_base = "Nivel (dB)"
-            self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
-            self.vb_right.setYRange(0, 120, padding=0)
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
@@ -1014,9 +1002,9 @@ class vista(QMainWindow):
             ]
             self.waveform1.getAxis('bottom').setTicks([ticks])
             
-            self.waveform1.setLabel('left', 'Nivel (dB)')
-            self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-            self.waveform1.setTitle('Espectro de Frecuencia')
+            #self.waveform1.setLabel('left', 'Nivel (dB)')
+            #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+            #self.waveform1.setTitle('Espectro de Frecuencia')
         
         # Actualizar el gráfico
         self.waveform1.replot()
@@ -1028,8 +1016,13 @@ class vista(QMainWindow):
         self.filtrosGroup.setVisible(False)
         self.nivelesGroup.setVisible(True)
         
-        print("DEBUG: Configurando ventana de nivel")
+        #print("DEBUG: Configurando ventana de nivel")
         
+        # Asegurar que se use el eje de tiempo personalizado
+        if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
+            self.time_axis = TimeAxisItem(orientation='bottom')
+            self.waveform1.setAxisItems({'bottom': self.time_axis})
+            
         # Solo limpiar el gráfico si no está ya configurado para nivel
         if not hasattr(self, 'nivel_configured') or not self.nivel_configured:
             self.waveform1.clear()
@@ -1039,7 +1032,7 @@ class vista(QMainWindow):
         
         # Habilitar Z Slow por defecto para que se vea algo en el gráfico
         self.cbNivSlowZ.setChecked(True)
-        print("DEBUG: Z Slow habilitado por defecto")
+        #print("DEBUG: Z Slow habilitado por defecto")
         
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinNivel') and hasattr(self, 'txtXMaxNivel'):
@@ -1055,11 +1048,11 @@ class vista(QMainWindow):
             self.waveform1.setLabel('left', 'Nivel fondo de escala (dB)')
             self.waveform1.setLabel('bottom', 'Tiempo (s)')
             self.waveform1.setTitle('Gráfico de Nivel de Presión Sonora')
-            print("DEBUG: Configuración por defecto aplicada")
+            #print("DEBUG: Configuración por defecto aplicada")
         
         # Actualizar el gráfico
         self.waveform1.replot()
-        print("DEBUG: Gráfico actualizado")
+        #print("DEBUG: Gráfico actualizado")
         self.vController.graficar()
 
     def esta_calibrado(self) -> bool:
@@ -1075,12 +1068,16 @@ class vista(QMainWindow):
         return cal_auto or (ruta_ext is not None) or (abs(offset) > 1e-9)
 
     def actualizar_badge_calibracion_pyqtgraph(self):
-        if self.esta_calibrado() or self.btnTiempo.isChecked:
+        bandera = self.esta_calibrado()
+        bandera2 = self.btnTiempo.isChecked()
+        if bandera or bandera2:
+            #print("DEBUG: Está calibrado, actualizando badge")
             # Sin badge
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
             if self.btnFrecuencia.isChecked():
                 self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
         else:
+            #print("DEBUG: No está calibrado, actualizando badge")
             # Sufijo naranja "(sin calibrar)"
             self.waveform1.setLabel('left', f"{self._ejeY_titulo_base} <span style='color:#ff9800'>(sin calibrar)</span>")
             if self.btnFrecuencia.isChecked():
@@ -1091,13 +1088,13 @@ class vista(QMainWindow):
 
     def actualizarGraficoNivel(self):
         """Actualiza el gráfico de nivel cuando se cambia la selección de checkboxes"""
-        print(f"DEBUG: actualizarGraficoNivel llamado, btnNivel.isChecked(): {self.btnNivel.isChecked()}")
+        #print(f"DEBUG: actualizarGraficoNivel llamado, btnNivel.isChecked(): {self.btnNivel.isChecked()}")
         if self.btnNivel.isChecked():
-            print("DEBUG: Llamando a vController.graficar()")
+            #print("DEBUG: Llamando a vController.graficar()")
             self.vController.graficar()
             # Forzar actualización del gráfico
             self.waveform1.replot()
-            print("DEBUG: replot forzado en actualizarGraficoNivel")
+            #print("DEBUG: replot forzado en actualizarGraficoNivel")
 
     def animation(self):
         """Inicia el bucle principal de la aplicación"""
@@ -1152,6 +1149,13 @@ class vista(QMainWindow):
             self._ejeY_titulo_base = self.var_etiquetaYEspectro
             self.waveform1.setLabel('bottom', self.var_etiquetaXEspectro)
             self.waveform1.setLabel('left', self._ejeY_titulo_base)
+            if self.var_eje2Visible:
+                self._ensure_right_axis()
+                self._ejeYDer_titulo_base = "Nivel (dB)"
+                self.waveform1.getAxis('right').setLabel(self._ejeYDer_titulo_base)
+                self.vb_right.setYRange(0, 120, padding=0)
+            else:
+                self._remove_right_axis()
             # Color y tipo de gráfico
             if hasattr(self, 'colorEspectro'):
                 color = self.get_color_str(self.colorEspectro)
@@ -1192,9 +1196,9 @@ class vista(QMainWindow):
             if tipoLinea == "Sólida":
                 pen = pg.mkPen(color=color, width=2)
             elif tipoLinea == "Punteada":
-                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DotLine)
+                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.SolidLine)
             elif tipoLinea == "Rayada":
-                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DashLine)
+                pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.SolidLine)
             else:
                 pen = pg.mkPen(color=color, width=2)
             
@@ -1220,6 +1224,13 @@ class vista(QMainWindow):
                 if hasattr(self, 'waveform1'):
                     self.waveform1.clear()
                 self.colorEspectro = color
+                # Crear un eje personalizado para las etiquetas de frecuencia
+                if tipoGrafico == "Barras-octavas":
+                    bandas= [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+                else:
+                    bandas= [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
+                frequency_axis = FrequencyAxisItem(orientation='bottom', bandas=bandas)
+                self.waveform1.setAxisItems({'bottom': frequency_axis})
             
         except Exception as e:
             print(f"Error al actualizar estilo de gráfico de espectro: {e}")
@@ -1255,6 +1266,25 @@ class vista(QMainWindow):
             return color.name()
         return color
 
+    def _set_level_label(self, key, x, y, color, y_offset=1.5):
+        """Crear/actualizar etiqueta con el último valor para la serie de nivel."""
+        try:
+            # Eliminar etiqueta anterior si existía
+            if key in self.level_last_labels:
+                try:
+                    self.waveform1.removeItem(self.level_last_labels[key])
+                except Exception:
+                    pass
+                del self.level_last_labels[key]
+                # Crear texto ligeramente por encima de la última coordenada y con el mismo color
+            label_text = f"{key}: {y:.1f} dB"  # Incluye el nombre del filtro y la unidad
+            text_item = pg.TextItem(text=label_text, anchor=(0.5, 1.0), color=color)
+            text_item.setPos(x, y + y_offset)
+            self.waveform1.addItem(text_item)
+            self.level_last_labels[key] = text_item
+        except Exception as e:
+            print(f"Error al crear etiqueta de nivel ({key}): {e}")
+
 # CODIGO YAMILI
 
     def update_plot(self, device_num, current_data, all_data, normalized_current, normalized_all, device_name, times, fft_freqs, fft_magnitude):
@@ -1270,25 +1300,25 @@ class vista(QMainWindow):
                     self.waveform1.setAxisItems({'bottom': self.time_axis})
                     self.waveform1.setLabel('bottom', 'Tiempo (s)')
                 
-                # # Aplicar suavizado SOLO para visualización
-                # smooth_data = np.interp(
-                #     np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
-                #     np.arange(len(normalized_all)),
-                #     normalized_all
-                # )
-                # # Crear array de tiempo suavizado
-                # smooth_times = np.interp(
-                #     np.linspace(0, len(times)-1, len(smooth_data)),
-                #     np.arange(len(times)),
-                #     times
-                # )
+                # Aplicar suavizado SOLO para visualización
+                smooth_data = np.interp(
+                    np.linspace(0, len(normalized_all)-1, len(normalized_all)*2),
+                    np.arange(len(normalized_all)),
+                    normalized_all
+                )
+                # Crear array de tiempo suavizado
+                smooth_times = np.interp(
+                    np.linspace(0, len(times)-1, len(smooth_data)),
+                    np.arange(len(times)),
+                    times
+                )
                 
                 # Mostrar solo los últimos N puntos
                 N = 2000
-                xdata = times[-N:]
-                ydata = normalized_all[-N:]
-                print("Graficando:", len(xdata), len(ydata), "Ejemplo:", ydata[:5])
-                print("Eje X:", xdata[:10])
+                xdata = smooth_times[-N:]
+                ydata = smooth_data[-N:]
+                #print("Graficando:", len(xdata), len(ydata), "Ejemplo:", ydata[:5])
+                #print("Eje X:", xdata[:10])
                 # Eliminar la línea anterior si existe
                 if hasattr(self, 'plot_line'):
                     self.waveform1.removeItem(self.plot_line)
@@ -1308,9 +1338,9 @@ class vista(QMainWindow):
                 if tipoLinea == "Sólida":
                     pen = pg.mkPen(color=color, width=2)
                 elif tipoLinea == "Punteada":
-                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DotLine)
+                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.SolidLine)
                 elif tipoLinea == "Rayada":
-                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.DashLine)
+                    pen = pg.mkPen(color=color, width=2, style=QtCore.Qt.SolidLine)
                 else:
                     pen = pg.mkPen(color=color, width=2)
                 # Crear la línea con el pen configurado
@@ -1327,9 +1357,9 @@ class vista(QMainWindow):
                 test_amp = 20 * np.log10(np.abs(np.sin(np.linspace(0, 10, 100))) + 1e-2)
                 self.waveform1.clear() """
                 # Usar eje logarítmico para X
-                if not hasattr(self, 'log_x_axis'):
-                    self.log_x_axis = LogAxis(orientation='bottom')
-                self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                # if not hasattr(self, 'log_x_axis'):
+                #     self.log_x_axis = LogAxis(orientation='bottom')
+                #self.waveform1.setAxisItems({'bottom': self.log_x_axis})
                 # ---
                 # Determinar tipo de gráfico de espectro
                 tipoGrafico = "Línea"
@@ -1352,16 +1382,16 @@ class vista(QMainWindow):
                     
                     if len(bandas) > 0 and len(niveles) > 0:
                         self.waveform1.clear()
+                            
+                        # Forzar actualización del eje
+                        # frequency_axis.update_bandas(bandas)
+                        # self.waveform1.getAxis('bottom').update()
                         
-                        # Crear un eje personalizado para las etiquetas de frecuencia
-                        frequency_axis = FrequencyAxisItem(orientation='bottom', bandas=bandas)
-                        self.waveform1.setAxisItems({'bottom': frequency_axis})
+                        # También podemos intentar forzar el redibujado completo
+                        self.waveform1.replot()
                         
                         # Usar posiciones secuenciales para las barras (0, 1, 2, 3...)
                         x_positions = np.arange(len(bandas))
-                        
-                        # Calcular anchos de barras uniformes
-                        bar_width = 0.8  # Ancho fijo para todas las barras
                         
                         # Verificar que todos los arrays tengan la misma longitud
                         if len(x_positions) != len(niveles):
@@ -1373,15 +1403,15 @@ class vista(QMainWindow):
                         bar_bottoms = np.full_like(niveles, piso_ruido)  # Base de las barras en -120 dB
                         
                         # Debug: mostrar el color que se está usando
-                        print(f"Color de las barras: {color}")
-                        print(f"Tipo de color: {type(color)}")
+                        # print(f"Color de las barras: {color}")
+                        # print(f"Tipo de color: {type(color)}")
                         
                         # Crear barras individuales usando PlotDataItem
-                        print("Creando barras individuales...")
+                        #print("Creando barras individuales...")
                         
                         # Calcular el ancho de cada barra para que se toquen (sin espacios)
                         total_width = len(bandas)  # Ancho total disponible
-                        bar_width = total_width / len(bandas)  # Ancho de cada barra
+                        bar_width = total_width / (len(bandas)+2)  # Ancho de cada barra
                         
                         for i, (x, height, nivel) in enumerate(zip(x_positions, bar_heights, niveles)):
                             if height > 0:  # Solo crear barras con altura positiva
@@ -1395,7 +1425,7 @@ class vista(QMainWindow):
                                 
                                 # Usar el color de la configuración
                                 bar_color = self.get_color_str(color)
-                                print(f"Usando color: {bar_color}")
+                                #print(f"Usando color: {bar_color}")
                                 
                                 # Crear la barra como un PlotDataItem
                                 bar_item = pg.PlotDataItem(
@@ -1406,49 +1436,53 @@ class vista(QMainWindow):
                                     fillBrush=pg.mkBrush(bar_color)
                                 )
                                 self.waveform1.addItem(bar_item)
-                                print(f"Barra {i}: x={x:.1f}, ancho={bar_width:.2f}, altura={height:.1f}, nivel={nivel:.1f} dB")
+                                #print(f"Barra {i}: x={x:.1f}, ancho={bar_width:.2f}, altura={height:.1f}, nivel={nivel:.1f} dB")
                         
-                        print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
+                        #print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
                         
-                        for i, h in enumerate(niveles):
-                            # Position the text slightly above the bar
-                            text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                            text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                            text_item.setAngle(45)
-                            self.waveform1.addItem(text_item)
+                        self.ejexcreado = True
+                        
+                        if self.var_valoresOctavas:
+                            for i, h in enumerate(niveles):
+                                # Position the text slightly above the bar
+                                text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
+                                text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
+                                text_item.setAngle(45)
+                                self.waveform1.addItem(text_item)
                             
                         # Configurar rangos de ejes - ajustar para barras sin espacios
-                        self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
+                        #self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
                         
                         # Configurar rango Y usando la función auxiliar
                         y_min, y_max = self.configure_bar_chart_y_range(niveles)
                         self.waveform1.setYRange(y_min, y_max)
                         
                         # Debug: mostrar información del rango Y
-                        print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
-                        print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
-                        print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
-                        print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
-                        print(f"Posiciones X: {x_positions[:5]}...")
-                        print(f"Ancho de barras: {bar_width}")
-                        print(f"Piso de ruido: {piso_ruido}")
+                        # print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
+                        # print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
+                        # print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
+                        # print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
+                        # print(f"Posiciones X: {x_positions[:5]}...")
+                        # print(f"Ancho de barras: {bar_width}")
+                        # print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
-                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        #self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
+                        #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
-                        self.waveform1.setLogMode(x=False, y=False)
+                        #self.waveform1.setLogMode(x=False, y=False)
                         
                         # Limpiar línea de tiempo si existe
-                        if hasattr(self, 'plot_line'):
-                            self.plot_line.setData([], [])
+                        # if hasattr(self, 'plot_line'):
+                        #     self.plot_line.setData([], [])
                         
                         # Guardar referencia al item de barras para poder limpiarlo después
-                        self.current_bar_item = bar_item
+                        #self.current_bar_item = bar_item
                         
-                        print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
+                        #print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
+                        #print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
+                        
                 else:
                     # Por defecto, línea
                     if device_num == 1 and len(fft_freqs) > 0:
@@ -1478,9 +1512,9 @@ class vista(QMainWindow):
                             self.waveform1.setXRange(np.log10(20), np.log10(20000))
                             
                             # Actualizar etiquetas de los ejes
-                            self.waveform1.setLabel('left', 'Nivel (dB)')
-                            self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                            self.waveform1.setTitle('Espectro de Frecuencia (dB)')
+                            #self.waveform1.setLabel('left', 'Nivel (dB)')
+                            #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                            #self.waveform1.setTitle('Espectro de Frecuencia (dB)')
                             
                             # Configurar ticks del eje X para mostrar valores de frecuencia legibles
                             ticks = [
@@ -1500,8 +1534,8 @@ class vista(QMainWindow):
                                 if np.max(amp_plot) > self.fft_ymax:
                                     self.fft_ymax = np.max(amp_plot)
                             self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                        self.waveform1.setLabel('left', 'Nivel (dB)')
-                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        #self.waveform1.setLabel('left', 'Nivel (dB)')
+                        #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         self.waveform1.setLogMode(x=False, y=False)
                         if hasattr(self, 'plot_line'):
                             self.plot_line.setData([], [])
@@ -1512,17 +1546,28 @@ class vista(QMainWindow):
             elif self.btnNivel.isChecked(): 
                 import numpy as np
                 # --- Gráfico de Nivel ---
-                print("DEBUG: Actualizando gráfico de nivel")
+                #print("DEBUG: Actualizando gráfico de nivel")
                 
                 # Limpiar el gráfico completamente en cada actualización
                 self.waveform1.clear()
-                
+                try:
+                    self.level_last_labels.clear()
+                except Exception:
+                    self.level_last_labels = {}
+
                 # Configuración del gráfico de nivel
                 self.waveform1.setLogMode(x=False, y=False)
                 self.waveform1.setYRange(-150, 0, padding=0)  # Rango típico para dB
                 
                 # Obtener datos de nivel del controlador
                 tiempos, niveles_Z, niveles_C, niveles_A = self.vController.get_nivel_data()
+                
+                if self.var_tipoLineaNivel == "Sólida":
+                    style_map = QtCore.Qt.SolidLine  # Dashed para todos los estadísticos
+                elif self.var_tipoLineaNivel == "Punteada":
+                    style_map = QtCore.Qt.DotLine  # Punteada
+                elif self.var_tipoLineaNivel == "Rayada":
+                    style_map = QtCore.Qt.DashLine  # Rayada
                 
                 if len(tiempos) > 0:
                     xdata = np.array(tiempos)
@@ -1532,155 +1577,134 @@ class vista(QMainWindow):
                     
                     # --- Ploteo de niveles temporales (fluctuantes) ---
                     # Z Weighting (rojo, como en tu código original)
-                    print(f"DEBUG: Checkboxes Z - Pico: {self.cbNivPicoZ.isChecked()}, Inst: {self.cbNivInstZ.isChecked()}, Fast: {self.cbNivFastZ.isChecked()}, Slow: {self.cbNivSlowZ.isChecked()}")
-                    print(f"DEBUG: Datos Z lengths - Pico: {len(niveles_Z.get('pico', []))}, Inst: {len(niveles_Z.get('inst', []))}, Fast: {len(niveles_Z.get('fast', []))}, Slow: {len(niveles_Z.get('slow', []))}")
+                    #print(f"DEBUG: Checkboxes Z - Pico: {self.cbNivPicoZ.isChecked()}, Inst: {self.cbNivInstZ.isChecked()}, Fast: {self.cbNivFastZ.isChecked()}, Slow: {self.cbNivSlowZ.isChecked()}")
+                    #print(f"DEBUG: Datos Z lengths - Pico: {len(niveles_Z.get('pico', []))}, Inst: {len(niveles_Z.get('inst', []))}, Fast: {len(niveles_Z.get('fast', []))}, Slow: {len(niveles_Z.get('slow', []))}")
                     
                     if self.cbNivPicoZ.isChecked() and len(niveles_Z.get('pico', [])) > 0:
                         ydata = np.array(niveles_Z['pico'])
-                        print(f"DEBUG PICO Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.SolidLine), name='Z Pico')
-                        print(f"DEBUG PICO Z: Plot creado")
+                        #print(f"DEBUG PICO Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[0], width=self.var_anchoLineaNivel, style=style_map), name='Z Pico')
+                        # Etiqueta último valor encima de la línea, mismo color
+                        try:
+                            self._set_level_label('Z Pico', xdata[-1], ydata[-1], 'red')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG PICO Z: Plot creado")
 
                     if self.cbNivInstZ.isChecked() and len(niveles_Z.get('inst', [])) > 0:
                         ydata = np.array(niveles_Z['inst'])
-                        print(f"DEBUG INST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DashLine), name='Z Inst')
-                        print(f"DEBUG INST Z: Plot creado")
-                    if self.cbNivInstMinZ.isChecked() and len(niveles_Z.get('inst_min', [])) > 0:
-                        ydata = np.array(niveles_Z['inst_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Inst Min')
-                    if self.cbNivInstMaxZ.isChecked() and len(niveles_Z.get('inst_max', [])) > 0:
-                        ydata = np.array(niveles_Z['inst_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Inst Max')
+                        #print(f"DEBUG INST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[3], width=self.var_anchoLineaNivel, style=style_map), name='Z Inst')
+                        try:
+                            self._set_level_label('Z Inst', xdata[-1], ydata[-1], 'red')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG INST Z: Plot creado")
 
                     if self.cbNivFastZ.isChecked() and len(niveles_Z.get('fast', [])) > 0:
                         ydata = np.array(niveles_Z['fast'])
-                        print(f"DEBUG FAST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=2, style=QtCore.Qt.DotLine), name='Z Fast')
-                        print(f"DEBUG FAST Z: Plot creado")
-                    if self.cbNivFastMinZ.isChecked() and len(niveles_Z.get('fast_min', [])) > 0:
-                        ydata = np.array(niveles_Z['fast_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Fast Min')
-                    if self.cbNivFastMaxZ.isChecked() and len(niveles_Z.get('fast_max', [])) > 0:
-                        ydata = np.array(niveles_Z['fast_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Fast Max')
+                        #print(f"DEBUG FAST Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[6], width=self.var_anchoLineaNivel, style=style_map), name='Z Fast')
+                        try:
+                            self._set_level_label('Z Fast', xdata[-1], ydata[-1], 'red')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG FAST Z: Plot creado")
 
                     if self.cbNivSlowZ.isChecked() and len(niveles_Z.get('slow', [])) > 0:
                         ydata = np.array(niveles_Z['slow'])
-                        print(f"DEBUG SLOW Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='red', width=3, style=QtCore.Qt.SolidLine), name='Z Slow')
-                        print(f"DEBUG SLOW Z: Plot creado")
-                    if self.cbNivSlowMinZ.isChecked() and len(niveles_Z.get('slow_min', [])) > 0:
-                        ydata = np.array(niveles_Z['slow_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkMagenta', width=2, style=QtCore.Qt.DashDotLine), name='Z Slow Min')
-                    if self.cbNivSlowMaxZ.isChecked() and len(niveles_Z.get('slow_max', [])) > 0:
-                        ydata = np.array(niveles_Z['slow_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkCyan', width=2, style=QtCore.Qt.DashDotLine), name='Z Slow Max')
+                        #print(f"DEBUG SLOW Z: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[9], width=self.var_anchoLineaNivel, style=style_map), name='Z Slow')
+                        try:
+                            self._set_level_label('Z Slow', xdata[-1], ydata[-1], 'red', y_offset=2.0)
+                        except Exception:
+                            pass
+                        #print(f"DEBUG SLOW Z: Plot creado")
 
-                    # C Weighting (verde)
-                    print(f"DEBUG: Checkboxes C - Pico: {self.cbNivPicoC.isChecked()}, Inst: {self.cbNivInstC.isChecked()}, Fast: {self.cbNivFastC.isChecked()}, Slow: {self.cbNivSlowC.isChecked()}")
-                    print(f"DEBUG: Datos C lengths - Pico: {len(niveles_C.get('pico', []))}, Inst: {len(niveles_C.get('inst', []))}, Fast: {len(niveles_C.get('fast', []))}, Slow: {len(niveles_C.get('slow', []))}")
-                    
                     if self.cbNivPicoC.isChecked() and len(niveles_C.get('pico', [])) > 0:
                         ydata = np.array(niveles_C['pico'])
-                        print(f"DEBUG PICO C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=2, style=QtCore.Qt.SolidLine), name='C Pico')
-                        print(f"DEBUG PICO C: Plot creado")
-                    
+                        #print(f"DEBUG PICO C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[1], width=self.var_anchoLineaNivel, style=style_map), name='C Pico')
+                        try:
+                            self._set_level_label('C Pico', xdata[-1], ydata[-1], 'green')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG PICO C: Plot creado")
+
                     if self.cbNivInstC.isChecked() and len(niveles_C.get('inst', [])) > 0:
                         ydata = np.array(niveles_C['inst'])
-                        print(f"DEBUG INST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=2, style=QtCore.Qt.DashLine), name='C Inst')
-                        print(f"DEBUG INST C: Plot creado")
-                    if self.cbNivInstMinC.isChecked() and len(niveles_C.get('inst_min', [])) > 0:
-                        ydata = np.array(niveles_C['inst_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Inst Min')
-                    if self.cbNivInstMaxC.isChecked() and len(niveles_C.get('inst_max', [])) > 0:
-                        ydata = np.array(niveles_C['inst_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Inst Max')
-                    
+                        #print(f"DEBUG INST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[4],width=self.var_anchoLineaNivel, style=style_map), name='C Inst')
+                        try:
+                            self._set_level_label('C Inst', xdata[-1], ydata[-1], 'green')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG INST C: Plot creado")
+
                     if self.cbNivFastC.isChecked() and len(niveles_C.get('fast', [])) > 0:
                         ydata = np.array(niveles_C['fast'])
-                        print(f"DEBUG FAST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=2, style=QtCore.Qt.DotLine), name='C Fast')
-                        print(f"DEBUG FAST C: Plot creado")
-                    if self.cbNivFastMinC.isChecked() and len(niveles_C.get('fast_min', [])) > 0:
-                        ydata = np.array(niveles_C['fast_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Fast Min')
-                    if self.cbNivFastMaxC.isChecked() and len(niveles_C.get('fast_max', [])) > 0:
-                        ydata = np.array(niveles_C['fast_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Fast Max')
-                    
+                        #print(f"DEBUG FAST C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[7], width=self.var_anchoLineaNivel, style=style_map), name='C Fast')
+                        try:
+                            self._set_level_label('C Fast', xdata[-1], ydata[-1], 'green')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG FAST C: Plot creado")
+
                     if self.cbNivSlowC.isChecked() and len(niveles_C.get('slow', [])) > 0:
                         ydata = np.array(niveles_C['slow'])
-                        print(f"DEBUG SLOW C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='green', width=3, style=QtCore.Qt.SolidLine), name='C Slow')
-                        print(f"DEBUG SLOW C: Plot creado")
-                    if self.cbNivSlowMinC.isChecked() and len(niveles_C.get('slow_min', [])) > 0:
-                        ydata = np.array(niveles_C['slow_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkRed', width=2, style=QtCore.Qt.DashDotLine), name='C Slow Min')
-                    if self.cbNivSlowMaxC.isChecked() and len(niveles_C.get('slow_max', [])) > 0:
-                        ydata = np.array(niveles_C['slow_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkBlue', width=2, style=QtCore.Qt.DashDotLine), name='C Slow Max')
-                    
-                    # A Weighting (azul)
-                    print(f"DEBUG: Checkboxes A - Pico: {self.cbNivPicoA.isChecked()}, Inst: {self.cbNivInstA.isChecked()}, Fast: {self.cbNivFastA.isChecked()}, Slow: {self.cbNivSlowA.isChecked()}")
-                    print(f"DEBUG: Datos A lengths - Pico: {len(niveles_A.get('pico', []))}, Inst: {len(niveles_A.get('inst', []))}, Fast: {len(niveles_A.get('fast', []))}, Slow: {len(niveles_A.get('slow', []))}")
-                    
+                        #print(f"DEBUG SLOW C: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[10], width=self.var_anchoLineaNivel, style=style_map), name='C Slow')
+                        try:
+                            self._set_level_label('C Slow', xdata[-1], ydata[-1], 'green', y_offset=2.0)
+                        except Exception:
+                            pass
+                        #print(f"DEBUG SLOW C: Plot creado")
+
                     if self.cbNivPicoA.isChecked() and len(niveles_A.get('pico', [])) > 0:
                         ydata = np.array(niveles_A['pico'])
-                        print(f"DEBUG PICO A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=2, style=QtCore.Qt.SolidLine), name='A Pico')
-                        print(f"DEBUG PICO A: Plot creado")
-                    
+                        #print(f"DEBUG PICO A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[2], width=self.var_anchoLineaNivel, style=style_map), name='A Pico')
+                        try:
+                            self._set_level_label('A Pico', xdata[-1], ydata[-1], 'blue')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG PICO A: Plot creado")
+
                     if self.cbNivInstA.isChecked() and len(niveles_A.get('inst', [])) > 0:
                         ydata = np.array(niveles_A['inst'])
-                        print(f"DEBUG INST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=2, style=QtCore.Qt.DashLine), name='A Inst')
-                        print(f"DEBUG INST A: Plot creado")
-                    if self.cbNivInstMinA.isChecked() and len(niveles_A.get('inst_min', [])) > 0:
-                        ydata = np.array(niveles_A['inst_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Min')
-                    if self.cbNivInstMaxA.isChecked() and len(niveles_A.get('inst_max', [])) > 0:
-                        ydata = np.array(niveles_A['inst_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Inst Max')
-                    
+                        #print(f"DEBUG INST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[5], width=self.var_anchoLineaNivel, style=style_map), name='A Inst')
+                        try:
+                            self._set_level_label('A Inst', xdata[-1], ydata[-1], 'blue')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG INST A: Plot creado")
+
                     if self.cbNivFastA.isChecked() and len(niveles_A.get('fast', [])) > 0:
                         ydata = np.array(niveles_A['fast'])
-                        print(f"DEBUG FAST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=2, style=QtCore.Qt.DotLine), name='A Fast')
-                        print(f"DEBUG FAST A: Plot creado")
-                    if self.cbNivFastMinA.isChecked() and len(niveles_A.get('fast_min', [])) > 0:
-                        ydata = np.array(niveles_A['fast_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Min')
-                    if self.cbNivFastMaxA.isChecked() and len(niveles_A.get('fast_max', [])) > 0:
-                        ydata = np.array(niveles_A['fast_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Fast Max')
-                    
+                        #print(f"DEBUG FAST A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[8], width=self.var_anchoLineaNivel, style=style_map), name='A Fast')
+                        try:
+                            self._set_level_label('A Fast', xdata[-1], ydata[-1], 'blue')
+                        except Exception:
+                            pass
+                        #print(f"DEBUG FAST A: Plot creado")
                     if self.cbNivSlowA.isChecked() and len(niveles_A.get('slow', [])) > 0:
                         ydata = np.array(niveles_A['slow'])
-                        print(f"DEBUG SLOW A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
-                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='blue', width=3, style=QtCore.Qt.SolidLine), name='A Slow')
-                        print(f"DEBUG SLOW A: Plot creado")
-                    if self.cbNivSlowMinA.isChecked() and len(niveles_A.get('slow_min', [])) > 0:
-                        ydata = np.array(niveles_A['slow_min'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='darkGreen', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Min')
-                    if self.cbNivSlowMaxA.isChecked() and len(niveles_A.get('slow_max', [])) > 0:
-                        ydata = np.array(niveles_A['slow_max'])
-                        self.waveform1.plot(xdata, ydata, pen=pg.mkPen(color='orange', width=2, style=QtCore.Qt.DashDotLine), name='A Slow Max')
+                        #print(f"DEBUG SLOW A: Graficando {len(ydata)} puntos, último: {ydata[-1] if len(ydata)>0 else 'N/A'}")
+                        plot = self.waveform1.plot(xdata, ydata, pen=pg.mkPen(self.coloresNiveles[11], width=self.var_anchoLineaNivel, style=style_map), name='A Slow')
+                        try:
+                            self._set_level_label('A Slow', xdata[-1], ydata[-1], 'blue', y_offset=2.0)
+                        except Exception:
+                            pass
+                        #print(f"DEBUG SLOW A: Plot creado")
 
                     # --- Ploteo de niveles estadísticos (horizontales constantes) ---
                     # Colores fijos por tipo de Ln (para parecerse al ejemplo: L10 rojo, L50 verde, L90 naranja)
                     # Usamos InfiniteLine en el último valor (asumiendo que es el percentile cumulativo actual)
-                    color_map = {
-                        'leq': 'purple',   # Leq: morado
-                        'l01': 'yellow',   # L01: amarillo
-                        'l10': 'red',      # L10: rojo
-                        'l50': 'green',    # L50: verde
-                        'l90': 'orange',   # L90: naranja
-                        'l99': 'gray'      # L99: gris
-                    }
-                    style_map = QtCore.Qt.DashLine  # Dashed para todos los estadísticos
+
+                    
                     
                     # Función auxiliar para crear gráfico temporal de nivel estadístico
                     def plot_statistical_level(niveles_data, tiempos_data, color, label, checkbox_checked):
@@ -1714,9 +1738,13 @@ class vista(QMainWindow):
                             niveles_data = niveles_data[:min_len]
                             
                             # Crear el gráfico temporal
-                            pen = pg.mkPen(color=color, width=2, style=style_map)
+                            pen = pg.mkPen(color=color, width=self.var_anchoLineaNivel, style=style_map)
                             plot = self.waveform1.plot(tiempos_hist, niveles_data, pen=pen, name=label)
-                            print(f"DEBUG Stats: Gráfico temporal creado para {label} con {len(niveles_data)} puntos")
+                            #print(f"DEBUG Stats: Gráfico temporal creado para {label} con {len(niveles_data)} puntos")
+                            try:
+                                self._set_level_label(label, tiempos_hist[-1], niveles_data[-1], color , y_offset=2.0)
+                            except Exception:
+                                pass
                             return plot
                         return None
                     
@@ -1730,44 +1758,45 @@ class vista(QMainWindow):
                         return np.linspace(0, base_times[-1] if len(base_times) > 0 else len(data), len(data))
                     
                     # Z Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_Z.get('leq', {}), xdata, color_map['leq'], 'Z Leq', self.cbEqZ.isChecked())
+                    plot_statistical_level(niveles_Z.get('leq', {}), xdata, self.coloresNiveles[12], 'Z Leq', self.cbEqZ.isChecked())
                     
                     # Z Statistical - Todos los niveles
-                    plot_statistical_level(niveles_Z.get('l01', {}), xdata, color_map['l01'], 'Z L01', self.cb01Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l10', {}), xdata, color_map['l10'], 'Z L10', self.cb10Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l50', {}), xdata, color_map['l50'], 'Z L50', self.cb50Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l90', {}), xdata, color_map['l90'], 'Z L90', self.cb90Z.isChecked())
-                    plot_statistical_level(niveles_Z.get('l99', {}), xdata, color_map['l99'], 'Z L99', self.cb99Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l01', {}), xdata, self.coloresNiveles[15], 'Z L01', self.cb01Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l10', {}), xdata, self.coloresNiveles[18], 'Z L10', self.cb10Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l50', {}), xdata, self.coloresNiveles[21], 'Z L50', self.cb50Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l90', {}), xdata, self.coloresNiveles[24], 'Z L90', self.cb90Z.isChecked())
+                    plot_statistical_level(niveles_Z.get('l99', {}), xdata, self.coloresNiveles[27], 'Z L99', self.cb99Z.isChecked())
                     
                     # C Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_C.get('leq', {}), xdata, color_map['leq'], 'C Leq', self.cbEqC.isChecked())
-                    plot_statistical_level(niveles_C.get('l01', {}), xdata, color_map['l01'], 'C L01', self.cb01C.isChecked())
-                    plot_statistical_level(niveles_C.get('l10', {}), xdata, color_map['l10'], 'C L10', self.cb10C.isChecked())
-                    plot_statistical_level(niveles_C.get('l50', {}), xdata, color_map['l50'], 'C L50', self.cb50C.isChecked())
-                    plot_statistical_level(niveles_C.get('l90', {}), xdata, color_map['l90'], 'C L90', self.cb90C.isChecked())
-                    plot_statistical_level(niveles_C.get('l99', {}), xdata, color_map['l99'], 'C L99', self.cb99C.isChecked())
+                    plot_statistical_level(niveles_C.get('leq', {}), xdata, self.coloresNiveles[13], 'C Leq', self.cbEqC.isChecked())
+                    plot_statistical_level(niveles_C.get('l01', {}), xdata, self.coloresNiveles[16], 'C L01', self.cb01C.isChecked())
+                    plot_statistical_level(niveles_C.get('l10', {}), xdata, self.coloresNiveles[19], 'C L10', self.cb10C.isChecked())
+                    plot_statistical_level(niveles_C.get('l50', {}), xdata, self.coloresNiveles[22], 'C L50', self.cb50C.isChecked())
+                    plot_statistical_level(niveles_C.get('l90', {}), xdata, self.coloresNiveles[25], 'C L90', self.cb90C.isChecked())
+                    plot_statistical_level(niveles_C.get('l99', {}), xdata, self.coloresNiveles[28], 'C L99', self.cb99C.isChecked())
                     
                     # A Statistical - Gráficos temporales
-                    plot_statistical_level(niveles_A.get('leq', {}), xdata, color_map['leq'], 'A Leq', self.cbEqA.isChecked())
-                    plot_statistical_level(niveles_A.get('l01', {}), xdata, color_map['l01'], 'A L01', self.cb01A.isChecked())
-                    plot_statistical_level(niveles_A.get('l10', {}), xdata, color_map['l10'], 'A L10', self.cb10A.isChecked())
-                    plot_statistical_level(niveles_A.get('l50', {}), xdata, color_map['l50'], 'A L50', self.cb50A.isChecked())
-                    plot_statistical_level(niveles_A.get('l90', {}), xdata, color_map['l90'], 'A L90', self.cb90A.isChecked())
-                    plot_statistical_level(niveles_A.get('l99', {}), xdata, color_map['l99'], 'A L99', self.cb99A.isChecked())
+                    plot_statistical_level(niveles_A.get('leq', {}), xdata, self.coloresNiveles[14], 'A Leq', self.cbEqA.isChecked())
+                    plot_statistical_level(niveles_A.get('l01', {}), xdata, self.coloresNiveles[17], 'A L01', self.cb01A.isChecked())
+                    plot_statistical_level(niveles_A.get('l10', {}), xdata, self.coloresNiveles[20], 'A L10', self.cb10A.isChecked())
+                    plot_statistical_level(niveles_A.get('l50', {}), xdata, self.coloresNiveles[23], 'A L50', self.cb50A.isChecked())
+                    plot_statistical_level(niveles_A.get('l90', {}), xdata, self.coloresNiveles[26], 'A L90', self.cb90A.isChecked())
+                    plot_statistical_level(niveles_A.get('l99', {}), xdata, self.coloresNiveles[29], 'A L99', self.cb99A.isChecked())
                     
                     # Ajustar rango X para mostrar los últimos 10 segundos
                     if len(xdata) > 0:
                         self.waveform1.setXRange(max(0, xdata[-1]-10), xdata[-1])
                     
-                    print(f"DEBUG: Niveles actualizados - Ejemplo Z Slow último: {niveles_Z.get('slow', [0])[-1] if len(niveles_Z.get('slow', [])) > 0 else 'No data'} dB")
-                    print(f"DEBUG: Estadísticos Z Leq último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'No data'} dB")
+                    #print(f"DEBUG: Niveles actualizados - Ejemplo Z Slow último: {niveles_Z.get('slow', [0])[-1] if len(niveles_Z.get('slow', [])) > 0 else 'No data'} dB")
+                    #print(f"DEBUG: Estadísticos Z Leq último: {niveles_Z.get('leq', [0])[-1] if len(niveles_Z.get('leq', [])) > 0 else 'No data'} dB")
                     
                     # Forzar replot después de añadir todo
                     self.waveform1.replot()
-                    print("DEBUG: replot forzado en nivel")
+                    #print("DEBUG: replot forzado en nivel")
                     
                 else:
-                    print("DEBUG: No hay datos de nivel para graficar")
+                    #print("DEBUG: No hay datos de nivel para graficar")
+                    pass
                     
         except Exception as e:
             print(f"Error en update_plot: {e}")
@@ -1808,6 +1837,7 @@ class vista(QMainWindow):
             self.var_etiquetaXTiempo = config['tiempo']['etiquetaX']
             self.var_etiquetaYTiempo = config['tiempo']['etiquetaY']
             self.var_tipoLineaTiempo = config['tiempo']['tipoLinea']
+            self.var_anchoLineaTiempo = config['tiempo']['anchoLinea']
             
             # Configuración de espectro
             self.var_logModeXEspectro = config['espectro']['logModeX']
@@ -1821,6 +1851,7 @@ class vista(QMainWindow):
             self.var_etiquetaYEspectro = config['espectro']['etiquetaY']
             self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
             self.var_valoresOctavas = config['espectro']['valoresOcta']
+            self.var_anchoLineaEspectro = config['espectro']['anchoLinea']
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']
@@ -1831,6 +1862,7 @@ class vista(QMainWindow):
             self.var_etiquetaXNivel = config['nivel']['etiquetaX']
             self.var_etiquetaYNivel = config['nivel']['etiquetaY']
             self.var_tipoLineaNivel = config['nivel']['tipoLinea']
+            self.var_anchoLineaNivel = config['nivel']['anchoLinea']
             
             # Aplicar configuración según el gráfico activo
             if self.btnTiempo.isChecked():
@@ -1843,7 +1875,7 @@ class vista(QMainWindow):
             # Actualizar el gráfico
             self.waveform1.replot()
             
-            print("Configuración aplicada exitosamente")
+            #print("Configuración aplicada exitosamente")
             
         except Exception as e:
             print(f"Error al aplicar configuración externa: {e}")
