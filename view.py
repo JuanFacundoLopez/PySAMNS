@@ -1467,11 +1467,11 @@ class vista(QMainWindow):
                         # print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
-                        #self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
-                        #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
+                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes
-                        #self.waveform1.setLogMode(x=False, y=False)
+                        self.waveform1.setLogMode(x=False, y=False)
                         
                         # Limpiar línea de tiempo si existe
                         # if hasattr(self, 'plot_line'):
@@ -1512,9 +1512,9 @@ class vista(QMainWindow):
                             self.waveform1.setXRange(np.log10(20), np.log10(20000))
                             
                             # Actualizar etiquetas de los ejes
-                            #self.waveform1.setLabel('left', 'Nivel (dB)')
-                            #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
-                            #self.waveform1.setTitle('Espectro de Frecuencia (dB)')
+                            self.waveform1.setLabel('left', 'Nivel (dB)')
+                            self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                            self.waveform1.setTitle('Espectro de Frecuencia (dB)')
                             
                             # Configurar ticks del eje X para mostrar valores de frecuencia legibles
                             ticks = [
@@ -1534,8 +1534,8 @@ class vista(QMainWindow):
                                 if np.max(amp_plot) > self.fft_ymax:
                                     self.fft_ymax = np.max(amp_plot)
                             self.waveform1.setYRange(self.fft_ymin, self.fft_ymax)
-                        #self.waveform1.setLabel('left', 'Nivel (dB)')
-                        #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        self.waveform1.setLabel('left', 'Nivel (dB)')
+                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         self.waveform1.setLogMode(x=False, y=False)
                         if hasattr(self, 'plot_line'):
                             self.plot_line.setData([], [])
