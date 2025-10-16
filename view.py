@@ -1,5 +1,6 @@
 # Importo librerias
-
+import os
+import sys
 import pyqtgraph as pg
 from ventanas.programarWin import ProgramarWin
 from ventanas.calibracionWin import CalibracionWin
@@ -766,10 +767,24 @@ class vista(QMainWindow):
         # Actualizar el gráfico
         self.waveform1.replot()
 
-        with open("estilos.qss", "r", encoding='utf-8') as f:
-            self.app.setStyleSheet(f.read())
+        # Obtener la ruta base del ejecutable o del script
+        if getattr(sys, 'frozen', False):
+            # Si estamos en un ejecutable
+            base_path = sys._MEIPASS
+        else:
+            # Si estamos en desarrollo
+            base_path = os.path.dirname(os.path.abspath(__file__))
             
-        self.show()        
+        # Ruta al archivo de estilos
+        estilos_path = os.path.join(base_path, 'estilos.qss')
+        
+        try:
+            with open(estilos_path, "r", encoding='utf-8') as f:
+                self.app.setStyleSheet(f.read())
+        except FileNotFoundError:
+            print(f"Advertencia: No se pudo cargar el archivo de estilos en {estilos_path}")
+            
+        self.show()
         
     def limpiarNiveles(self):
         """Desmarca todos los checkboxes de niveles"""

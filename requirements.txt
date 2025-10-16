@@ -1,5 +1,5 @@
 cffi==1.17.1
-numpy==2.3.2
+numpy==1.26.4
 PyAudio==0.2.14
 pycparser==2.22
 PyQt5==5.15.11
@@ -8,6 +8,8 @@ PyQt5_sip==12.17.0
 PyQtChart==5.15.7
 PyQtChart-Qt5==5.15.2
 pyqtgraph==0.13.7
-scipy==1.16.1
+scipy==1.13.1
 sounddevice==0.5.2
 soundfile==0.12.1
+matplotlib==3.8.0
+pillow==10.4.0
