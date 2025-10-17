@@ -115,20 +115,44 @@ class modelo:
         self.max_int16 = 32767/2
         self.reference = 1.0  # Referencia para dB (1.0 = 0dB)
 
-        try:
-            self.pyaudio_instance = pyaudio.PyAudio()
-            
-            # Verificar si el dispositivo existe y está disponible
-            device_info = None
-            if self.device_index is not None:
-                try:
-                    device_info = self.pyaudio_instance.get_device_info_by_index(self.device_index)
-                except Exception:
-                    raise ValueError(f"Dispositivo con índice {self.device_index} no encontrado")
-                
-                if device_info['maxInputChannels'] <= 0:
-                    raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
+        # --- al final de tu __init__, donde creás PyAudio ---
+        self.pyaudio_instance = pyaudio.PyAudio()
 
+        # Lazy start: no seleccionar dispositivo ni abrir stream todavía
+        self.device_index = None     # <--- importante
+        self.stream = None           # <--- importante
+    
+    def initialize_audio_stream(self, device_index=None, rate=None, chunk=None):
+        """Inicializa o reinicializa el stream de audio con los parámetros especificados (cuando el usuario elige un dispositivo)."""
+        try:
+            # Cerrar stream existente si hay uno
+            if hasattr(self, 'stream') and self.stream is not None:
+                if self.stream.is_active():
+                    self.stream.stop_stream()
+                self.stream.close()
+                self.stream = None
+
+            # Actualizar parámetros si se proporcionan
+            if rate is not None:
+                self.rate = rate
+                self.Fs = rate  # mantener filtros en sync
+            if chunk is not None:
+                self.chunk = chunk
+
+            # Para lazy start: ahora SÍ es obligatorio tener device_index
+            if device_index is None:
+                raise ValueError("Debes especificar un índice de dispositivo de entrada para iniciar el stream.")
+            self.device_index = device_index
+
+            # Verificar si el dispositivo existe y está disponible
+            try:
+                device_info = self.pyaudio_instance.get_device_info_by_index(device_index)
+            except Exception:
+                raise ValueError(f"Dispositivo con índice {device_index} no encontrado")
+            if device_info.get('maxInputChannels', 0) <= 0:
+                raise ValueError(f"El dispositivo {device_info.get('name', '?')} no soporta entrada de audio")
+
+            # Abrir stream recién ahora
             self.stream = self.pyaudio_instance.open(
                 format=self.format,
                 channels=self.channels,
@@ -143,60 +167,15 @@ class modelo:
             if not self.stream.is_active():
                 raise ValueError("No se pudo activar el stream de audio")
 
-        except Exception as e:
-            if hasattr(self, 'pyaudio_instance'):
-                self.pyaudio_instance.terminate()
-            raise Exception(f"Error al inicializar el dispositivo de audio: {str(e)}")
-        # ------------------Codigo Yamili-------------------
-    
-    def initialize_audio_stream(self, device_index=None, rate=None, chunk=None):
-        """Inicializa o reinicializa el stream de audio con los parámetros especificados"""
-        try:
-            # Cerrar stream existente si hay uno
-            if hasattr(self, 'stream') and self.stream is not None:
-                self.stream.close()
-            
-            # Actualizar parámetros si se proporcionan
-            if rate is not None:
-                self.rate = rate
-            if chunk is not None:
-                self.chunk = chunk
-            if device_index is not None:
-                self.device_index = device_index  # Actualizar el device_index del modelo
-            
-            # Verificar si el dispositivo existe y está disponible
-            device_info = None
-            if device_index is not None:
-                try:
-                    device_info = self.pyaudio_instance.get_device_info_by_index(device_index)
-                except Exception:
-                    raise ValueError(f"Dispositivo con índice {device_index} no encontrado")
-                
-                if device_info['maxInputChannels'] <= 0:
-                    raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
-
-            self.stream = self.pyaudio_instance.open(
-                format=self.format,
-                channels=self.channels,
-                rate=self.rate,
-                input=True,
-                input_device_index=device_index,
-                frames_per_buffer=self.chunk,
-                stream_callback=None
-            )
-
-            # Verificar si el stream está activo
-            if not self.stream.is_active():
-                raise ValueError("No se pudo activar el stream de audio")
-            
             # Reinicializar buffers y datos cuando se cambia el dispositivo
             self.buffer = []
             self.normalized_all = []
             self.times = []
             self.start_time = None
-                
+
         except Exception as e:
             raise Exception(f"Error al inicializar el stream de audio: {str(e)}")
+
     
 # Setters
     def setChunk(self, chunk):
@@ -802,6 +781,14 @@ class modelo:
 
     def get_audio_data(self):
         try:
+            if self.stream is None or not self.stream.is_active():
+                # devolvé algo seguro (mantené tu firma de retorno)
+                empty_current = np.zeros(self.chunk, dtype=np.int16)
+                empty_all = np.zeros(self.chunk, dtype=np.int16)
+                empty_norm = np.zeros(self.chunk, dtype=float)
+                empty_norm_all = np.zeros(self.chunk, dtype=float)
+                return empty_current, empty_all, empty_norm, empty_norm_all, [], np.array([]), np.array([])
+
             # Verificar si el stream está activo
             if not self.stream.is_active():
                 raise Exception("Stream de audio no activo")
@@ -873,10 +860,13 @@ class modelo:
             return current_data, all_data, normalized_current, normalized_all_array, self.times, fft_freqs, fft_db
 
         except Exception as e:
-            #print(f"Error en get_audio_data: {e}")
-            empty_current = np.zeros(self.chunk)
-            empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
-            return empty_current, empty_all, empty_current, empty_all, -100.0, [], [], []
+            empty_current = np.zeros(self.chunk, dtype=np.int16)
+            empty_all = np.zeros(self.chunk, dtype=np.int16)
+            empty_norm = np.zeros(self.chunk, dtype=float)
+            empty_norm_all = np.zeros(self.chunk, dtype=float)
+            # Debe devolver 7 elementos: current, all, norm_current, norm_all, times, fft_freqs, fft_db
+            return empty_current, empty_all, empty_norm, empty_norm_all, [], np.array([]), np.array([])
+
         
     def close(self):
         try:
