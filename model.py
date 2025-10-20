@@ -8,7 +8,7 @@ from scipy.fftpack import fft
 
 
 class modelo:
-    def __init__(self, Controller, rate=44100, chunk=1024, device_index=1):          # Constructor del modelo
+    def __init__(self, Controller, rate=44100, chunk=1024, device_index=None):          # Constructor del modelo
         self.mController = Controller
         dispEn, dispEnIndice, dispSal, dispSalIndice, dispEnRate = consDisp.consDisp()
         self.dispEn = dispEn
