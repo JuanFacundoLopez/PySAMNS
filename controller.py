@@ -269,7 +269,15 @@ class controlador():
                 
                 # Ajustar el rango del eje X automáticamente
                 max_time = timeNivelData[-1] if len(timeNivelData) > 0 else 10
-                self.cVista.waveform1.setXRange(0, max_time + 1, padding=0)
+                
+                # Aplicar ventana deslizante: usar el max_x configurado por el usuario o un valor por defecto (10s)
+                window_size = getattr(self.cVista, 'var_xMaxNivel', 10.0) # Obtener la ventana configurada (en segundos)
+                # Se verifica si el valor es razonable, sino se usa el valor de 10.0 segundos
+                if window_size <= 0 or window_size > 900:
+                    window_size = 10.0
+                min_time = max(0.0, max_time - window_size)
+                self.cVista.waveform1.setXRange(min_time, max_time, padding=0)
+
                 
                 # Ajustar el rango del eje Y automáticamente basado en los datos
                 all_data = []
