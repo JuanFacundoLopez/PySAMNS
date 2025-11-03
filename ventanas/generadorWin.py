@@ -4,6 +4,8 @@ import sys
 import numpy as np
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QLineEdit, QWidget, QMessageBox, QComboBox, QSpinBox)
+# Importar pyqtgraph
+import pyqtgraph as pg
 
 from PyQt5.QtGui import QIcon, QPainter, QBrush
 from PyQt5.QtCore import QPointF, QTimer, Qt
@@ -107,20 +109,15 @@ class GeneradorWin(QMainWindow):
         self.btn_pausa.clicked.connect(self.pausar_reproduccion)
         configLayout.addWidget(self.btn_pausa)
         
-        self.seriesGenSig = QLineSeries()
-        self.chartGenSig = QChart()
-        self.chartGenSig.addSeries(self.seriesGenSig)
-        self.chartGenSig.createDefaultAxes()
-        # Establecer el rango del eje X para que sea más largo que 1 (por ejemplo, hasta 10)
-        axisX = self.chartGenSig.axisX(self.seriesGenSig)
-        if axisX is not None:
-            axisX.setRange(0, 10)
-        self.chartGenSig.setTitle("Señal generada")
-        self.chartGenSig.legend().hide()
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setBackground('w') # Fondo blanco para coincidir con QChart
+        self.plot_widget.setTitle("Señal generada")
+        self.plot_item = self.plot_widget.plotItem
+        self.plot_item.showGrid(x=True, y=True)
+        self.seriesGenSig = self.plot_widget.plot(pen=pg.mkPen(color='b', width=1)) # La serie de la línea
         
-        
-        self.chartGenSig_view = QChartView(self.chartGenSig)
-        self.chartGenSig_view.setRenderHint(QPainter.Antialiasing)
+        # Renombrar la vista para que coincida con la antigua lógica
+        self.chartGenSig_view = self.plot_widget
         
         self.tipo_combo.currentIndexChanged.connect(self.mostra_duty_cicle)
         self.tipo_combo.currentIndexChanged.connect(self.mostrar_frecuencia)
@@ -252,11 +249,12 @@ class GeneradorWin(QMainWindow):
             return
 
         tipo = self.tipo_combo.currentText()
-        f = float(self.freq_input.text()) if self.freq_input.isVisible() else 1000
+        # Usa la frecuencia inicial o un valor por defecto si no es visible
+        f = float(self.freq_input.text()) if self.freq_input.isVisible() and self.freq_input.text() else 1000
         A = float(self.amp_input.text())
         T = float(self.dur_input.text())
         Fs = 44100
-        t = np.linspace(0, T, int(Fs * T))
+        t = np.linspace(0, T, int(Fs * T), endpoint=False) # Usar endpoint=False para evitar un punto extra
 
         # Generate signal based on type
         if tipo == "Senoidal":
@@ -264,28 +262,29 @@ class GeneradorWin(QMainWindow):
         elif tipo == "Cuadrada":
             duty = self.duty_input.value() / 100.0
             fase = (f * t) % 1.0
-            y = A * np.where(fase < duty, 1.0, -1.0)
+            y = A * np.where(fase < duty, 1.0, -1.0) 
         elif tipo == "Triangular":
             y = A * (2 * np.abs(2 * (t * f - np.floor(t * f + 0.5))) - 1)
         elif tipo == "Ruido Blanco":
-            y = A * np.random.normal(0, 1, len(t))
-            y = y / np.max(np.abs(y))
+            y = np.random.normal(0, 1, len(t))
+            y = y / np.max(np.abs(y)) # normalización a [-1, 1]
+            y *= A
         elif tipo == "Ruido Rosa":
             N = len(t)
             uneven = N % 2
             X = np.random.randn(N // 2 + 1 + uneven) + 1j * np.random.randn(N // 2 + 1 + uneven)
             S = np.sqrt(np.arange(len(X)) + 1)
+            # Manejar división por cero en S (el primer elemento, si N es muy pequeño)
+            S[0] = S[1] if len(S) > 1 else 1.0
             y = (np.fft.irfft(X / S)).real
             y = y[:N]
             y /= np.max(np.abs(y))  # normalización a [-1, 1]
             y *= A
         elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
-            N, T = 1000, 0.01  # number of samples and sampling interval for 10 s signal
-            t = np.arange(N) * T  # timestamps
             f_ini = float(self.freq_input.text())
             f_fin = float(self.FreFin_input.text())
             method = 'logarithmic' if tipo == "Barrido senoidal exponencial" else 'linear'
-            y = A * chirp(t, f0=f_ini, f1=f_fin, t1=10, method=method)
+            y = A * chirp(t, f0=f_ini, t1=T, f1=f_fin, method=method)
         else:
             return  # Invalid signal type
         
@@ -293,122 +292,56 @@ class GeneradorWin(QMainWindow):
         self.signal_data = y.astype(np.float32)
         self.sample_rate = Fs
 
-        # Visualization settings
+        # --- Lógica de Ajuste Dinámico para Visualización con pyqtgraph ---
+
+        # Duración de zoom máxima para cualquier forma de onda periódica o barrido
+        DURACION_ZOOM_MAX = 0.1 # 100 ms
+
         if tipo in ["Ruido Blanco", "Ruido Rosa"]:
-            duracion_visible = min(0.05, T)
+            # Para ruidos, muestra un segmento corto (ej: 50ms)
+            duracion_base = min(0.05, T)
+        
         elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
-            duracion_visible = T
-        else:
+            # Usar una duración de zoom FIJA (ej: 100 ms) para ver el barrido inicial en ambos sentidos
+            duracion_base = T
+            
+        else: # Senoidal, Cuadrada, Triangular
+            # Mostrar al menos 5 ciclos, o DURACION_ZOOM_MAX, lo que sea más corto (pero no menos de 5 ciclos)
             num_ciclos_visibles = 5
-            duracion_visible = num_ciclos_visibles / f
+            # Calcular duración necesaria para 5 ciclos
+            duracion_5_ciclos = num_ciclos_visibles / f if f > 0.01 else T
+            # Limitar la duración base a 5 ciclos o al zoom máximo, lo que sea menor
+            duracion_base = min(duracion_5_ciclos, DURACION_ZOOM_MAX, T)
+            # Si la frecuencia es muy baja y duracion_base es muy grande, pyqtgraph lo manejará
 
-        # -----------------------
-        # Ajuste dinámico del eje X según el tipo de señal
-        # -----------------------
+        # Calcular el segmento de datos a mostrar
+        num_samples_base = int(Fs * duracion_base)
+        num_samples_base = min(num_samples_base, len(t))
+        t_visible = t[:num_samples_base]
+        y_visible = y[:num_samples_base]
         
-        # Para ruidos, mostrar siempre 5 segundos fijos
-        if tipo in ["Ruido Blanco", "Ruido Rosa"]:
-            duracion_visible = min(0.05, T)  # Máximo 5 segundos o la duración total si es menor
-        elif tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
-            # Para barrdidos
-            duracion_visible = float(self.dur_input.text())
-        else:
-            # Para otras señales, mostrar según frecuencia
-            num_ciclos_visibles = 5
-            duracion_visible = num_ciclos_visibles / f  # ventana de tiempo que muestra 5 ciclos
+        # La duración que el eje X debe mostrar
+        duracion_ejeX = duracion_base
+
+        # --- Graficación con pyqtgraph ---
         
-        num_samples_visible = int(Fs * duracion_visible)
-        num_samples_visible = min(num_samples_visible, len(t))  # No exceder la longitud total
+        # 1. Limpiar y actualizar la serie
+        # pyqtgraph acepta los arrays de numpy directamente, sin necesidad de interpolación o submuestreo manual.
+        self.seriesGenSig.setData(t_visible, y_visible)
 
-        t_visible = t[:num_samples_visible]
-        y_visible = y[:num_samples_visible]
-
-        # Interpolación visual para evitar aliasing en pantalla (solo si no es ruido)
-        if tipo not in ["Ruido Blanco", "Ruido Rosa"]:
-            t_interp = np.linspace(t_visible[0], t_visible[-1], int(len(t_visible) * 10))
-            interpolador = interp1d(t_visible, y_visible, kind='cubic')
-            y_interp = interpolador(t_interp)
-        else:
-            # Para ruidos, usar los datos originales sin interpolación
-            t_interp = t_visible
-            y_interp = y_visible
-
-        # Submuestreo para mostrar máximo N puntos
-        max_points = 1000
-        step = max(1, len(t_interp) // max_points)
-
-        self.chartGenSig.removeSeries(self.seriesGenSig)
-        self.seriesGenSig.clear()
-
-        for i in range(0, len(t_interp), step):
-            self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
-
-        self.chartGenSig.addSeries(self.seriesGenSig)
+        # 2. Configurar el rango del eje
+        # pyqtgraph usa setRange(xMin, xMax, yMin, yMax) o setLimits
         
-        # Elimina cualquier eje anterior
-        self.chartGenSig.removeAxis(self.chartGenSig.axisX())
-        self.chartGenSig.removeAxis(self.chartGenSig.axisY())
-
-        # Crear ejes manualmente
-        axisX = QValueAxis()
-        axisX.setRange(0, duracion_visible)
-        axisX.setTitleText("Tiempo (s)")
-        axisX.setTitleVisible(True)
-        axisX.setTitleBrush(QBrush(Qt.black))
-        axisX.setLabelsBrush(QBrush(Qt.black))  # Etiquetas blancas también
-        axisX.setLinePenColor(Qt.black)
-
-        axisY = QValueAxis()
-        axisY.setRange(-1, 1)
-        axisY.setTitleText("Amplitud normalizada")
-        axisY.setTitleVisible(True)
-        axisY.setTitleBrush(QBrush(Qt.black))
-        axisY.setLabelsBrush(QBrush(Qt.black))
-        axisY.setLinePenColor(Qt.black)
-
-        # Agregar ejes al gráfico y asociar la serie
-        self.chartGenSig.addAxis(axisX, Qt.AlignBottom)
-        self.chartGenSig.addAxis(axisY, Qt.AlignLeft)
-        self.seriesGenSig.attachAxis(axisX)
-        self.seriesGenSig.attachAxis(axisY)
+        # Rango X
+        self.plot_item.setXRange(0, duracion_ejeX, padding=0)
+        self.plot_item.getAxis('bottom').setLabel("Tiempo (s)")
         
-        # For visualization of sweep signals
-        if tipo in ["Barrido senoidal exponencial", "Barrido senoidal lineal"]:
-            t_visible = t
-            y_visible = y
-            
-            # Create more points for smooth visualization
-            t_interp = t_visible
-            y_interp = y_visible
-            
-            # Update axes ranges for better visualization
-            self.chartGenSig.removeSeries(self.seriesGenSig)
-            self.seriesGenSig.clear()
-            
-            # Reduce number of points for display
-            max_points = 2000
-            step = max(1, len(t_interp) // max_points)
-            
-            for i in range(0, len(t_interp), step):
-                self.seriesGenSig.append(QPointF(t_interp[i], y_interp[i]))
-                
-            self.chartGenSig.addSeries(self.seriesGenSig)
-            
-            # Create custom axes for sweep signals
-            axisX = QValueAxis()
-            axisX.setRange(0, T)
-            axisX.setTitleText("Tiempo (s)")
-            
-            axisY = QValueAxis()
-            axisY.setRange(-A, A)
-            axisY.setTitleText("Amplitud")
-            
-            self.chartGenSig.removeAxis(self.chartGenSig.axisX())
-            self.chartGenSig.removeAxis(self.chartGenSig.axisY())
-            self.chartGenSig.addAxis(axisX, Qt.AlignBottom)
-            self.chartGenSig.addAxis(axisY, Qt.AlignLeft)
-            self.seriesGenSig.attachAxis(axisX)
-            self.seriesGenSig.attachAxis(axisY)
+        # Rango Y
+        A_margen = A * 1.1 
+        self.plot_item.setYRange(-A_margen, A_margen, padding=0)
+        self.plot_item.getAxis('left').setLabel("Amplitud")
+
+        # Se eliminan todas las líneas de configuración de QChart (removeAxis, addAxis, attachAxis)
        
 
     def play_signal(self):

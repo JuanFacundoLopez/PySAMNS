@@ -858,29 +858,6 @@ class vista(QMainWindow):
 
         return self.fft_ymin, self.fft_ymax  
     
-    def abrirprogramarWin(self):
-        self.programar_win = ProgramarWin()
-        self.programar_win.show()
-
-    def GeneradorSenales(self):
-        self.genSenalesWin = GeneradorWin(self.vController)
-        self.genSenalesWin.show()
-        
-    def configuracionDispositivo(self):
-        self.calWin = CalibracionWin(self.vController)
-        self.configDispWin = ConfigDispWin(self.vController,self.calWin )
-        self.configDispWin.show()
-        
-    def calibracionWin(self):
-        self.calWin = CalibracionWin(self.vController,self)
-        self.calWin.show()
-        
-    # CODIGO configuracion del graficos
-    def configuracion(self):
-        self.confWin = ConfiguracionWin(self)
-        self.confWin.show()
-
-    
     def grabar(self):
         self.editar_botonGrabar() 
         if self.btngbr.isChecked():
@@ -1266,7 +1243,7 @@ class vista(QMainWindow):
             return color.name()
         return color
 
-    def _set_level_label(self, key, x, y, color, y_offset=1.5):
+    def _set_level_label(self, key, x, y, color, y_offset=1.5, x_offset=0.05):
         """Crear/actualizar etiqueta con el último valor para la serie de nivel."""
         try:
             # Eliminar etiqueta anterior si existía
@@ -1279,7 +1256,7 @@ class vista(QMainWindow):
                 # Crear texto ligeramente por encima de la última coordenada y con el mismo color
             label_text = f"{key}: {y:.1f} dB"  # Incluye el nombre del filtro y la unidad
             text_item = pg.TextItem(text=label_text, anchor=(0.5, 1.0), color=color)
-            text_item.setPos(x, y + y_offset)
+            text_item.setPos(x - x_offset, y + y_offset)
             self.waveform1.addItem(text_item)
             self.level_last_labels[key] = text_item
         except Exception as e:

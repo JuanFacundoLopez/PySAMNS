@@ -298,55 +298,85 @@ class controlador():
                     y_max = max_db + 5
                     self.cVista.waveform1.setYRange(y_min, y_max, padding=0)
                 
+                # ***********************************
+                # LÓGICA DE OCULTACIÓN APLICADA A TODOS LOS 12 NIVELES TEMPORALES
+                # ***********************************
+
                 # Vista de filtro Z
+                # Z - Pico
                 if self.cVista.cbNivPicoZ.isChecked() and len(dataVectorPicoZ) > 0:             
                     self.cVista.ptNivZPico.setData(timeNivelData, dataVectorPicoZ)
+                else:
+                    self.cVista.ptNivZPico.setData([], []) # Ocultar si está desmarcado
+                # Z - Impulsivo
                 if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
                     self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
-
+                else:
+                    self.cVista.ptNivZInst.setData([], []) # Ocultar si está desmarcado
+                # Z - Rápido
                 if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
                     print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
                     print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
                     self.cVista.ptNivZFast.setData(timeNivelData, dataVectorFastZ)
                     print(f"DEBUG FAST Z: setData llamado")
-                    # Forzar actualización del gráfico
-                    self.cVista.waveform1.replot()
-                    print(f"DEBUG FAST Z: replot llamado")
-
+                else:
+                    self.cVista.ptNivZFast.setData([], []) # Ocultar si está desmarcado
+                # Z - Lento
                 if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
                     print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
                     print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
                     self.cVista.ptNivZSlow.setData(timeNivelData, dataVectorSlowZ)
                     print(f"DEBUG SLOW Z: setData llamado")
-                    # Forzar actualización del gráfico
-                    self.cVista.waveform1.replot()
-                    print(f"DEBUG SLOW Z: replot llamado")
                 else:
-                    print(f"DEBUG SLOW Z: NO se grafica - checkbox: {self.cVista.cbNivSlowZ.isChecked()}, datos: {len(dataVectorSlowZ)}")
+                    self.cVista.ptNivZSlow.setData([], []) # Ocultar si está desmarcado
 
                 # Vista de filtro C
+                # C - Pico
                 if self.cVista.cbNivPicoC.isChecked() and len(dataVectorPicoC) > 0:
                     self.cVista.ptNivCPico.setData(timeNivelData, dataVectorPicoC)
+                else:
+                    self.cVista.ptNivCPico.setData([], []) # Ocultar si está desmarcado
+                # C - Impulsivo
                 if self.cVista.cbNivInstC.isChecked() and len(dataVectorInstC) > 0:
                     self.cVista.ptNivCInst.setData(timeNivelData, dataVectorInstC)
-
+                else:
+                    self.cVista.ptNivCInst.setData([], []) # Ocultar si está desmarcado
+                # C - Rápido
                 if self.cVista.cbNivFastC.isChecked() and len(dataVectorFastC) > 0:
                     self.cVista.ptNivCFast.setData(timeNivelData, dataVectorFastC)
-
+                else:
+                    self.cVista.ptNivCFast.setData([], []) # Ocultar si está desmarcado
+                # C - Lento
                 if self.cVista.cbNivSlowC.isChecked() and len(dataVectorSlowC) > 0:
                     self.cVista.ptNivCSlow.setData(timeNivelData, dataVectorSlowC)
+                else:
+                    self.cVista.ptNivCSlow.setData([], []) # Ocultar si está desmarcado
 
                 # Vista de filtro A
+                # A - Pico
                 if self.cVista.cbNivPicoA.isChecked() and len(dataVectorPicoA) > 0:
                     self.cVista.ptNivAPico.setData(timeNivelData, dataVectorPicoA)
+                else:
+                    self.cVista.ptNivAPico.setData([], []) # Ocultar si está desmarcado
+                # A - Impulsivo
                 if self.cVista.cbNivInstA.isChecked() and len(dataVectorInstA) > 0:
                     self.cVista.ptNivAInst.setData(timeNivelData, dataVectorInstA)
-
+                else:
+                    self.cVista.ptNivAInst.setData([], []) # Ocultar si está desmarcado
+                # A - Rápido
                 if self.cVista.cbNivFastA.isChecked() and len(dataVectorFastA) > 0:
                     self.cVista.ptNivAFast.setData(timeNivelData, dataVectorFastA)
-
+                else:
+                    self.cVista.ptNivAFast.setData([], []) # Ocultar si está desmarcado
+                # A - Lento
                 if self.cVista.cbNivSlowA.isChecked() and len(dataVectorSlowA) > 0:
                     self.cVista.ptNivASlow.setData(timeNivelData, dataVectorSlowA)
+                else:
+                    self.cVista.ptNivASlow.setData([], []) # Ocultar si está desmarcado
+
+                # Forzar el repintado del widget para que los cambios sean visibles
+                self.cVista.waveform1.replot()
+                
 
     def get_nivel_data(self):
         """Obtiene los datos de nivel del modelo y los prepara para la vista"""
