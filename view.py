@@ -10,7 +10,7 @@ from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
-                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame)
+                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame, QComboBox, QLabel)
 
 from PyQt5.QtGui import QPixmap, QIcon
 from pyqtgraph.Qt import  QtCore
@@ -935,6 +935,8 @@ class vista(QMainWindow):
         self.btnNivel.setChecked(False)
         self.btnFrecuencia.setChecked(False)
         self.filtrosGroup.setVisible(False)
+        if hasattr(self, 'fftParamsGroup'):
+            self.fftParamsGroup.setVisible(False)
         self.nivelesGroup.setVisible(False)
         
         # Resetear bandera de nivel
@@ -972,6 +974,46 @@ class vista(QMainWindow):
         self.btnTiempo.setChecked(False)
         self.filtrosGroup.setVisible(True)
         self.nivelesGroup.setVisible(False)
+
+        # --- Controles de parámetros FFT ---
+        if not hasattr(self, 'fftParamsGroup'):
+            self.fftParamsGroup = QGroupBox("Parámetros FFT")
+            fftLayout = QHBoxLayout()
+            
+            # Selector de Muestras (Chunk)
+            self.lblChunk = QLabel("Muestras:")
+            self.cbChunk = QComboBox()
+            self.cbChunk.addItems(["1024", "2048", "4096", "8192"])
+            # Set current value from model
+            current_chunk = str(self.vController.cModel.chunk)
+            index = self.cbChunk.findText(current_chunk)
+            if index >= 0:
+                self.cbChunk.setCurrentIndex(index)
+            
+            # Selector de Frecuencia de Muestreo (Rate)
+            self.lblRate = QLabel("Frecuencia (Hz):")
+            self.cbRate = QComboBox()
+            self.cbRate.addItems(["8000", "16000", "44100", "48000"])
+            # Set current value from model
+            current_rate = str(self.vController.cModel.rate)
+            index = self.cbRate.findText(current_rate)
+            if index >= 0:
+                self.cbRate.setCurrentIndex(index)
+
+            self.btnAplicarFFT = QPushButton("Aplicar")
+            self.btnAplicarFFT.clicked.connect(self.aplicarParametrosFFT)
+
+            fftLayout.addWidget(self.lblChunk)
+            fftLayout.addWidget(self.cbChunk)
+            fftLayout.addWidget(self.lblRate)
+            fftLayout.addWidget(self.cbRate)
+            fftLayout.addWidget(self.btnAplicarFFT)
+            
+            self.fftParamsGroup.setLayout(fftLayout)
+            # Add to right layout if not already added
+            self.rightLayout.insertWidget(1, self.fftParamsGroup) 
+        
+        self.fftParamsGroup.setVisible(True)
         
         
         self.waveform1.setAxisItems({'bottom': self.log_x_axis})
@@ -1014,6 +1056,8 @@ class vista(QMainWindow):
         self.btnTiempo.setChecked(False)
         self.btnFrecuencia.setChecked(False)
         self.filtrosGroup.setVisible(False)
+        if hasattr(self, 'fftParamsGroup'):
+            self.fftParamsGroup.setVisible(False)
         self.nivelesGroup.setVisible(True)
         
         #print("DEBUG: Configurando ventana de nivel")
@@ -1284,6 +1328,16 @@ class vista(QMainWindow):
             self.level_last_labels[key] = text_item
         except Exception as e:
             print(f"Error al crear etiqueta de nivel ({key}): {e}")
+
+    def aplicarParametrosFFT(self):
+        """Aplica los cambios de parámetros FFT"""
+        try:
+            chunk = int(self.cbChunk.currentText())
+            rate = int(self.cbRate.currentText())
+            self.vController.update_fft_parameters(rate, chunk)
+            QMessageBox.information(self, "Éxito", "Parámetros FFT actualizados correctamente.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error al actualizar parámetros: {e}")
 
 # CODIGO YAMILI
 

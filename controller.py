@@ -127,6 +127,21 @@ class controlador():
         self.cModel.setNivelesC(0,0,0,0, mode='r')
         self.cModel.setNivelesZ(0,0,0,0, mode='r')
 
+    def update_fft_parameters(self, rate, chunk):
+        """Actualiza los parámetros de FFT y reinicia el stream"""
+        try:
+            print(f"Actualizando parámetros FFT: Rate={rate}, Chunk={chunk}")
+            self.cModel.initialize_audio_stream(rate=rate, chunk=chunk)
+            # Actualizar la frecuencia de muestreo actual en el controlador
+            self.frecuencia_muestreo_actual = rate
+            # Reiniciar la grabación si estaba activa
+            if self.cVista.btngbr.isChecked():
+                self.reset_all_data()
+                self.dalePlay()
+        except Exception as e:
+            print(f"Error al actualizar parámetros FFT: {e}")
+            raise e
+
     def importSignal(self):                         # Funcion de importar señal
         # QFileDialog.getOpenFileName() sirve para abrir 
         # una ventana de windows para buscar el archivo que quiero
@@ -197,16 +212,19 @@ class controlador():
             # Espectro
             if self.cVista.r0.isChecked():
                 yf_data = self.cModel.getSignalFrec('A')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
-                self.cVista.ptdomEspect.setData(f, yf_data)
+                if len(yf_data) > 0:
+                    f = np.linspace(0, int(self.cModel.rate/2), len(yf_data))
+                    self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r1.isChecked():
                 yf_data = self.cModel.getSignalFrec('C')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
-                self.cVista.ptdomEspect.setData(f, yf_data)
+                if len(yf_data) > 0:
+                    f = np.linspace(0, int(self.cModel.rate/2), len(yf_data))
+                    self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r2.isChecked():
                 yf_data = self.cModel.getSignalFrec('Z')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
-                self.cVista.ptdomEspect.setData(f, yf_data)
+                if len(yf_data) > 0:
+                    f = np.linspace(0, int(self.cModel.rate/2), len(yf_data))
+                    self.cVista.ptdomEspect.setData(f, yf_data)
 
         elif self.cVista.btnNivel.isChecked():
             print("DEBUG: Entrando en sección de nivel")
