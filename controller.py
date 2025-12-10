@@ -8,7 +8,7 @@ from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
 import threading
 
-from db import leer_todas_grabaciones, actualizar_estado
+from db import leer_todas_grabaciones, actualizar_estado, actualizar_info_cal
 from datetime import datetime, timedelta
 import os
 
@@ -59,6 +59,12 @@ class controlador():
         }
         self.signal_frec_muestreo = None
         self.frecuencia_muestreo_actual = 8000
+        
+        self.timer_grabacion_automatica = QtCore.QTimer()
+        self.timer_grabacion_automatica.timeout.connect(self.verificar_grabaciones_programadas)
+        self.timer_grabacion_automatica.start(10000)
+        
+        self.calibracion_final = ""
         
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -269,7 +275,15 @@ class controlador():
                 
                 # Ajustar el rango del eje X automáticamente
                 max_time = timeNivelData[-1] if len(timeNivelData) > 0 else 10
-                self.cVista.waveform1.setXRange(0, max_time + 1, padding=0)
+                
+                # Aplicar ventana deslizante: usar el max_x configurado por el usuario o un valor por defecto (10s)
+                window_size = getattr(self.cVista, 'var_xMaxNivel', 10.0) # Obtener la ventana configurada (en segundos)
+                # Se verifica si el valor es razonable, sino se usa el valor de 10.0 segundos
+                if window_size <= 0 or window_size > 900:
+                    window_size = 10.0
+                min_time = max(0.0, max_time - window_size)
+                self.cVista.waveform1.setXRange(min_time, max_time, padding=0)
+
                 
                 # Ajustar el rango del eje Y automáticamente basado en los datos
                 all_data = []
@@ -290,56 +304,85 @@ class controlador():
                     y_max = max_db + 5
                     self.cVista.waveform1.setYRange(y_min, y_max, padding=0)
                 
+                # ***********************************
+                # LÓGICA DE OCULTACIÓN APLICADA A TODOS LOS 12 NIVELES TEMPORALES
+                # ***********************************
+
                 # Vista de filtro Z
+                # Z - Pico
                 if self.cVista.cbNivPicoZ.isChecked() and len(dataVectorPicoZ) > 0:             
                     self.cVista.ptNivZPico.setData(timeNivelData, dataVectorPicoZ)
+                else:
+                    self.cVista.ptNivZPico.setData([], []) # Ocultar si está desmarcado
+                # Z - Impulsivo
                 if self.cVista.cbNivInstZ.isChecked() and len(dataVectorInstZ) > 0:
                     self.cVista.ptNivZInst.setData(timeNivelData, dataVectorInstZ)
-
+                else:
+                    self.cVista.ptNivZInst.setData([], []) # Ocultar si está desmarcado
+                # Z - Rápido
                 if self.cVista.cbNivFastZ.isChecked() and len(dataVectorFastZ) > 0:
                     print(f"DEBUG FAST Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorFastZ}")
                     print(f"DEBUG FAST Z: Plot object: {self.cVista.ptNivZFast}")
                     self.cVista.ptNivZFast.setData(timeNivelData, dataVectorFastZ)
                     print(f"DEBUG FAST Z: setData llamado")
-                    # Forzar actualización del gráfico
-                    self.cVista.waveform1.replot()
-                    print(f"DEBUG FAST Z: replot llamado")
-
+                else:
+                    self.cVista.ptNivZFast.setData([], []) # Ocultar si está desmarcado
+                # Z - Lento
                 if self.cVista.cbNivSlowZ.isChecked() and len(dataVectorSlowZ) > 0:
                     print(f"DEBUG SLOW Z: Graficando {len(timeNivelData)} puntos, datos: {dataVectorSlowZ}")
                     print(f"DEBUG SLOW Z: Plot object: {self.cVista.ptNivZSlow}")
                     self.cVista.ptNivZSlow.setData(timeNivelData, dataVectorSlowZ)
                     print(f"DEBUG SLOW Z: setData llamado")
-                    # Forzar actualización del gráfico
-                    self.cVista.waveform1.replot()
-                    print(f"DEBUG SLOW Z: replot llamado")
                 else:
-                    print(f"DEBUG SLOW Z: NO se grafica - checkbox: {self.cVista.cbNivSlowZ.isChecked()}, datos: {len(dataVectorSlowZ)}")
+                    self.cVista.ptNivZSlow.setData([], []) # Ocultar si está desmarcado
 
                 # Vista de filtro C
+                # C - Pico
                 if self.cVista.cbNivPicoC.isChecked() and len(dataVectorPicoC) > 0:
                     self.cVista.ptNivCPico.setData(timeNivelData, dataVectorPicoC)
+                else:
+                    self.cVista.ptNivCPico.setData([], []) # Ocultar si está desmarcado
+                # C - Impulsivo
                 if self.cVista.cbNivInstC.isChecked() and len(dataVectorInstC) > 0:
                     self.cVista.ptNivCInst.setData(timeNivelData, dataVectorInstC)
-
+                else:
+                    self.cVista.ptNivCInst.setData([], []) # Ocultar si está desmarcado
+                # C - Rápido
                 if self.cVista.cbNivFastC.isChecked() and len(dataVectorFastC) > 0:
                     self.cVista.ptNivCFast.setData(timeNivelData, dataVectorFastC)
-
+                else:
+                    self.cVista.ptNivCFast.setData([], []) # Ocultar si está desmarcado
+                # C - Lento
                 if self.cVista.cbNivSlowC.isChecked() and len(dataVectorSlowC) > 0:
                     self.cVista.ptNivCSlow.setData(timeNivelData, dataVectorSlowC)
+                else:
+                    self.cVista.ptNivCSlow.setData([], []) # Ocultar si está desmarcado
 
                 # Vista de filtro A
+                # A - Pico
                 if self.cVista.cbNivPicoA.isChecked() and len(dataVectorPicoA) > 0:
                     self.cVista.ptNivAPico.setData(timeNivelData, dataVectorPicoA)
+                else:
+                    self.cVista.ptNivAPico.setData([], []) # Ocultar si está desmarcado
+                # A - Impulsivo
                 if self.cVista.cbNivInstA.isChecked() and len(dataVectorInstA) > 0:
                     self.cVista.ptNivAInst.setData(timeNivelData, dataVectorInstA)
-
+                else:
+                    self.cVista.ptNivAInst.setData([], []) # Ocultar si está desmarcado
+                # A - Rápido
                 if self.cVista.cbNivFastA.isChecked() and len(dataVectorFastA) > 0:
                     self.cVista.ptNivAFast.setData(timeNivelData, dataVectorFastA)
-
+                else:
+                    self.cVista.ptNivAFast.setData([], []) # Ocultar si está desmarcado
+                # A - Lento
                 if self.cVista.cbNivSlowA.isChecked() and len(dataVectorSlowA) > 0:
                     self.cVista.ptNivASlow.setData(timeNivelData, dataVectorSlowA)
+                else:
+                    self.cVista.ptNivASlow.setData([], []) # Ocultar si está desmarcado
 
+                # Forzar el repintado del widget para que los cambios sean visibles
+                self.cVista.waveform1.replot()
+                
     def get_nivel_data(self):
         """Obtiene los datos de nivel del modelo y los prepara para la vista"""
         # Obtener datos del modelo
@@ -612,8 +655,11 @@ class controlador():
                         # Procesar con los filtros de ponderación
                         self.cModel.setSignalData(normalized_data)
                         
-                        # Calcular FFT
-                        fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
+                        # Calcular FFT con parámetros configurados (o del modelo si no están configurados)
+                        # Prioridad: valores configurados en ventana de gráfico → valores del modelo (dispositivo)
+                        fft_rate = getattr(self.cVista, 'var_fft_rate', None) or self.cModel.rate
+                        fft_n_samples = getattr(self.cVista, 'var_fft_n_samples', None) or self.cModel.chunk
+                        fft_freqs, fft_db = self.cModel.calculate_fft(current_data1, rate=fft_rate, n_samples=fft_n_samples)
                         
                         # Actualizar la vista
                         self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
@@ -661,6 +707,7 @@ class controlador():
                     "No se ha seleccionado un dispositivo de salida."
                 )
                 return False
+            self.cModel.last_cal_method = 'automatica'
         except Exception as e:
             QMessageBox.warning(
                 self.ventanas_abiertas["calibracion"],
@@ -822,6 +869,7 @@ class controlador():
                 f"Nivel: {ultimo_nivel:.2f} dBFS\n"
                 f"Offset: {cal_db:.2f} dB"
             )
+            self.calibracion_final = "Calibración Automatica"
             return True
         else:
             QMessageBox.warning(
@@ -891,6 +939,7 @@ class controlador():
             
             ref_level = float(valor_para_float)
             print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+            self.cModel.last_cal_method = 'relativa'
 
         except (ValueError, AttributeError) as e:
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
@@ -921,12 +970,12 @@ class controlador():
                 f"Nivel medido: {rms_db:.2f} dB\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
+            self.calibracion_final = "Calibración Relativa"
         
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
             QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", error_msg)
-
 
     def calFuenteCalibracionExterna(self):
         try:
@@ -941,6 +990,7 @@ class controlador():
             
             ref_level = float(valor_para_float)
             print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+            self.cModel.last_cal_method = 'externa'
 
         except (ValueError, AttributeError) as e:
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
@@ -1053,6 +1103,7 @@ class controlador():
                 f"Nivel medido a fondo de escala: {rms_dbfs:.2f} dBFS\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
+            self.calibracion_final = "Calibración Externa"
             
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
@@ -1182,6 +1233,65 @@ class controlador():
                 "ext": ext
             }
             print(f"[DEBUG] Iniciando grabación automática: {id_reg}")
+
+            # --- Guardar información de calibración y dispositivo en la BD ---
+            try:
+                cal_tipo = self.calibracion_final
+                cal_offset = getattr(self.cModel, 'offset_calibracion_spl', None)
+                cal_factor = getattr(self.cModel, 'offset_calibracion_spl', None)  # si tiene otro valor, ajustar
+                cal_ruta = getattr(self.cModel, 'ruta_archivo_calibracion', None)
+
+                # Dispositivo de entrada
+                disp_ent_idx = self.cModel.getDispositivoActual()
+                disp_ent_nombre = None
+                try:
+                    nombres_ent = self.cModel.getDispositivosEntrada('nombre')
+                    indices_ent = self.cModel.getDispositivosEntrada('indice')
+                    if disp_ent_idx is not None and disp_ent_idx in indices_ent:
+                        disp_ent_nombre = nombres_ent[indices_ent.index(disp_ent_idx)]
+                except Exception:
+                    disp_ent_nombre = None
+
+                # Dispositivo de salida
+                disp_sal_idx = self.cModel.getDispositivoSalidaActual()
+                disp_sal_nombre = None
+                try:
+                    nombres_sal = self.cModel.getDispositivosSalida('nombre')
+                    indices_sal = self.cModel.getDispositivosSalida('indice')
+                    if disp_sal_idx is not None and disp_sal_idx in indices_sal:
+                        disp_sal_nombre = nombres_sal[indices_sal.index(disp_sal_idx)]
+                except Exception:
+                    disp_sal_nombre = None
+
+                actualizar_info_cal(
+                    id_registro=id_reg,
+                    cal_tipo=cal_tipo,
+                    cal_offset=cal_offset,
+                    cal_factor=cal_factor,
+                    cal_ruta=cal_ruta,
+                    disp_entrada_nombre=disp_ent_nombre,
+                    disp_entrada_indice=disp_ent_idx,
+                    disp_salida_nombre=disp_sal_nombre,
+                    disp_salida_indice=disp_sal_idx
+                )
+                file_dst = os.path.join(os.environ['USERPROFILE'], ruta, nombre_archivo)
+                with open(file_dst, 'w') as archivo:
+                    archivo.write(f"La grabación {ruta} se realizó con la siguiente configuración:\n")
+                    if cal_tipo== None:
+                        cal_tipo = "No calibrado"
+                    archivo.write(f"Calibración tipo: {cal_tipo}\n")
+                    if cal_offset != None:
+                        archivo.write(f"Calibración offset: {cal_offset}\n")
+                    if cal_factor != None:
+                        archivo.write(f"Calibración factor: {cal_factor}\n")
+                    if cal_ruta != None:
+                        archivo.write(f"Calibración ruta: {cal_ruta}\n")
+                    archivo.write(f"Dispositivo entrada: {disp_ent_nombre} (Índice: {disp_ent_idx})\n")
+                    archivo.write(f"Dispositivo salida: {disp_sal_nombre} (Índice: {disp_sal_idx})\n")
+                print(f"[DEBUG] Información de calibración y dispositivo guardada para registro {id_reg}")
+            except Exception as e:
+                print(f"[WARN] No se pudo actualizar info de calibración/dispositivo en BD: {e}")
+
             actualizar_estado(id_reg, "realizada")
             self.cVista.btngbr.setChecked(True)
             self.dalePlay()
@@ -1191,7 +1301,7 @@ class controlador():
 
             # Lanzar el hilo de grabación
             threading.Thread(
-                target=self.grabar_audio_automatica,
+                target=self.grabar_audio_automatica1,
                 args=(path_completo, duracion_seg, ext),
                 daemon=True
             ).start()

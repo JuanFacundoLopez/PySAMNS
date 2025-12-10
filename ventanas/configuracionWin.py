@@ -256,6 +256,23 @@ class ConfiguracionWin(QMainWindow):
         ejesLayoutEspectro.addWidget(tipoGraficoGroupEspectro)
         self.cmbTipoGraficoEspectro.currentIndexChanged.connect(self.mostrarchkValores)
         
+        # Parámetros FFT
+        parametrosFFTGroup = QGroupBox("Parámetros FFT")
+        parametrosFFTLayout = QGridLayout()
+        parametrosFFTLayout.addWidget(QLabel("Frecuencia de muestreo:"), 0, 0)
+        self.cmbFFTRate = QComboBox()
+        self.cmbFFTRate.setMaximumWidth(100)
+        parametrosFFTLayout.addWidget(self.cmbFFTRate, 0, 1)
+        parametrosFFTLayout.addWidget(QLabel("[Hz]"), 0, 2)
+        
+        parametrosFFTLayout.addWidget(QLabel("Número de muestras:"), 1, 0)
+        self.cmbFFTNSamples = QComboBox()
+        self.cmbFFTNSamples.addItems(["512", "1024", "2048", "4096", "8192"])
+        self.cmbFFTNSamples.setCurrentText("1024")
+        parametrosFFTLayout.addWidget(self.cmbFFTNSamples, 1, 1)
+        parametrosFFTGroup.setLayout(parametrosFFTLayout)
+        ejesLayoutEspectro.addWidget(parametrosFFTGroup)
+        
         self.ejesGroupEspectro.setLayout(ejesLayoutEspectro)
     
     def crearGrupoNivel(self):
@@ -382,6 +399,44 @@ class ConfiguracionWin(QMainWindow):
         self.txtEtiquetaXEspectro.setText(getattr(self.vista, 'var_etiquetaXEspectro', 'Tiempo'))
         self.txtEtiquetaYEspectro.setText(getattr(self.vista, 'var_etiquetaYEspectro', 'Amplitud Normalizada'))
         
+        # Parámetros FFT - cargar frecuencias válidas del dispositivo y número de muestras
+        # Obtener el índice del dispositivo actual
+        dispositivo_actual = self.vController.cModel.getDispositivoActual()
+        if dispositivo_actual is not None:
+            from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
+            # Probar las frecuencias válidas para el dispositivo actual
+            frecuencias_validas = self.vController.probar_frecuencias_entrada(dispositivo_actual, frecuencias_comunes)
+            
+            # Llenar el ComboBox con las frecuencias válidas
+            self.cmbFFTRate.clear()
+            if frecuencias_validas:
+                for f in frecuencias_validas:
+                    self.cmbFFTRate.addItem(str(int(f)))
+                
+                # Seleccionar la frecuencia actual del modelo
+                rate_actual = str(self.vController.cModel.rate)
+                idx = self.cmbFFTRate.findText(rate_actual)
+                if idx >= 0:
+                    self.cmbFFTRate.setCurrentIndex(idx)
+                else:
+                    # Si no está en la lista, seleccionar la primera
+                    self.cmbFFTRate.setCurrentIndex(0)
+            else:
+                self.cmbFFTRate.addItem(str(self.vController.cModel.rate))
+        else:
+            # Si no hay dispositivo, usar el valor del modelo
+            self.cmbFFTRate.addItem(str(self.vController.cModel.rate))
+        
+        # Número de muestras
+        fft_n_samples = str(self.vController.cModel.chunk)
+        idx = self.cmbFFTNSamples.findText(fft_n_samples)
+        if idx >= 0:
+            self.cmbFFTNSamples.setCurrentIndex(idx)
+        else:
+            # Si el valor del modelo no está en la lista, agregarlo
+            self.cmbFFTNSamples.addItem(fft_n_samples)
+            self.cmbFFTNSamples.setCurrentText(fft_n_samples)
+        
         # Valores de nivel
         self.cbEscalaYNivel.setChecked(getattr(self.vista, 'var_logModeYNivel', False))
         self.txtXMinNivel.setText(str(getattr(self.vista, 'var_xMinNivel', 0)))
@@ -482,7 +537,9 @@ class ConfiguracionWin(QMainWindow):
                     'eje2':self.chkEjeY2.isChecked(),
                     'tipoGrafico': self.cmbTipoGraficoEspectro.currentText(),
                     'valoresOcta': self.chkValoresColumna.isChecked(),
-                    'anchoLinea': int(self.cmbAnchoLineaEspectro.currentText())
+                    'anchoLinea': int(self.cmbAnchoLineaEspectro.currentText()),
+                    'fft_rate': float(self.cmbFFTRate.currentText()) if self.cmbFFTRate.currentText() else self.vController.cModel.rate,
+                    'fft_n_samples': int(self.cmbFFTNSamples.currentText())
                 },
                 'nivel': {
                     'logModeY': self.cbEscalaYNivel.isChecked(),
@@ -514,7 +571,9 @@ class ConfiguracionWin(QMainWindow):
         botones = [self.btnColorTiempo, self.btnColorEspectro, 
                self.btnConfigAplicar, self.btnConfigCancelar]
     
-        combos = [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel, self.cmbAnchoLineaNivel, self.cmbAnchoLineaTiempo, self.cmbAnchoLineaEspectro]
+        combos = [self.cmbTipoLineaTiempo, self.cmbTipoGraficoEspectro, self.cmbTipoLineaNivel, 
+                  self.cmbAnchoLineaNivel, self.cmbAnchoLineaTiempo, self.cmbAnchoLineaEspectro,
+                  self.cmbFFTRate, self.cmbFFTNSamples]
         
         for boton in botones:
             if boton is not None:

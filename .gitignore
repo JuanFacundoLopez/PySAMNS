@@ -9,3 +9,10 @@ __pycache__/
 dist
 build
 
+# Audio recordings
+*.wav
+*.mp3
+*.flac
+*.aac
+*.ogg
+

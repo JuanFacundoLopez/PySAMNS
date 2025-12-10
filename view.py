@@ -783,6 +783,10 @@ class vista(QMainWindow):
                 self.app.setStyleSheet(f.read())
         except FileNotFoundError:
             print(f"Advertencia: No se pudo cargar el archivo de estilos en {estilos_path}")
+        
+        # Inicializar parámetros FFT con los valores actuales del modelo
+        self.var_fft_rate = self.vController.cModel.rate
+        self.var_fft_n_samples = self.vController.cModel.chunk
             
         self.show()
         
@@ -857,29 +861,6 @@ class vista(QMainWindow):
                 self.fft_ymax = y_max
 
         return self.fft_ymin, self.fft_ymax  
-    
-    def abrirprogramarWin(self):
-        self.programar_win = ProgramarWin()
-        self.programar_win.show()
-
-    def GeneradorSenales(self):
-        self.genSenalesWin = GeneradorWin(self.vController)
-        self.genSenalesWin.show()
-        
-    def configuracionDispositivo(self):
-        self.calWin = CalibracionWin(self.vController)
-        self.configDispWin = ConfigDispWin(self.vController,self.calWin )
-        self.configDispWin.show()
-        
-    def calibracionWin(self):
-        self.calWin = CalibracionWin(self.vController,self)
-        self.calWin.show()
-        
-    # CODIGO configuracion del graficos
-    def configuracion(self):
-        self.confWin = ConfiguracionWin(self)
-        self.confWin.show()
-
     
     def grabar(self):
         self.editar_botonGrabar() 
@@ -1266,7 +1247,7 @@ class vista(QMainWindow):
             return color.name()
         return color
 
-    def _set_level_label(self, key, x, y, color, y_offset=1.5):
+    def _set_level_label(self, key, x, y, color, y_offset=1.5, x_offset=0.05):
         """Crear/actualizar etiqueta con el último valor para la serie de nivel."""
         try:
             # Eliminar etiqueta anterior si existía
@@ -1279,7 +1260,7 @@ class vista(QMainWindow):
                 # Crear texto ligeramente por encima de la última coordenada y con el mismo color
             label_text = f"{key}: {y:.1f} dB"  # Incluye el nombre del filtro y la unidad
             text_item = pg.TextItem(text=label_text, anchor=(0.5, 1.0), color=color)
-            text_item.setPos(x, y + y_offset)
+            text_item.setPos(x - x_offset, y + y_offset)
             self.waveform1.addItem(text_item)
             self.level_last_labels[key] = text_item
         except Exception as e:
@@ -1852,6 +1833,36 @@ class vista(QMainWindow):
             self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
             self.var_valoresOctavas = config['espectro']['valoresOcta']
             self.var_anchoLineaEspectro = config['espectro']['anchoLinea']
+            
+            # Parámetros FFT - guardar y actualizar el modelo si es necesario
+            if 'fft_rate' in config['espectro'] and 'fft_n_samples' in config['espectro']:
+                nueva_fft_rate = config['espectro']['fft_rate']
+                nueva_fft_n_samples = config['espectro']['fft_n_samples']
+                
+                # Guardar en variables locales
+                self.var_fft_rate = nueva_fft_rate
+                self.var_fft_n_samples = nueva_fft_n_samples
+                
+                # Si los valores son diferentes a los del modelo, reinicializar el stream
+                if (nueva_fft_rate != self.vController.cModel.rate or 
+                    nueva_fft_n_samples != self.vController.cModel.chunk):
+                    
+                    print(f"Actualizando parámetros de audio: Rate {nueva_fft_rate} Hz, Chunk {nueva_fft_n_samples}")
+                    
+                    # Obtener el dispositivo actual antes de reinicializar
+                    dispositivo_actual = self.vController.cModel.getDispositivoActual()
+                    
+                    # Reinicializar el stream de audio con los nuevos parámetros
+                    try:
+                        self.vController.cModel.initialize_audio_stream(
+                            device_index=dispositivo_actual,
+                            rate=int(nueva_fft_rate),
+                            chunk=int(nueva_fft_n_samples)
+                        )
+                        print(f"✅ Stream actualizado exitosamente")
+                    except Exception as e:
+                        print(f"⚠️ Error al actualizar stream: {e}")
+                        # Si falla, al menos guardar los valores preferidos
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']
