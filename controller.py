@@ -8,7 +8,7 @@ from ventanas.programarWin import ProgramarWin
 from ventanas.grabacionesWin import GrabacionesWin
 import threading
 
-from db import leer_todas_grabaciones, actualizar_estado
+from db import leer_todas_grabaciones, actualizar_estado, actualizar_info_cal
 from datetime import datetime, timedelta
 import os
 
@@ -59,6 +59,12 @@ class controlador():
         }
         self.signal_frec_muestreo = None
         self.frecuencia_muestreo_actual = 8000
+        
+        self.timer_grabacion_automatica = QtCore.QTimer()
+        self.timer_grabacion_automatica.timeout.connect(self.verificar_grabaciones_programadas)
+        self.timer_grabacion_automatica.start(10000)
+        
+        self.calibracion_final = ""
         
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_view)
@@ -377,7 +383,6 @@ class controlador():
                 # Forzar el repintado del widget para que los cambios sean visibles
                 self.cVista.waveform1.replot()
                 
-
     def get_nivel_data(self):
         """Obtiene los datos de nivel del modelo y los prepara para la vista"""
         # Obtener datos del modelo
@@ -650,8 +655,11 @@ class controlador():
                         # Procesar con los filtros de ponderación
                         self.cModel.setSignalData(normalized_data)
                         
-                        # Calcular FFT
-                        fft_freqs, fft_db = self.cModel.calculate_fft(current_data1)
+                        # Calcular FFT con parámetros configurados (o del modelo si no están configurados)
+                        # Prioridad: valores configurados en ventana de gráfico → valores del modelo (dispositivo)
+                        fft_rate = getattr(self.cVista, 'var_fft_rate', None) or self.cModel.rate
+                        fft_n_samples = getattr(self.cVista, 'var_fft_n_samples', None) or self.cModel.chunk
+                        fft_freqs, fft_db = self.cModel.calculate_fft(current_data1, rate=fft_rate, n_samples=fft_n_samples)
                         
                         # Actualizar la vista
                         self.cVista.update_plot(1, current_data1, all_data1, norm_current1, norm_all1, 
@@ -699,6 +707,7 @@ class controlador():
                     "No se ha seleccionado un dispositivo de salida."
                 )
                 return False
+            self.cModel.last_cal_method = 'automatica'
         except Exception as e:
             QMessageBox.warning(
                 self.ventanas_abiertas["calibracion"],
@@ -860,6 +869,7 @@ class controlador():
                 f"Nivel: {ultimo_nivel:.2f} dBFS\n"
                 f"Offset: {cal_db:.2f} dB"
             )
+            self.calibracion_final = "Calibración Automatica"
             return True
         else:
             QMessageBox.warning(
@@ -929,6 +939,7 @@ class controlador():
             
             ref_level = float(valor_para_float)
             print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+            self.cModel.last_cal_method = 'relativa'
 
         except (ValueError, AttributeError) as e:
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
@@ -959,12 +970,12 @@ class controlador():
                 f"Nivel medido: {rms_db:.2f} dB\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
+            self.calibracion_final = "Calibración Relativa"
         
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
             print(error_msg)
             QMessageBox.critical(self.ventanas_abiertas["calibracion"], "Error de Calibración", error_msg)
-
 
     def calFuenteCalibracionExterna(self):
         try:
@@ -979,6 +990,7 @@ class controlador():
             
             ref_level = float(valor_para_float)
             print(f"DEBUG: Valor convertido a float exitosamente: {ref_level}")
+            self.cModel.last_cal_method = 'externa'
 
         except (ValueError, AttributeError) as e:
             print(f"DEBUG: Error al convertir a float. EXCEPCIÓN: {e}")
@@ -1091,6 +1103,7 @@ class controlador():
                 f"Nivel medido a fondo de escala: {rms_dbfs:.2f} dBFS\n"
                 f"Factor de ajuste: {cal:.2f} dB"
             )
+            self.calibracion_final = "Calibración Externa"
             
         except Exception as e:
             error_msg = f"Error durante la calibración: {str(e)}"
@@ -1220,6 +1233,65 @@ class controlador():
                 "ext": ext
             }
             print(f"[DEBUG] Iniciando grabación automática: {id_reg}")
+
+            # --- Guardar información de calibración y dispositivo en la BD ---
+            try:
+                cal_tipo = self.calibracion_final
+                cal_offset = getattr(self.cModel, 'offset_calibracion_spl', None)
+                cal_factor = getattr(self.cModel, 'offset_calibracion_spl', None)  # si tiene otro valor, ajustar
+                cal_ruta = getattr(self.cModel, 'ruta_archivo_calibracion', None)
+
+                # Dispositivo de entrada
+                disp_ent_idx = self.cModel.getDispositivoActual()
+                disp_ent_nombre = None
+                try:
+                    nombres_ent = self.cModel.getDispositivosEntrada('nombre')
+                    indices_ent = self.cModel.getDispositivosEntrada('indice')
+                    if disp_ent_idx is not None and disp_ent_idx in indices_ent:
+                        disp_ent_nombre = nombres_ent[indices_ent.index(disp_ent_idx)]
+                except Exception:
+                    disp_ent_nombre = None
+
+                # Dispositivo de salida
+                disp_sal_idx = self.cModel.getDispositivoSalidaActual()
+                disp_sal_nombre = None
+                try:
+                    nombres_sal = self.cModel.getDispositivosSalida('nombre')
+                    indices_sal = self.cModel.getDispositivosSalida('indice')
+                    if disp_sal_idx is not None and disp_sal_idx in indices_sal:
+                        disp_sal_nombre = nombres_sal[indices_sal.index(disp_sal_idx)]
+                except Exception:
+                    disp_sal_nombre = None
+
+                actualizar_info_cal(
+                    id_registro=id_reg,
+                    cal_tipo=cal_tipo,
+                    cal_offset=cal_offset,
+                    cal_factor=cal_factor,
+                    cal_ruta=cal_ruta,
+                    disp_entrada_nombre=disp_ent_nombre,
+                    disp_entrada_indice=disp_ent_idx,
+                    disp_salida_nombre=disp_sal_nombre,
+                    disp_salida_indice=disp_sal_idx
+                )
+                file_dst = os.path.join(os.environ['USERPROFILE'], ruta, nombre_archivo)
+                with open(file_dst, 'w') as archivo:
+                    archivo.write(f"La grabación {ruta} se realizó con la siguiente configuración:\n")
+                    if cal_tipo== None:
+                        cal_tipo = "No calibrado"
+                    archivo.write(f"Calibración tipo: {cal_tipo}\n")
+                    if cal_offset != None:
+                        archivo.write(f"Calibración offset: {cal_offset}\n")
+                    if cal_factor != None:
+                        archivo.write(f"Calibración factor: {cal_factor}\n")
+                    if cal_ruta != None:
+                        archivo.write(f"Calibración ruta: {cal_ruta}\n")
+                    archivo.write(f"Dispositivo entrada: {disp_ent_nombre} (Índice: {disp_ent_idx})\n")
+                    archivo.write(f"Dispositivo salida: {disp_sal_nombre} (Índice: {disp_sal_idx})\n")
+                print(f"[DEBUG] Información de calibración y dispositivo guardada para registro {id_reg}")
+            except Exception as e:
+                print(f"[WARN] No se pudo actualizar info de calibración/dispositivo en BD: {e}")
+
             actualizar_estado(id_reg, "realizada")
             self.cVista.btngbr.setChecked(True)
             self.dalePlay()
@@ -1229,7 +1301,7 @@ class controlador():
 
             # Lanzar el hilo de grabación
             threading.Thread(
-                target=self.grabar_audio_automatica,
+                target=self.grabar_audio_automatica1,
                 args=(path_completo, duracion_seg, ext),
                 daemon=True
             ).start()

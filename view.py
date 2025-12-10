@@ -783,6 +783,10 @@ class vista(QMainWindow):
                 self.app.setStyleSheet(f.read())
         except FileNotFoundError:
             print(f"Advertencia: No se pudo cargar el archivo de estilos en {estilos_path}")
+        
+        # Inicializar parámetros FFT con los valores actuales del modelo
+        self.var_fft_rate = self.vController.cModel.rate
+        self.var_fft_n_samples = self.vController.cModel.chunk
             
         self.show()
         
@@ -1829,6 +1833,36 @@ class vista(QMainWindow):
             self.var_tipoGraficoEspectro = config['espectro']['tipoGrafico']
             self.var_valoresOctavas = config['espectro']['valoresOcta']
             self.var_anchoLineaEspectro = config['espectro']['anchoLinea']
+            
+            # Parámetros FFT - guardar y actualizar el modelo si es necesario
+            if 'fft_rate' in config['espectro'] and 'fft_n_samples' in config['espectro']:
+                nueva_fft_rate = config['espectro']['fft_rate']
+                nueva_fft_n_samples = config['espectro']['fft_n_samples']
+                
+                # Guardar en variables locales
+                self.var_fft_rate = nueva_fft_rate
+                self.var_fft_n_samples = nueva_fft_n_samples
+                
+                # Si los valores son diferentes a los del modelo, reinicializar el stream
+                if (nueva_fft_rate != self.vController.cModel.rate or 
+                    nueva_fft_n_samples != self.vController.cModel.chunk):
+                    
+                    print(f"Actualizando parámetros de audio: Rate {nueva_fft_rate} Hz, Chunk {nueva_fft_n_samples}")
+                    
+                    # Obtener el dispositivo actual antes de reinicializar
+                    dispositivo_actual = self.vController.cModel.getDispositivoActual()
+                    
+                    # Reinicializar el stream de audio con los nuevos parámetros
+                    try:
+                        self.vController.cModel.initialize_audio_stream(
+                            device_index=dispositivo_actual,
+                            rate=int(nueva_fft_rate),
+                            chunk=int(nueva_fft_n_samples)
+                        )
+                        print(f"✅ Stream actualizado exitosamente")
+                    except Exception as e:
+                        print(f"⚠️ Error al actualizar stream: {e}")
+                        # Si falla, al menos guardar los valores preferidos
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']

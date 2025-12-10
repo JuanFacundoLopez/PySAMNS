@@ -68,7 +68,8 @@ class ConfigDispWin(QMainWindow):
             # Si no hay dispositivo actual, usar el primer dispositivo
             self.cmbDispositivosEntrada.setCurrentIndex(0)
         
-        self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada)
+        # La conexión currentIndexChanged ahora solo va a actualizarFrecuenciasEntrada (línea 132)
+        #self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciaMuestreoEntrada)
         #self.lblSelEnt = QLabel("Seleccionar:")
         #dispLayoutEntrada.addWidget(self.lblSelEnt)
         dispLayoutEntrada.addWidget(self.cmbDispositivosEntrada)
@@ -129,6 +130,8 @@ class ConfigDispWin(QMainWindow):
         rateChunkLayoutVert.addLayout(rateChunkLayoutH2)
         rateChunkGroup.setLayout(rateChunkLayoutVert)
         mainLayout.addWidget(rateChunkGroup)
+        
+        # Conectar señales DESPUÉS de inicializar valores
         self.cmbDispositivosEntrada.currentIndexChanged.connect(self.actualizarFrecuenciasEntrada)
         self.cmbBuffer.currentIndexChanged.connect(self.actualizarLatencia)
         self.cmbRate.currentIndexChanged.connect(self.actualizarLatencia)
@@ -151,8 +154,29 @@ class ConfigDispWin(QMainWindow):
             
         for cmb in [self.cmbDispositivosEntrada, self.cmbDispositivosSalida, self.cmbBuffer, self.cmbRate]:
             cmb.setProperty("class", "ventanasSec")
-            
+        
+        # IMPORTANTE: Bloquear señales mientras inicializamos para evitar triggers no deseados
+        self.cmbDispositivosEntrada.blockSignals(True)
+        self.cmbRate.blockSignals(True)
+        self.cmbBuffer.blockSignals(True)
+        
+        # Inicializar frecuencias del dispositivo actual
         self.actualizarFrecuenciasEntrada(self.cmbDispositivosEntrada.currentIndex())
+        
+        # Seleccionar el buffer actual del modelo
+        buffer_actual = str(self.vController.cModel.chunk)
+        idx_buffer = self.cmbBuffer.findText(buffer_actual)
+        if idx_buffer >= 0:
+            self.cmbBuffer.setCurrentIndex(idx_buffer)
+        else:
+            # Si el valor actual no está en la lista, agregarlo
+            self.cmbBuffer.addItem(buffer_actual)
+            self.cmbBuffer.setCurrentText(buffer_actual)
+        
+        # Desbloquear señales después de inicializar todo
+        self.cmbDispositivosEntrada.blockSignals(False)
+        self.cmbRate.blockSignals(False)
+        self.cmbBuffer.blockSignals(False)
 
         self.setCentralWidget(centralWidget)
 
@@ -174,13 +198,9 @@ class ConfigDispWin(QMainWindow):
             print(f"Error al calcular latencia: {e}")
             self.lblLatencia.setText("Error")
             
-    def actualizarFrecuenciaMuestreoEntrada(self, idx):
-        # Obtener la frecuencia de muestreo predeterminada del dispositivo seleccionado
-        frec_muestreo = self.vController.cModel.getDispositivosEntradaRate()
-        if idx < len(frec_muestreo):
-            self.txtRate.setText(str(int(frec_muestreo[idx])))
-        else:
-            self.txtRate.setText("")
+            
+    # La función actualizarFrecuenciaMuestreoEntrada ya no es necesaria
+    # porque actualizarFrecuenciasEntrada maneja la actualización del cmbRate
     
     def actualizarFrecuenciasEntrada(self, idx):
         try:
@@ -198,7 +218,15 @@ class ConfigDispWin(QMainWindow):
             if frecuencias_validas:
                 for f in frecuencias_validas:
                     self.cmbRate.addItem(str(int(f)))
-                self.cmbRate.setCurrentIndex(0)
+                
+                # Seleccionar la frecuencia actual del modelo
+                rate_actual = str(self.vController.cModel.rate)
+                idx_rate = self.cmbRate.findText(rate_actual)
+                if idx_rate >= 0:
+                    self.cmbRate.setCurrentIndex(idx_rate)
+                else:
+                    # Si la frecuencia actual no está en la lista de válidas, seleccionar la primera
+                    self.cmbRate.setCurrentIndex(0)
             else:
                 self.cmbRate.addItem("Ninguna compatible")
             self.actualizarLatencia()
@@ -238,25 +266,42 @@ class ConfigDispWin(QMainWindow):
             if device_index_entrada != dispositivo_entrada_actual:
                 print(f"Cambiando dispositivo de entrada de {dispositivo_entrada_actual} a {device_index_entrada}")
                 
-                # Cerrar el stream actual si existe
-                if hasattr(self.vController.cModel, 'stream') and self.vController.cModel.stream is not None:
-                    print("Cerrando stream actual...")
-                    self.vController.cModel.stream.close()
-                
-                # Reinicializar el stream con el nuevo dispositivo
-                print("Inicializando nuevo stream...")
-                self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
-                
-                # Verificar que el cambio se aplicó correctamente
-                nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
-                print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
-                
-                if nuevo_dispositivo_entrada == device_index_entrada:
-                    print("✅ Cambio de dispositivo de entrada exitoso")
+                try:
+                    # initialize_audio_stream ahora maneja el cierre del stream anterior automáticamente
+                    # con el delay necesario y validación de parámetros
+                    print("Inicializando nuevo stream...")
+                    self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
                     
+                    # Verificar que el cambio se aplicó correctamente
+                    nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
+                    print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
                     
-                else:
-                    print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
+                    if nuevo_dispositivo_entrada == device_index_entrada:
+                        print("✅ Cambio de dispositivo de entrada exitoso")
+                    else:
+                        print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
+                        QMessageBox.warning(self, "Advertencia", 
+                            "El dispositivo se configuró pero puede que no esté funcionando correctamente.")
+                except Exception as e:
+                    error_msg = str(e)
+                    print(f"❌ Error al cambiar dispositivo de entrada: {error_msg}")
+                    
+                    # Mensaje más amigable para el usuario
+                    if "Unanticipated host error" in error_msg or "-9999" in error_msg:
+                        QMessageBox.critical(self, "Error de Dispositivo", 
+                            f"No se pudo inicializar el dispositivo de audio seleccionado.\n\n"
+                            f"Posibles causas:\n"
+                            f"• El dispositivo está siendo usado por otra aplicación\n"
+                            f"• Los parámetros (Rate: {rate} Hz, Buffer: {chunk}) no son compatibles\n"
+                            f"• El dispositivo no está disponible\n\n"
+                            f"Intenta:\n"
+                            f"• Cerrar otras aplicaciones que usen audio\n"
+                            f"• Seleccionar una frecuencia diferente\n"
+                            f"• Probar con otro dispositivo")
+                    else:
+                        QMessageBox.critical(self, "Error", 
+                            f"Error al cambiar dispositivo de entrada:\n{error_msg}")
+                    return  # No continuar si falla el cambio de dispositivo de entrada
             else:
                 print("No se requiere cambio de dispositivo de entrada")
             
@@ -290,6 +335,7 @@ class ConfigDispWin(QMainWindow):
         except Exception as e:
             print(f"Error al aplicar configuración: {e}")
             QMessageBox.critical(self, "Error", f"Error al aplicar configuración de dispositivo: {e}")
+
 
     def closeEvent(self, event):
         self.vController.ventanas_abiertas["config_disp"] = None

@@ -151,10 +151,18 @@ class modelo:
     
     def initialize_audio_stream(self, device_index=None, rate=None, chunk=None):
         """Inicializa o reinicializa el stream de audio con los parámetros especificados"""
+        import time
+        
         try:
             # Cerrar stream existente si hay uno
             if hasattr(self, 'stream') and self.stream is not None:
-                self.stream.close()
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                    # Importante: dar tiempo al sistema para liberar el dispositivo
+                    time.sleep(0.2)
+                except Exception as e:
+                    print(f"Advertencia al cerrar stream anterior: {e}")
             
             # Actualizar parámetros si se proporcionan
             if rate is not None:
@@ -174,6 +182,22 @@ class modelo:
                 
                 if device_info['maxInputChannels'] <= 0:
                     raise ValueError(f"El dispositivo {device_info['name']} no soporta entrada de audio")
+                
+                # Si se proporciona rate, verificar que sea compatible
+                if rate is not None:
+                    try:
+                        # Verificar si el rate es soportado por el dispositivo
+                        is_supported = self.pyaudio_instance.is_format_supported(
+                            rate,
+                            input_device=device_index,
+                            input_channels=self.channels,
+                            input_format=self.format
+                        )
+                    except:
+                        # Si no es soportado, usar el rate por defecto del device
+                        default_rate = int(device_info['defaultSampleRate'])
+                        print(f"⚠️ Rate {rate} no soportado, usando rate por defecto {default_rate}")
+                        self.rate = default_rate
 
             self.stream = self.pyaudio_instance.open(
                 format=self.format,
@@ -683,18 +707,44 @@ class modelo:
     #     db = 20 * np.log10(rms / self.reference)
     #     return max(-100.0, min(db, 0.0))  # Limitar entre -100 y 0 dB
 
-    def calculate_fft(self, data):
-        """Calcula la FFT de los datos de audio y devuelve la magnitud en dBFS"""
+    def calculate_fft(self, data, rate=None, n_samples=None):
+        """Calcula la FFT de los datos de audio y devuelve la magnitud en dBFS
+        
+        Args:
+            data: Datos de audio a procesar
+            rate: Frecuencia de muestreo (Hz). Si es None, usa self.rate
+            n_samples: Número de muestras a usar para FFT. Si es None, usa len(data)
+                      Si n_samples > len(data), se aplica zero-padding
+                      Si n_samples < len(data), se truncan los datos
+        """
         if len(data) == 0:
             return [], []
         
+        # Usar frecuencia de muestreo proporcionada o la del modelo
+        if rate is None:
+            rate = self.rate
+        
+        # Usar número de muestras proporcionado o la longitud de los datos
+        if n_samples is None:
+            n_samples = len(data)
+        
+        # Ajustar los datos según n_samples
+        if n_samples > len(data):
+            # Zero-padding: agregar ceros al final
+            data_adjusted = np.pad(data, (0, n_samples - len(data)), mode='constant')
+        elif n_samples < len(data):
+            # Truncar: tomar solo las primeras n_samples muestras
+            data_adjusted = data[:n_samples]
+        else:
+            data_adjusted = data
+        
         # Aplicar ventana de Hann para reducir el leakage espectral
-        window = np.hanning(len(data))
+        window = np.hanning(len(data_adjusted))
         window_gain = np.mean(window**2)  # Factor de corrección de la ventana
         
         # Calcular FFT
-        fft_data = np.fft.rfft(data * window)
-        N = len(data)
+        fft_data = np.fft.rfft(data_adjusted * window)
+        N = len(data_adjusted)
         
         # Calcular magnitud y escalar correctamente
         fft_magnitude = np.abs(fft_data) / (N * np.sqrt(window_gain))
@@ -702,8 +752,8 @@ class modelo:
         # Convertir a dBFS (decibeles relativos a full scale)
         fft_magnitude_db = 20 * np.log10(np.maximum(fft_magnitude / self.max_int16, 1e-10))
         
-        # Obtener frecuencias correspondientes
-        fft_freqs = np.fft.rfftfreq(N, d=1.0/self.rate)
+        # Obtener frecuencias correspondientes usando la frecuencia de muestreo especificada
+        fft_freqs = np.fft.rfftfreq(N, d=1.0/rate)
         
         # Filtrar frecuencias positivas
         valid = fft_freqs > 0
