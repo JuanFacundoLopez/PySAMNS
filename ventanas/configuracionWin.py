@@ -427,15 +427,32 @@ class ConfiguracionWin(QMainWindow):
             # Si no hay dispositivo, usar el valor del modelo
             self.cmbFFTRate.addItem(str(self.vController.cModel.rate))
         
-        # Número de muestras
-        fft_n_samples = str(self.vController.cModel.chunk)
+        # Número de muestras (FFT)
+        # Solo mostrar opciones cuyo tamaño sea MAYOR O IGUAL al buffer (chunk) seleccionado
+        chunk_actual = int(getattr(self.vController.cModel, "chunk", 1024))
+        opciones_base = [2048, 4096, 8192]
+
+        # Filtrar opciones según el chunk actual
+        opciones_filtradas = [v for v in opciones_base if v >= chunk_actual]
+
+        # Si el chunk actual no está en la lista base y es mayor que todas,
+        # aseguramos que al menos se incluya el propio valor.
+        if not opciones_filtradas or chunk_actual > opciones_filtradas[-1]:
+            opciones_filtradas.append(chunk_actual)
+
+        # Actualizar el combo de número de muestras
+        self.cmbFFTNSamples.blockSignals(True)
+        self.cmbFFTNSamples.clear()
+        for v in sorted(set(opciones_filtradas)):
+            self.cmbFFTNSamples.addItem(str(v))
+
+        fft_n_samples = str(chunk_actual)
         idx = self.cmbFFTNSamples.findText(fft_n_samples)
         if idx >= 0:
             self.cmbFFTNSamples.setCurrentIndex(idx)
         else:
-            # Si el valor del modelo no está en la lista, agregarlo
-            self.cmbFFTNSamples.addItem(fft_n_samples)
-            self.cmbFFTNSamples.setCurrentText(fft_n_samples)
+            self.cmbFFTNSamples.setCurrentIndex(0)
+        self.cmbFFTNSamples.blockSignals(False)
         
         # Valores de nivel
         self.cbEscalaYNivel.setChecked(getattr(self.vista, 'var_logModeYNivel', False))
