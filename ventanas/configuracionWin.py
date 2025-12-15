@@ -267,7 +267,7 @@ class ConfiguracionWin(QMainWindow):
         
         parametrosFFTLayout.addWidget(QLabel("Número de muestras:"), 1, 0)
         self.cmbFFTNSamples = QComboBox()
-        self.cmbFFTNSamples.addItems(["512", "1024", "2048", "4096", "8192"])
+        self.cmbFFTNSamples.addItems(["2048", "4096", "8192"])
         self.cmbFFTNSamples.setCurrentText("1024")
         parametrosFFTLayout.addWidget(self.cmbFFTNSamples, 1, 1)
         parametrosFFTGroup.setLayout(parametrosFFTLayout)

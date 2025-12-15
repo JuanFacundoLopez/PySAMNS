@@ -115,7 +115,7 @@ class ConfigDispWin(QMainWindow):
         self.cmbRate = QComboBox()
         #self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
         self.cmbBuffer = QComboBox()
-        self.cmbBuffer.addItems(["128","256", "512", "1024", "2048", "4096", "8192"])
+        self.cmbBuffer.addItems(["2048", "4096", "8192"])
         self.lblRate = QLabel("Frecuencia de muestreo (Hz):")
         rateChunkLayoutH1.addWidget(self.lblRate)
         rateChunkLayoutH1.addWidget(self.cmbRate)
@@ -164,14 +164,23 @@ class ConfigDispWin(QMainWindow):
         self.actualizarFrecuenciasEntrada(self.cmbDispositivosEntrada.currentIndex())
         
         # Seleccionar el buffer actual del modelo
-        buffer_actual = str(self.vController.cModel.chunk)
+        # Forzar un mínimo de 2048 para que no aparezca 1024 ni valores menores
+        buffer_actual_val = int(getattr(self.vController.cModel, "chunk", 2048))
+        if buffer_actual_val < 2048:
+            buffer_actual_val = 2048
+            # Opcional: actualizar también el modelo para mantener coherencia
+            try:
+                self.vController.cModel.chunk = buffer_actual_val
+            except Exception:
+                pass
+
+        buffer_actual = str(buffer_actual_val)
         idx_buffer = self.cmbBuffer.findText(buffer_actual)
         if idx_buffer >= 0:
             self.cmbBuffer.setCurrentIndex(idx_buffer)
         else:
-            # Si el valor actual no está en la lista, agregarlo
-            self.cmbBuffer.addItem(buffer_actual)
-            self.cmbBuffer.setCurrentText(buffer_actual)
+            # Si por alguna razón el valor no está, seleccionar el primer elemento (2048)
+            self.cmbBuffer.setCurrentIndex(0)
         
         # Desbloquear señales después de inicializar todo
         self.cmbDispositivosEntrada.blockSignals(False)
