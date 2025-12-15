@@ -1448,7 +1448,7 @@ class vista(QMainWindow):
                         # print(f"Piso de ruido: {piso_ruido}")
                         
                         # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
+                        self.waveform1.setLabel('left', 'Nivel (dB)')
                         self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
                         
                         # Configurar modo lineal para ambos ejes

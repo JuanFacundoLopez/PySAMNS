@@ -265,7 +265,7 @@ class ConfiguracionWin(QMainWindow):
         parametrosFFTLayout.addWidget(self.cmbFFTRate, 0, 1)
         parametrosFFTLayout.addWidget(QLabel("[Hz]"), 0, 2)
         
-        parametrosFFTLayout.addWidget(QLabel("Número de muestras:"), 1, 0)
+        parametrosFFTLayout.addWidget(QLabel("Tamaño del vector:"), 1, 0)
         self.cmbFFTNSamples = QComboBox()
         self.cmbFFTNSamples.addItems(["2048", "4096", "8192"])
         self.cmbFFTNSamples.setCurrentText("1024")
