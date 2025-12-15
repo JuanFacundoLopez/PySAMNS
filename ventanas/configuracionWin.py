@@ -428,15 +428,19 @@ class ConfiguracionWin(QMainWindow):
             self.cmbFFTRate.addItem(str(self.vController.cModel.rate))
         
         # Número de muestras (FFT)
-        # Solo mostrar opciones cuyo tamaño sea MAYOR O IGUAL al buffer (chunk) seleccionado
+        # Debe ser SIEMPRE MAYOR O IGUAL al buffer (chunk) del dispositivo,
+        # pero ya no forzamos que sean exactamente iguales ni que el cambio
+        # de FFT modifique el chunk.
         chunk_actual = int(getattr(self.vController.cModel, "chunk", 1024))
+
+        # Opciones base permitidas para la FFT
         opciones_base = [2048, 4096, 8192]
 
-        # Filtrar opciones según el chunk actual
+        # Filtrar para que ninguna opción sea menor que el chunk seleccionado
         opciones_filtradas = [v for v in opciones_base if v >= chunk_actual]
 
-        # Si el chunk actual no está en la lista base y es mayor que todas,
-        # aseguramos que al menos se incluya el propio valor.
+        # Si por algún motivo el chunk es mayor a todas las opciones base,
+        # nos aseguramos de incluirlo para no dejar la lista vacía.
         if not opciones_filtradas or chunk_actual > opciones_filtradas[-1]:
             opciones_filtradas.append(chunk_actual)
 
@@ -446,12 +450,22 @@ class ConfiguracionWin(QMainWindow):
         for v in sorted(set(opciones_filtradas)):
             self.cmbFFTNSamples.addItem(str(v))
 
-        fft_n_samples = str(chunk_actual)
-        idx = self.cmbFFTNSamples.findText(fft_n_samples)
+        # Intentar preseleccionar el último valor usado en la vista,
+        # pero respetando la restricción de ser >= chunk_actual.
+        fft_n_samples_vista = int(
+            getattr(self.vista, "var_fft_n_samples", chunk_actual)
+        )
+        # Asegurar que no sea menor que el chunk
+        fft_n_samples_vista = max(fft_n_samples_vista, chunk_actual)
+
+        fft_n_samples_str = str(fft_n_samples_vista)
+        idx = self.cmbFFTNSamples.findText(fft_n_samples_str)
         if idx >= 0:
             self.cmbFFTNSamples.setCurrentIndex(idx)
         else:
+            # Si no está, seleccionar el primer valor disponible
             self.cmbFFTNSamples.setCurrentIndex(0)
+
         self.cmbFFTNSamples.blockSignals(False)
         
         # Valores de nivel
