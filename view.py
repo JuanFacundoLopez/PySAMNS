@@ -103,6 +103,15 @@ class FrequencyAxisItem(pg.AxisItem):
 
 class vista(QMainWindow):
 
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # Actualizar dimensiones
@@ -119,10 +128,10 @@ class vista(QMainWindow):
         
         # Actualizar tamaño de los logos
         if hasattr(self, 'logoCintra') and hasattr(self, 'logoUTN'):
-            self.logoCintra.setPixmap(QPixmap('img/Logocintra.png').scaled(
+            self.logoCintra.setPixmap(QPixmap(self._get_image_path('Logocintra.png')).scaled(
                 logo_width, logo_height,
                 QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
-            self.logoUTN.setPixmap(QPixmap('img/LogoCINTRA1.png').scaled(
+            self.logoUTN.setPixmap(QPixmap(self._get_image_path('LogoCINTRA1.png')).scaled(
                 logo_width, logo_height,
                 QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
 
@@ -175,7 +184,7 @@ class vista(QMainWindow):
 
         # Configuración de la ventana principal
         self.setWindowTitle("SAMNS")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         self.setGeometry(int(self.anchoX * 0.01), int(self.altoY * 0.025), 
                         int(self.anchoX * 0.95), int(self.altoY * 0.9))
         
@@ -342,9 +351,9 @@ class vista(QMainWindow):
         self.btngbr.setCheckable(True)
         self.btngbr.clicked.connect(self.grabar)
         
-        icon_play_path = "img/boton-de-play.png" 
+        icon_play_path = self._get_image_path("boton-de-play.png") 
         self.btngbr.setIcon(QIcon(icon_play_path))
-        icon_import_path = "img/importar.png"
+        icon_import_path = self._get_image_path("importar.png")
         self.btn.setIcon(QIcon(icon_import_path))
         
        
@@ -662,12 +671,12 @@ class vista(QMainWindow):
         logo_height = max(int(self.altoY * 0.1), min_logo_height)
 
         self.logoCintra = QLabel()
-        self.logoCintra.setPixmap(QPixmap('img/Logocintra.png').scaled(
+        self.logoCintra.setPixmap(QPixmap(self._get_image_path('Logocintra.png')).scaled(
             logo_width, logo_height,
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         
         self.logoUTN = QLabel()
-        self.logoUTN.setPixmap(QPixmap('img/LogoCINTRA1.png').scaled(
+        self.logoUTN.setPixmap(QPixmap(self._get_image_path('LogoCINTRA1.png')).scaled(
             logo_width, logo_height,
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         
@@ -873,11 +882,11 @@ class vista(QMainWindow):
         """Edita el botón de grabar para que se vea como un botón de pausa"""
         if self.btngbr.isChecked():
             self.btngbr.setText("Pausar")
-            self.btngbr.setIcon(QIcon("img/boton-de-pausa.png"))
+            self.btngbr.setIcon(QIcon(self._get_image_path("boton-de-pausa.png")))
         else:
             self.ejexcreado = False
             self.btngbr.setText("Grabar")
-            self.btngbr.setIcon(QIcon("img/boton-de-play.png"))
+            self.btngbr.setIcon(QIcon(self._get_image_path("boton-de-play.png")))
     
     def _sync_vb_right(self):
         if hasattr(self, 'vb_right'):

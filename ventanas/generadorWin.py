@@ -20,11 +20,20 @@ from scipy.interpolate import interp1d
 
 
 class GeneradorWin(QMainWindow):
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+    
     def __init__(self, vController):
         self.vController = vController
         super().__init__()
         self.setWindowTitle("Generador de señales")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -97,13 +106,13 @@ class GeneradorWin(QMainWindow):
         self.FreFin_input.setVisible(False)
         
         self.btn_generar = QPushButton("Reproducir")
-        icon_play_path = "img/boton-de-play.png" 
+        icon_play_path = self._get_image_path("boton-de-play.png") 
         self.btn_generar.setIcon(QIcon(icon_play_path))
         self.btn_generar.clicked.connect(self.play_signal)
         configLayout.addWidget(self.btn_generar)
         
         self.btn_pausa = QPushButton("Pausar")
-        icon_pausa_path = "img/boton-de-pausa.png" 
+        icon_pausa_path = self._get_image_path("boton-de-pausa.png") 
         self.btn_pausa.setIcon(QIcon(icon_pausa_path))
         self.btn_pausa.setVisible(False)
         self.btn_pausa.clicked.connect(self.pausar_reproduccion)

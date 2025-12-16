@@ -1,5 +1,7 @@
 # configuracionWin.py
 
+import os
+import sys
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
                              QGridLayout, QLabel, QLineEdit, QCheckBox, QPushButton, 
                              QComboBox, QFrame, QColorDialog, QMessageBox)
@@ -12,6 +14,15 @@ class ConfiguracionWin(QMainWindow):
     # Señal para comunicar cambios a la ventana principal
     configuracionCambiada = pyqtSignal(dict)
     
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+    
     def __init__(self, vista_principal, controller):
         super().__init__()
         self.vista = vista_principal  # Referencia a la vista principal
@@ -23,7 +34,7 @@ class ConfiguracionWin(QMainWindow):
         self.altoY = self.vista.altoY
         
         self.setWindowTitle("Configuración de gráficos")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         self.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.2, 0.6, 0.6))
         
         self.initUI()

@@ -18,10 +18,19 @@ import numpy as np
 
 
 class CalibracionWin(QMainWindow):
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+    
     def __init__(self, vController, vVista):
         super().__init__()
         self.setWindowTitle("Calibración")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
