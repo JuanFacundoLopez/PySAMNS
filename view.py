@@ -10,7 +10,7 @@ from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
-                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame)
+                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame, QComboBox)
 
 from PyQt5.QtGui import QPixmap, QIcon
 from pyqtgraph.Qt import  QtCore
@@ -433,6 +433,12 @@ class vista(QMainWindow):
         row1Layout.addWidget(self.r1)
         row1Layout.addWidget(self.r2)
         
+        # Combo para seleccionar métrica G1
+        self.cmbMetricG1 = QComboBox()
+        self.cmbMetricG1.addItems(["Leq", "L01", "L10", "L50", "L90", "L99"])
+        self.cmbMetricG1.currentIndexChanged.connect(lambda: self.vController.graficar())
+        row1Layout.addWidget(self.cmbMetricG1)
+        
         # --- Grupo 2: Gráfico Inferior (Contenedor para ocultarlo) ---
         self.filtrosG2Container = QWidget()
         vboxG2 = QVBoxLayout(self.filtrosG2Container)
@@ -455,6 +461,12 @@ class vista(QMainWindow):
         row2Layout.addWidget(self.r3)
         row2Layout.addWidget(self.r4)
         row2Layout.addWidget(self.r5)
+        
+        # Combo para seleccionar métrica G2
+        self.cmbMetricG2 = QComboBox()
+        self.cmbMetricG2.addItems(["Leq", "L01", "L10", "L50", "L90", "L99"])
+        self.cmbMetricG2.currentIndexChanged.connect(lambda: self.vController.graficar())
+        row2Layout.addWidget(self.cmbMetricG2)
         
         vboxG2.addWidget(self.lblG2)
         vboxG2.addLayout(row2Layout)
@@ -1016,6 +1028,9 @@ class vista(QMainWindow):
                 self.filtrosG2Container.setVisible(True)
             if hasattr(self, 'lblG1'):
                 self.lblG1.setText("Gráfico 1 (Superior)")
+            # Mostrar combo de métrica
+            if hasattr(self, 'cmbMetricG1'):
+                self.cmbMetricG1.setVisible(True)
         else:
             self._remove_second_waveform()
             
@@ -1024,6 +1039,9 @@ class vista(QMainWindow):
                 self.filtrosG2Container.setVisible(False)
             if hasattr(self, 'lblG1'):
                 self.lblG1.setText("Filtro ponderado")
+            # Ocultar combo de métrica porque en Lineal no aplica percentil
+            if hasattr(self, 'cmbMetricG1'):
+                self.cmbMetricG1.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -1285,6 +1303,9 @@ class vista(QMainWindow):
                     self.filtrosG2Container.setVisible(False)
                 if hasattr(self, 'lblG1'):
                     self.lblG1.setText("Filtro ponderado")
+                # Ocultar combo de métrica
+                if hasattr(self, 'cmbMetricG1'):
+                    self.cmbMetricG1.setVisible(False)
                 
                 # Restaurar eje normal si estaba en modo barras
                 current_axis = self.waveform1.getAxis('bottom')
@@ -1328,6 +1349,9 @@ class vista(QMainWindow):
                     self.filtrosG2Container.setVisible(True)
                 if hasattr(self, 'lblG1'):
                     self.lblG1.setText("Gráfico 1 (Superior)")
+                # Mostrar combo de métrica
+                if hasattr(self, 'cmbMetricG1'):
+                    self.cmbMetricG1.setVisible(True)
                 
                 # Limpiar el gráfico y guardar el color
                 if hasattr(self, 'waveform1'):
@@ -1486,21 +1510,31 @@ class vista(QMainWindow):
                     color = self.get_color_str(self.colorEspectro)
                 if tipoGrafico in ["Barras-octavas", "Barras-tercios"] and device_num == 1 and len(fft_freqs) > 0:
                     
+                    
                     # Función interna para dibujar barras en un plot específico
-                    def dibujar_barras(plot_widget, filtro, fft_freqs, fft_magnitude):
+                    def dibujar_barras(plot_widget, filtro, fft_freqs, fft_magnitude, metric="Inst"):
                         # Configurar modo lineal para ambos ejes (X es índice de banda)
                         plot_widget.setLogMode(x=False, y=False)
                         
-                        # Aplicar ponderación
-                        weighted_fft = self.apply_weighting(fft_freqs, fft_magnitude, filtro)
-                        
-                        # Calcular octavas/tercios
-                        if tipoGrafico == "Barras-octavas":
-                            bandas, niveles = self.vController.cModel.calcular_octavas(fft_freqs, weighted_fft)
-                        elif tipoGrafico == "Barras-tercios":
-                            bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, weighted_fft)
+                        bandas = []
+                        niveles = []
+
+                        if metric == "Inst":
+                            # Aplicar ponderación
+                            weighted_fft = self.apply_weighting(fft_freqs, fft_magnitude, filtro)
+                            
+                            # Calcular octavas/tercios
+                            if tipoGrafico == "Barras-octavas":
+                                bandas, niveles = self.vController.cModel.calcular_octavas(fft_freqs, weighted_fft)
+                            elif tipoGrafico == "Barras-tercios":
+                                bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, weighted_fft)
                         else:
-                            bandas, niveles = [], []
+                            # Obtener estadsísticas de bandas Z del historial
+                            bandas, niveles_Z = self.vController.cModel.get_spectral_stats(tipoGrafico, metric)
+                            
+                            if len(bandas) > 0:
+                                # Aplicar ponderación a las bandas calculadas
+                                niveles = self.apply_weighting(bandas, niveles_Z, filtro)
 
                         if len(bandas) > 0 and len(niveles) > 0:
                             plot_widget.clear()
@@ -1541,14 +1575,19 @@ class vista(QMainWindow):
                             # Configurar rango Y
                             y_min, y_max = self.configure_bar_chart_y_range(niveles)
                             plot_widget.setYRange(y_min, y_max)
-                            plot_widget.setLabel('left', f'Nivel {filtro} (dB)')
+                            tipo_medicion = metric if metric != "Inst" else ""
+                            plot_widget.setLabel('left', f'Nivel {filtro} {tipo_medicion} (dB)')
 
                     # --- Gráfico 1 ---
                     filtro1 = 'Z'
                     if self.r0.isChecked(): filtro1 = 'A'
                     elif self.r1.isChecked(): filtro1 = 'C'
                     
-                    dibujar_barras(self.waveform1, filtro1, fft_freqs, fft_magnitude)
+                    metric1 = "Inst"
+                    if hasattr(self, 'cmbMetricG1'):
+                         metric1 = self.cmbMetricG1.currentText()
+
+                    dibujar_barras(self.waveform1, filtro1, fft_freqs, fft_magnitude, metric1)
                     
                     # --- Gráfico 2 ---
                     if self.waveform_2 is not None:
@@ -1556,7 +1595,11 @@ class vista(QMainWindow):
                         if self.r3.isChecked(): filtro2 = 'A'
                         elif self.r4.isChecked(): filtro2 = 'C'
                         
-                        dibujar_barras(self.waveform_2, filtro2, fft_freqs, fft_magnitude)
+                        metric2 = "Inst"
+                        if hasattr(self, 'cmbMetricG2'):
+                             metric2 = self.cmbMetricG2.currentText()
+
+                        dibujar_barras(self.waveform_2, filtro2, fft_freqs, fft_magnitude, metric2)
                         
                 else:
                     # Por defecto, línea

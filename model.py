@@ -5,6 +5,7 @@ import pyaudio
 import time
 from funciones.filtPond import filtA, filtC, filtFrecA, filtFrecC
 from scipy.fftpack import fft
+from collections import deque
 
 
 class modelo:
@@ -114,6 +115,16 @@ class modelo:
         # Valores de referencia para normalización y dB
         self.max_int16 = 32767/2
         self.reference = 1.0  # Referencia para dB (1.0 = 0dB)
+
+        self.recorderL90Z = np.array([])
+        self.recorderL99Z = np.array([])
+        
+        # Historial para percentiles espectrales (Z-weighted)
+        self.history_octaves_Z = deque(maxlen=1000)
+        self.history_thirds_Z = deque(maxlen=1000)
+        # Para cachear las frecuencias centrales
+        self.history_bands_oct = None
+        self.history_bands_ter = None
 
         try:
             self.pyaudio_instance = pyaudio.PyAudio()
@@ -917,6 +928,10 @@ class modelo:
             
             # Calcular FFT para el espectro de frecuencia
             fft_freqs, fft_db = self.calculate_fft(current_data)
+
+            # Actualizar historial espectral para estadísticas
+            self._update_z_history(fft_freqs, fft_db)
+
             #print("Normalized_current: ", normalized_current)
             
             # return current_data, all_data, normalized_current, normalized_all_array, current_db, self.times, fft_freqs, fft_db
@@ -928,6 +943,99 @@ class modelo:
             empty_all = np.zeros(self.chunk * len(self.buffer) if self.buffer else self.chunk)
             return empty_current, empty_all, empty_current, empty_all, -100.0, [], [], []
         
+    def _update_z_history(self, fft_freqs, fft_db):
+        """Calcula y almacena los niveles de octava y tercio (Z) para historial"""
+        try:
+             # Reutilizamos la lógica de cálculo pero sin modificar el estado global del modelo "ultimos_niveles"
+            # Octavas
+            fcs_oct = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+            niveles_oct = []
+            for fc in fcs_oct:
+                f_low = fc / np.sqrt(2)
+                f_high = fc * np.sqrt(2)
+                indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
+                if len(indices) > 0:
+                    magnitudes = 10 ** (fft_db[indices] / 20)
+                    rms = np.sqrt(np.mean(magnitudes ** 2))
+                    niveles_oct.append(20 * np.log10(max(rms, 1e-6)))
+                else:
+                    niveles_oct.append(-120.0)
+            
+            self.history_octaves_Z.append(niveles_oct)
+            if self.history_bands_oct is None:
+                self.history_bands_oct = np.array(fcs_oct)
+
+            # Tercios
+            fcs_ter = [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
+            niveles_ter = []
+            for i, fc in enumerate(fcs_ter):
+                if i == 0:
+                    f_low = 0
+                    f_high = (16 + 20) / 2
+                elif i == len(fcs_ter) - 1:
+                    f_low = (16000 + 20000) / 2
+                    f_high = fft_freqs[-1] if len(fft_freqs) > 0 else 20000
+                else:
+                    f_low = (fcs_ter[i-1] + fc) / 2
+                    f_high = (fc + fcs_ter[i+1]) / 2
+                    
+                indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
+                if len(indices) > 0:
+                    magnitudes = 10 ** (fft_db[indices] / 20)
+                    rms = np.sqrt(np.mean(magnitudes ** 2))
+                    niveles_ter.append(20 * np.log10(max(rms, 1e-6)))
+                else:
+                    niveles_ter.append(-120.0)
+
+            self.history_thirds_Z.append(niveles_ter)
+            if self.history_bands_ter is None:
+                self.history_bands_ter = np.array(fcs_ter)
+
+        except Exception as e:
+            print(f"Error updating spectral history: {e}")
+
+    def get_spectral_stats(self, band_type, metric):
+        """
+        Calcula estadísticas espectrales (Lxx, Leq, Min, Max) para las bandas.
+        Retorna (bandas, niveles).
+        """
+        if band_type == "Barras-octavas":
+            history = self.history_octaves_Z
+            bandas = self.history_bands_oct
+        else:
+            history = self.history_thirds_Z
+            bandas = self.history_bands_ter
+            
+        if not history or len(history) == 0:
+            return np.array([]), np.array([])
+            
+        data = np.array(history) # Shape: (chunks, n_bands)
+        
+        if metric == "Inst":
+            return bandas, data[-1]
+        elif metric == "Max":
+            return bandas, np.max(data, axis=0)
+        elif metric == "Min":
+            return bandas, np.min(data, axis=0)
+        elif metric == "Leq":
+            # Leq = 10 * log10( mean( 10^(L/10) ) )
+            power = 10 ** (data / 10.0)
+            mean_power = np.mean(power, axis=0)
+            leq = 10 * np.log10(np.maximum(mean_power, 1e-12))
+            return bandas, leq
+        elif metric.startswith("L"):
+            try:
+                percentile = float(metric[1:])
+                # Percentile P: el nivel superado el P% del tiempo?
+                # Acustica: Lx es el nivel excedido x% del tiempo.
+                # np.percentile(q) retorna el valor tal que q% son menores.
+                # Lx = np.percentile(100-x)
+                return bandas, np.percentile(data, 100 - percentile, axis=0)
+            except:
+                return bandas, data[-1]
+        
+        return bandas, data[-1]
+
     def close(self):
         try:
             if hasattr(self, 'stream') and self.stream is not None:
