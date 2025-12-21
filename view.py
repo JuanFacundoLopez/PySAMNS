@@ -1047,6 +1047,9 @@ class vista(QMainWindow):
         self.filtrosGroup.setVisible(True)
         self.nivelesGroup.setVisible(False)
         
+        # Inicializar título base para evitar que se use uno incorrecto de otra vista
+        self._ejeY_titulo_base = "Nivel (dB)"
+        
         
         self.waveform1.setAxisItems({'bottom': self.log_x_axis})
         
@@ -1565,9 +1568,8 @@ class vista(QMainWindow):
                                 if cb.isChecked():
                                     metrics.append(label)
                         
-                        # Si no hay nada seleccionado, al menos Leq? O vacío?
-                        # Mejor vacío para no forzar, pero el usuario no verá nada.
-                        return metrics
+                        # Si no hay nada seleccionado, mostrar Instantáneo (puro) por defecto
+                        return metrics if metrics else ["Inst"]
 
                     # Helper para color
                     def get_metric_color_index(metric):
@@ -1672,7 +1674,7 @@ class vista(QMainWindow):
                                 max_level_found = max(max_level_found, np.max(niveles))
                             
                             # Etiquetas de valor (solo si octavas y pocas métricas?)
-                            if self.var_valoresOctavas and num_metrics <= 2:
+                            if self.var_valoresOctavas:
                                 for j, h in enumerate(niveles):
                                     text_item = pg.TextItem(text=f"{h:.1f}", anchor=(0.5, 0), color=(0, 0, 0, 150))
                                     # Ajustar escala texto según ancho barra?
@@ -1694,7 +1696,10 @@ class vista(QMainWindow):
                         if hasattr(self, 'var_yMaxEspectro'): y_max = self.var_yMaxEspectro
                         
                         plot_widget.setYRange(y_min, y_max)
-                        plot_widget.setLabel('left', f'Nivel {filtro} (dB)')
+    
+                        # Actualizar la base del título para persistencia (calibración badge)
+                        self._ejeY_titulo_base = f'Nivel {filtro} (dB)'
+                        plot_widget.setLabel('left', self._ejeY_titulo_base)
                         
                         # Las etiquetas del eje X son manejadas por FrequencyAxisItem
                         # que se configura en actualizarEstiloGraficoEspectro
