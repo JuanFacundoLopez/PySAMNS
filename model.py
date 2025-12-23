@@ -126,6 +126,20 @@ class modelo:
         self.history_bands_oct = None
         self.history_bands_ter = None
 
+        # Almacenamiento para espectros ponderados en tiempo (Fast/Slow/Peak)
+        self.current_fast_oct_Z = None
+        self.current_slow_oct_Z = None
+        self.current_peak_oct_Z = None
+        self.current_fast_ter_Z = None
+        self.current_slow_ter_Z = None
+        self.current_peak_ter_Z = None
+        
+        # Constantes de tiempo
+        self.tau_fast = 0.125
+        self.tau_slow = 1.0
+        self.alpha_fast = 0.0 # Se calculará con fs real
+        self.alpha_slow = 0.0
+
         try:
             self.pyaudio_instance = pyaudio.PyAudio()
             
@@ -944,30 +958,63 @@ class modelo:
             return empty_current, empty_all, empty_current, empty_all, -100.0, [], [], []
         
     def _update_z_history(self, fft_freqs, fft_db):
-        """Calcula y almacena los niveles de octava y tercio (Z) para historial"""
+        """Calcula y almacena los niveles de octava y tercio (Z) para historial.
+           También actualiza los valores Fast, Slow y Peak."""
         try:
              # Reutilizamos la lógica de cálculo pero sin modificar el estado global del modelo "ultimos_niveles"
-            # Octavas
+            
+            # Calcular alphas si no están seteados (depende del chunk rate aprox)
+            # dt = chunk / rate. Ej: 1024 / 44100 ~= 0.023s
+            if self.alpha_fast == 0.0:
+                dt = self.chunk / self.rate
+                self.alpha_fast = 1.0 - np.exp(-dt / self.tau_fast)
+                self.alpha_slow = 1.0 - np.exp(-dt / self.tau_slow)
+            
+            # --- Octavas ---
             fcs_oct = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
             niveles_oct = []
+            power_oct = [] # Para cálculos en energía
+            
             for fc in fcs_oct:
                 f_low = fc / np.sqrt(2)
                 f_high = fc * np.sqrt(2)
                 indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
                 if len(indices) > 0:
                     magnitudes = 10 ** (fft_db[indices] / 20)
-                    rms = np.sqrt(np.mean(magnitudes ** 2))
-                    niveles_oct.append(20 * np.log10(max(rms, 1e-6)))
+                    mean_sq = np.mean(magnitudes ** 2)
+                    rms = np.sqrt(mean_sq)
+                    val_db = 20 * np.log10(max(rms, 1e-12))
+                    niveles_oct.append(val_db)
+                    power_oct.append(mean_sq)
                 else:
                     niveles_oct.append(-120.0)
+                    power_oct.append(1e-12) # Piso muy bajo
             
             self.history_octaves_Z.append(niveles_oct)
             if self.history_bands_oct is None:
                 self.history_bands_oct = np.array(fcs_oct)
 
-            # Tercios
+            # Actualizar Fast/Slow/Peak Octavas
+            current_pow_oct = np.array(power_oct)
+            
+            # Inicializar si es None
+            if self.current_fast_oct_Z is None: self.current_fast_oct_Z = current_pow_oct
+            if self.current_slow_oct_Z is None: self.current_slow_oct_Z = current_pow_oct
+            if self.current_peak_oct_Z is None: self.current_peak_oct_Z = np.array(niveles_oct) # Peak en dB
+            
+            # EMA Power
+            self.current_fast_oct_Z = self.alpha_fast * current_pow_oct + (1 - self.alpha_fast) * self.current_fast_oct_Z
+            self.current_slow_oct_Z = self.alpha_slow * current_pow_oct + (1 - self.alpha_slow) * self.current_slow_oct_Z
+            
+            # Peak Hold (en dB)
+            current_db_oct = np.array(niveles_oct)
+            self.current_peak_oct_Z = np.maximum(self.current_peak_oct_Z, current_db_oct)
+
+            # --- Tercios ---
             fcs_ter = [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
             niveles_ter = []
+            power_ter = []
+            
             for i, fc in enumerate(fcs_ter):
                 if i == 0:
                     f_low = 0
@@ -982,14 +1029,31 @@ class modelo:
                 indices = np.where((fft_freqs >= f_low) & (fft_freqs < f_high))[0]
                 if len(indices) > 0:
                     magnitudes = 10 ** (fft_db[indices] / 20)
-                    rms = np.sqrt(np.mean(magnitudes ** 2))
-                    niveles_ter.append(20 * np.log10(max(rms, 1e-6)))
+                    mean_sq = np.mean(magnitudes ** 2)
+                    rms = np.sqrt(mean_sq)
+                    val_db = 20 * np.log10(max(rms, 1e-12))
+                    niveles_ter.append(val_db)
+                    power_ter.append(mean_sq)
                 else:
                     niveles_ter.append(-120.0)
+                    power_ter.append(1e-12)
 
             self.history_thirds_Z.append(niveles_ter)
             if self.history_bands_ter is None:
                 self.history_bands_ter = np.array(fcs_ter)
+                
+            # Actualizar Fast/Slow/Peak Tercios
+            current_pow_ter = np.array(power_ter)
+            
+            if self.current_fast_ter_Z is None: self.current_fast_ter_Z = current_pow_ter
+            if self.current_slow_ter_Z is None: self.current_slow_ter_Z = current_pow_ter
+            if self.current_peak_ter_Z is None: self.current_peak_ter_Z = np.array(niveles_ter) 
+
+            self.current_fast_ter_Z = self.alpha_fast * current_pow_ter + (1 - self.alpha_fast) * self.current_fast_ter_Z
+            self.current_slow_ter_Z = self.alpha_slow * current_pow_ter + (1 - self.alpha_slow) * self.current_slow_ter_Z
+            
+            current_db_ter = np.array(niveles_ter)
+            self.current_peak_ter_Z = np.maximum(self.current_peak_ter_Z, current_db_ter)
 
         except Exception as e:
             print(f"Error updating spectral history: {e}")
@@ -1013,8 +1077,23 @@ class modelo:
         
         if metric == "Inst":
             return bandas, data[-1]
+        elif metric == "Fast":
+            # Retornar valor Fast actual (convertir de power a dB)
+            pow_data = self.current_fast_oct_Z if band_type == "Barras-octavas" else self.current_fast_ter_Z
+            if pow_data is None: return bandas, data[-1]
+            db_data = 10 * np.log10(np.maximum(pow_data, 1e-12))
+            return bandas, db_data
+        elif metric == "Slow":
+            pow_data = self.current_slow_oct_Z if band_type == "Barras-octavas" else self.current_slow_ter_Z
+            if pow_data is None: return bandas, data[-1]
+            db_data = 10 * np.log10(np.maximum(pow_data, 1e-12))
+            return bandas, db_data
+        elif metric == "Peak":
+            db_data = self.current_peak_oct_Z if band_type == "Barras-octavas" else self.current_peak_ter_Z
+            if db_data is None: return bandas, data[-1]
+            return bandas, db_data
         elif metric == "Max":
-            return bandas, np.max(data, axis=0)
+            return bandas, np.max(data, axis=0) # Max desde que se inició el gráfico (history)
         elif metric == "Min":
             return bandas, np.min(data, axis=0)
         elif metric == "Leq":

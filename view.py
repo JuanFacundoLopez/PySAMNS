@@ -247,6 +247,7 @@ class vista(QMainWindow):
         self.var_yMaxTiempo = 1
         self.var_xMinEspectro = np.log10(20)
         self.var_xMaxEspectro = np.log10(20000)
+
         self.var_eje2Visible = True
         self.var_valoresOctavas = True
         self.var_yMinEspectro = -120
@@ -291,6 +292,16 @@ class vista(QMainWindow):
             "#A93226","#1A5276","#16A085",
             # p99
             "#922B21","#154360","#117A65",
+            # Max (New) - bold colors
+            "#C0392B", "#2E86C1", "#1E8449",
+            # Min (New) - lighter colors
+            "#E6B0AA", "#AED6F1", "#A9DFBF",
+            # Peak (New) - bold
+            "#E74C3C", "#3498DB", "#27AE60",
+            # Fast (New) - Use Rapido colors
+            "#C0392B", "#125E91", "#28B463",
+            # Slow (New) - Use Lento colors
+            "#FF8E7B", "#7FB8EA", "#58D68D",
             ]
         
         # Centralización de colores por defecto
@@ -437,10 +448,24 @@ class vista(QMainWindow):
         
         # Checkboxes para métricas G1 (Contenedor para ocultar)
         self.metricsG1Container = QWidget()
-        metricsG1Layout = QHBoxLayout(self.metricsG1Container)
+        metricsG1Layout = QVBoxLayout(self.metricsG1Container) # Cambiado a vertical
         metricsG1Layout.setContentsMargins(0,0,0,0)
         
+        # Fila 1: Leq y Percentiles
+        row1MetricsG1 = QHBoxLayout()
+        row1MetricsG1.setContentsMargins(0,0,0,0)
+        
+        # Fila 2: Max, Min, Peak, Time-weighted
+        row2MetricsG1 = QHBoxLayout()
+        row2MetricsG1.setContentsMargins(0,0,0,0)
+        
         self.cbLeqG1 = QCheckBox("Leq")
+        self.cbLMaxG1 = QCheckBox("Lmax")
+        self.cbLMinG1 = QCheckBox("Lmin")
+        self.cbLPkG1 = QCheckBox("Lpk")
+        self.cbLInstG1 = QCheckBox("Inst")
+        self.cbLFastG1 = QCheckBox("Fast")
+        self.cbLSlowG1 = QCheckBox("Slow")
         self.cbL01G1 = QCheckBox("L01")
         self.cbL10G1 = QCheckBox("L10")
         self.cbL50G1 = QCheckBox("L50")
@@ -450,10 +475,19 @@ class vista(QMainWindow):
         # Leq seleccionado por defecto
         self.cbLeqG1.setChecked(True)
         
-        # Conectar señales
+        # Agregar a layouts correspondientes
+        # Fila 1: Leq, L01-L99
         for cb in [self.cbLeqG1, self.cbL01G1, self.cbL10G1, self.cbL50G1, self.cbL90G1, self.cbL99G1]:
-            metricsG1Layout.addWidget(cb)
+            row1MetricsG1.addWidget(cb)
             cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        # Fila 2: Resto
+        for cb in [self.cbLMaxG1, self.cbLMinG1, self.cbLPkG1, self.cbLInstG1, self.cbLFastG1, self.cbLSlowG1]:
+            row2MetricsG1.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        metricsG1Layout.addLayout(row1MetricsG1)
+        metricsG1Layout.addLayout(row2MetricsG1)
             
         row1Layout.addWidget(self.metricsG1Container)
         
@@ -484,10 +518,24 @@ class vista(QMainWindow):
         
         # Checkboxes para métricas G2
         self.metricsG2Container = QWidget()
-        metricsG2Layout = QHBoxLayout(self.metricsG2Container)
+        metricsG2Layout = QVBoxLayout(self.metricsG2Container) # Vertical
         metricsG2Layout.setContentsMargins(0,0,0,0)
         
+        # Fila 1 G2
+        row1MetricsG2 = QHBoxLayout()
+        row1MetricsG2.setContentsMargins(0,0,0,0)
+        
+        # Fila 2 G2
+        row2MetricsG2 = QHBoxLayout()
+        row2MetricsG2.setContentsMargins(0,0,0,0)
+        
         self.cbLeqG2 = QCheckBox("Leq")
+        self.cbLMaxG2 = QCheckBox("Lmax")
+        self.cbLMinG2 = QCheckBox("Lmin")
+        self.cbLPkG2 = QCheckBox("Lpk")
+        self.cbLInstG2 = QCheckBox("Inst")
+        self.cbLFastG2 = QCheckBox("Fast")
+        self.cbLSlowG2 = QCheckBox("Slow")
         self.cbL01G2 = QCheckBox("L01")
         self.cbL10G2 = QCheckBox("L10")
         self.cbL50G2 = QCheckBox("L50")
@@ -496,9 +544,18 @@ class vista(QMainWindow):
         
         self.cbLeqG2.setChecked(True)
         
+        # Fila 1
         for cb in [self.cbLeqG2, self.cbL01G2, self.cbL10G2, self.cbL50G2, self.cbL90G2, self.cbL99G2]:
-            metricsG2Layout.addWidget(cb)
+            row1MetricsG2.addWidget(cb)
             cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        # Fila 2
+        for cb in [self.cbLMaxG2, self.cbLMinG2, self.cbLPkG2, self.cbLInstG2, self.cbLFastG2, self.cbLSlowG2]:
+            row2MetricsG2.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        metricsG2Layout.addLayout(row1MetricsG2)
+        metricsG2Layout.addLayout(row2MetricsG2)
             
         row2Layout.addWidget(self.metricsG2Container)
         
@@ -1556,7 +1613,7 @@ class vista(QMainWindow):
                         
                         # Mapeo de checkbox a nombre de métrica
                         # Asumimos que los checkboxes son atributos de self
-                        labels = ["Leq", "L01", "L10", "L50", "L90", "L99"]
+                        labels = ["Leq", "LMax", "LMin", "LPk", "LInst", "LFast", "LSlow", "L01", "L10", "L50", "L90", "L99"]
                         
                         # Identificar sufijo (G1 o G2)
                         suffix = "G1" if container == self.metricsG1Container else "G2"
@@ -1566,7 +1623,14 @@ class vista(QMainWindow):
                             if hasattr(self, cb_name):
                                 cb = getattr(self, cb_name)
                                 if cb.isChecked():
-                                    metrics.append(label)
+                                    # Convertir LMax/LMin a Max/Min para el modelo
+                                    if label == "LMax": metrics.append("Max")
+                                    elif label == "LMin": metrics.append("Min")
+                                    elif label == "LPk": metrics.append("Peak")
+                                    elif label == "LInst": metrics.append("Inst")
+                                    elif label == "LFast": metrics.append("Fast")
+                                    elif label == "LSlow": metrics.append("Slow")
+                                    else: metrics.append(label)
                         
                         # Si no hay nada seleccionado, mostrar Instantáneo (puro) por defecto
                         return metrics if metrics else ["Inst"]
@@ -1580,7 +1644,12 @@ class vista(QMainWindow):
                             "L10": 18,
                             "L50": 21,
                             "L90": 24,
-                            "L99": 27
+                            "L99": 27,
+                            "Max": 30, # New
+                            "Min": 33,  # New
+                            "Peak": 36, # New
+                            "Fast": 39, # New
+                            "Slow": 42  # New
                         }
                         return base_indices.get(metric, 12)
 
