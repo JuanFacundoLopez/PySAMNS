@@ -60,6 +60,9 @@ class controlador():
         self.signal_frec_muestreo = None
         self.frecuencia_muestreo_actual = 8000
         
+        # Almacenamiento para la última grabación manual
+        self.last_recording_buffer = np.array([], dtype=np.int16)
+        self.last_recording_rate = 44100
         self.timer_grabacion_automatica = QtCore.QTimer()
         self.timer_grabacion_automatica.timeout.connect(self.verificar_grabaciones_programadas)
         self.timer_grabacion_automatica.start(10000)
@@ -143,20 +146,30 @@ class controlador():
                 "Archivos de audio (*.wav);;Todos los archivos (*)"
             )
         
+        # Verificar que se seleccionó un archivo
+        if not SignalfileName[0]:
+            print("No se seleccionó ningún archivo")
+            return
+        
         # Read wav file
         Fs, x = wavread(SignalfileName[0])
         print("Fs:", Fs)
         print("Shape de x:", x.shape)
         print("Primeros datos:", x[:10])
-        print("maxX:", maxX)
-        print("signaldata:", signaldata[:10])
+        
+        # Convertir a mono si es estéreo
         if x.ndim > 1:
-            x = x.mean(axis=1)  # Convertir a mono si es estéreo
+            x = x.mean(axis=1)
+            
+        # Normalizar la señal
         maxX = np.max(np.abs(x))
         if maxX == 0:
             signaldata = x  # Evitar división por cero
         else:
             signaldata = x / maxX
+        
+        print("maxX:", maxX)
+        print("signaldata:", signaldata[:10])
 
         if Fs > 44000: # validacion de la entrada de datos
             self.cModel.setFs(Fs) # Guardo en base de datos/modelo
@@ -170,15 +183,135 @@ class controlador():
         else:
             print("signaldata es invalido")
 
-        # Hago una peticion a modelo y mando informacion a la vista 
-        # para que los datos levantados sean cargados
-        self.graficar()
+        # Asegurar que la vista esté en modo tiempo
+        if not self.cVista.btnTiempo.isChecked():
+            self.cVista.ventanaTiempo()
+        
+        # Usar función especializada para graficar señales importadas
+        self.graficarImportada()
 
     def probar_frecuencias_entrada(self, device_index, lista_frecuencias, canales=1):
         from funciones.consDisp import probar_frecuencias_entrada
         return probar_frecuencias_entrada(device_index, lista_frecuencias, canales)
 
-    def graficar(self):                             # Funcion para graficar las señales
+    def graficarImportada(self):                    # Funcion para graficar señales importadas desde archivos .wav
+        """Grafica señales importadas con eje X en segundos y ajuste automático de rango"""
+        print(f"\n=== INICIO graficarImportada ===")
+        print(f"btnTiempo.isChecked(): {self.cVista.btnTiempo.isChecked()}")
+        print(f"btnFrecuencia.isChecked(): {self.cVista.btnFrecuencia.isChecked()}")
+        
+        if self.cVista.btnTiempo.isChecked():
+            # Tiempo - para señales importadas
+            print("Modo TIEMPO seleccionado")
+            
+            # Determinar qué filtro está activo
+            if self.cVista.r0.isChecked():
+                filtro = 'A'
+            elif self.cVista.r1.isChecked():
+                filtro = 'C'
+            elif self.cVista.r2.isChecked():
+                filtro = 'Z'
+            else:
+                filtro = 'Z'  # Por defecto
+                
+            print(f"Filtro seleccionado: {filtro}")
+            
+            data = self.cModel.getSignalData(filtro)
+            print(f"Datos obtenidos del modelo: {len(data)} muestras")
+            print(f"Primeros datos: {data[:10]}")
+            
+            # Convertir índices de muestra a tiempo en segundos
+            print(f"Fs del modelo: {self.cModel.Fs}")
+            x = np.arange(len(data)) / self.cModel.Fs
+            print(f"Eje X generado: {len(x)} puntos")
+            print(f"Rango de tiempo: {x[0]:.3f}s a {x[-1]:.3f}s")
+            
+            # DOWNSAMPLING: Reducir datos grandes para renderizado
+            max_points = 50000  # Máximo de puntos a graficar
+            if len(data) > max_points:
+                print(f"DOWNSAMPLING: Reduciendo {len(data)} puntos a {max_points}")
+                # Calcular el factor de decimación
+                decimation_factor = int(np.ceil(len(data) / max_points))
+                print(f"Factor de decimación: {decimation_factor}")
+                
+                # Decimar los datos (tomar 1 de cada N puntos)
+                data = data[::decimation_factor]
+                x = x[::decimation_factor]
+                print(f"Datos reducidos a: {len(data)} puntos")
+            
+            # IMPORTANTE: Limpiar todas las otras líneas del gráfico para evitar superposición
+            print("Limpiando otros objetos de gráfico...")
+            self.cVista.ptdomEspect.setData([], [])
+            # Limpiar líneas de nivel
+            if hasattr(self.cVista, 'ptNivZSlow'):
+                self.cVista.ptNivZSlow.setData([], [])
+                self.cVista.ptNivZFast.setData([], [])
+                self.cVista.ptNivZInst.setData([], [])
+                self.cVista.ptNivZPico.setData([], [])
+            print("Otros objetos limpiados")
+            
+            print(f"Objeto ptdomTiempo: {self.cVista.ptdomTiempo}")
+            print(f"ptdomTiempo visible: {self.cVista.ptdomTiempo.isVisible()}")
+            
+            # Configurar el pen con color y grosor destacados
+            import pyqtgraph as pg
+            pen = pg.mkPen(color='r', width=3)  # Rojo, grosor 3
+            self.cVista.ptdomTiempo.setPen(pen)
+            print("Pen configurado: rojo, grosor 3")
+            
+            print(f"Llamando a ptdomTiempo.setData con {len(x)} puntos...")
+            self.cVista.ptdomTiempo.setData(x, data)
+            print("setData completado")
+            
+            # Verificar el rango Y también
+            y_range = self.cVista.waveform1.viewRange()[1]
+            print(f"Rango Y actual: {y_range}")
+            
+            # Ajustar el rango Y automáticamente basado en los datos reales
+            data_min = np.min(data)
+            data_max = np.max(data)
+            print(f"Datos - min: {data_min}, max: {data_max}")
+            
+            # Agregar un margen del 10% para que se vea mejor
+            y_margin = (data_max - data_min) * 0.1
+            y_min = data_min - y_margin
+            y_max = data_max + y_margin
+            
+            print(f"Ajustando rango Y: [{y_min}, {y_max}]")
+            self.cVista.waveform1.setYRange(y_min, y_max, padding=0)
+            print("Rango Y ajustado")
+            
+            # Ajustar el rango del eje X automáticamente
+            if len(x) > 0:
+                print(f"Ajustando rango X: [{x[0]}, {x[-1]}]")
+                self.cVista.waveform1.setXRange(x[0], x[-1], padding=0)
+                print("Rango X ajustado")
+                
+                # Forzar actualización del gráfico
+                print("Forzando actualización del gráfico...")
+                self.cVista.waveform1.update()
+                self.cVista.winGraph1.update()
+                print("Actualización forzada completada")
+        
+        elif self.cVista.btnFrecuencia.isChecked():
+            # Espectro - para señales importadas
+            print("Modo FRECUENCIA seleccionado")
+            if self.cVista.r0.isChecked():
+                yf_data = self.cModel.getSignalFrec('A')
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
+                self.cVista.ptdomEspect.setData(f, yf_data)
+            elif self.cVista.r1.isChecked():
+                yf_data = self.cModel.getSignalFrec('C')
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
+                self.cVista.ptdomEspect.setData(f, yf_data)
+            elif self.cVista.r2.isChecked():
+                yf_data = self.cModel.getSignalFrec('Z')
+                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
+                self.cVista.ptdomEspect.setData(f, yf_data)
+        
+        print("=== FIN graficarImportada ===\n")
+
+    def graficar(self):                             # Funcion para graficar las señales (grabación en tiempo real)
         print(f"DEBUG: Función graficar llamada")
         print(f"DEBUG: btnTiempo.isChecked(): {self.cVista.btnTiempo.isChecked()}")
         print(f"DEBUG: btnFrecuencia.isChecked(): {self.cVista.btnFrecuencia.isChecked()}")
@@ -628,14 +761,68 @@ class controlador():
         
     def dalePlay(self):                            # Comunicacion con la Vista
         if self.cVista.btngbr.isChecked() == False:
-            # Acción de DETENER: detiene todo y resetea.
+            # Acción de DETENER: 
+            # 1. Guardar el buffer actual para permitir exportarlo
+            try:
+                print(f"DEBUG: Deteniendo grabación. Verificando buffer...")
+                if hasattr(self.cModel, 'buffer'):
+                    print(f"DEBUG: self.cModel.buffer tiene {len(self.cModel.buffer)} chunks")
+                    if self.cModel.buffer:
+                        self.last_recording_buffer = np.concatenate(self.cModel.buffer)
+                        self.last_recording_rate = self.cModel.rate
+                        print(f"DEBUG: Buffer guardado. Tamaño final: {len(self.last_recording_buffer)}")
+                        self.cVista.btnGuardar.setEnabled(True)
+                    else:
+                        print("DEBUG: Buffer está vacío (list empty)")
+                        self.last_recording_buffer = np.array([], dtype=np.int16)
+                        self.cVista.btnGuardar.setEnabled(False)
+                else:
+                    print("DEBUG: no attribute buffer")
+                    self.last_recording_buffer = np.array([], dtype=np.int16)
+                    self.cVista.btnGuardar.setEnabled(False)
+            except Exception as e:
+                print(f"Error al guardar buffer temporal: {e}")
+                self.cVista.btnGuardar.setEnabled(False)
+
+            # 2. detiene todo y resetea.
             self.reset_all_data()
         else:
             # Acción de INICIAR: resetea todo y comienza de nuevo.
+            print("DEBUG: Iniciando grabación.")
+            self.cVista.btnGuardar.setEnabled(False)
+            self.last_recording_buffer = np.array([], dtype=np.int16)
+            
             self.reset_all_data()
             self.timer.start(30) 
             self.device_active = True
             self.cModel.stream.start_stream()
+
+    def guardar_grabacion_manual(self):
+        """Guarda la última grabación manual en un archivo .wav"""
+        if self.last_recording_buffer.size == 0:
+            QMessageBox.warning(None, "Advertencia", "No hay grabación disponible para guardar.")
+            return
+
+        try:
+            # Abrir diálogo para guardar archivo
+            options = QFileDialog.Options()
+            fileName, _ = QFileDialog.getSaveFileName(
+                None,
+                "Guardar grabación",
+                f"grabacion_manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav",
+                "Archivos WAV (*.wav);;Todos los archivos (*)",
+                options=options
+            )
+
+            if fileName:
+                # Guardar el archivo usando soundfile
+                sf.write(fileName, self.last_recording_buffer, self.last_recording_rate, subtype='PCM_16')
+                
+                QMessageBox.information(None, "Éxito", f"Grabación guardada correctamente en:\n{fileName}")
+                print(f"[INFO] Grabación manual guardada en: {fileName}")
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"No se pudo guardar el archivo:\n{str(e)}")
+            print(f"[ERROR] Falló al guardar grabación manual: {e}")
 
     def update_view(self):                           # Cronometro
          # Actualizar dispositivo 1 si está activo
