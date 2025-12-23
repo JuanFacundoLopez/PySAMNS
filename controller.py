@@ -334,17 +334,23 @@ class controlador():
 
         elif self.cVista.btnFrecuencia.isChecked():
             # Espectro
+            rate = getattr(self.cModel, "rate", None)
+            if rate is None or rate <= 0:
+                return
+
             if self.cVista.r0.isChecked():
                 yf_data = self.cModel.getSignalFrec('A')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
-                self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r1.isChecked():
                 yf_data = self.cModel.getSignalFrec('C')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
-                self.cVista.ptdomEspect.setData(f, yf_data)
             elif self.cVista.r2.isChecked():
                 yf_data = self.cModel.getSignalFrec('Z')
-                f = np.linspace(0, int(self.cModel.rate/2), int(self.cModel.chunk/2))
+            else:
+                yf_data = np.array([])
+
+            # Protegernos contra desajustes de tamaño entre X e Y:
+            # usamos siempre la longitud real de los datos de espectro.
+            if yf_data is not None and len(yf_data) > 0:
+                f = np.linspace(0, int(rate / 2), len(yf_data))
                 self.cVista.ptdomEspect.setData(f, yf_data)
 
         elif self.cVista.btnNivel.isChecked():
