@@ -1198,10 +1198,10 @@ class controlador():
         
         # Mostrar mensaje de que la calibración se aplicó exitosamente
         QMessageBox.information(
-                    self.ventanas_abiertas["calibracion"],
-                    "Éxito",
-                    "Calibración aplicada correctamente."
-                )
+            self.cVista,
+            "Éxito",
+            "Calibración aplicada correctamente."
+        )
         print("Calibración aplicada correctamente")
             
     def verificar_grabaciones_programadas(self):

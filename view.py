@@ -1755,20 +1755,24 @@ class vista(QMainWindow):
                                     plot_widget.addItem(text_item)
 
                         # Configurar rango Y
-                        # y_min, y_max = self.configure_bar_chart_y_range(niveles) # Esto usaba ultimo niveles
-                        # Usar max encontrado
                         y_max = 0 if max_level_found < 0 else max_level_found + 10
-                        if y_max < 0: y_max = 0
+                        if y_max < 0:
+                            y_max = 0
                         y_min = -120
-                        # Respetar configuración manual si existe? self.var_yMinEspectro
-                        if hasattr(self, 'var_yMinEspectro'): y_min = self.var_yMinEspectro
-                        if hasattr(self, 'var_yMaxEspectro'): y_max = self.var_yMaxEspectro
+                        # Sin calibrar: respetar límites de configuración (-120 / 0 dBFS)
+                        if not getattr(self.vController.cModel, 'calibracion_activa', False):
+                            if hasattr(self, 'var_yMinEspectro'):
+                                y_min = self.var_yMinEspectro
+                            if hasattr(self, 'var_yMaxEspectro'):
+                                y_max = self.var_yMaxEspectro
                         
                         plot_widget.setYRange(y_min, y_max)
     
                         # Actualizar la base del título para persistencia (calibración badge)
-                        self._ejeY_titulo_base = f'Nivel {filtro} (dB)'
-                        plot_widget.setLabel('left', self._ejeY_titulo_base)
+                        if plot_widget is self.waveform1:
+                            self._ejeY_titulo_base = f'Nivel {filtro} (dB)'
+                        else:
+                            plot_widget.setLabel('left', f'Nivel {filtro} (dB)')
                         
                         # Las etiquetas del eje X son manejadas por FrequencyAxisItem
                         # que se configura en actualizarEstiloGraficoEspectro
