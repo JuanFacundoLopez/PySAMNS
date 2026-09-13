@@ -279,15 +279,9 @@ class controlador():
                 if len(dataVectorSlowZ) > 0:
                     print(f"DEBUG: Valores Slow Z: {dataVectorSlowZ}")
                 
-                # Ajustar el rango del eje X automáticamente
+                # Ajustar el rango del eje X automáticamente: mostrar todo desde el inicio
                 max_time = timeNivelData[-1] if len(timeNivelData) > 0 else 10
-                
-                # Aplicar ventana deslizante: usar el max_x configurado por el usuario o un valor por defecto (10s)
-                window_size = getattr(self.cVista, 'var_xMaxNivel', 10.0) # Obtener la ventana configurada (en segundos)
-                # Se verifica si el valor es razonable, sino se usa el valor de 10.0 segundos
-                if window_size <= 0 or window_size > 900:
-                    window_size = 10.0
-                min_time = max(0.0, max_time - window_size)
+                min_time = 0.0
                 self.cVista.waveform1.setXRange(min_time, max_time, padding=0)
 
                 
