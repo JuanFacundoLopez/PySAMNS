@@ -1,5 +1,7 @@
 # configuracionWin.py
 
+import os
+import sys
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
                              QGridLayout, QLabel, QLineEdit, QCheckBox, QPushButton, 
                              QComboBox, QFrame, QColorDialog, QMessageBox)
@@ -12,6 +14,15 @@ class ConfiguracionWin(QMainWindow):
     # Señal para comunicar cambios a la ventana principal
     configuracionCambiada = pyqtSignal(dict)
     
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+    
     def __init__(self, vista_principal, controller):
         super().__init__()
         self.vista = vista_principal  # Referencia a la vista principal
@@ -23,7 +34,7 @@ class ConfiguracionWin(QMainWindow):
         self.altoY = self.vista.altoY
         
         self.setWindowTitle("Configuración de gráficos")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         self.setGeometry(norm(self.anchoX, self.altoY, 0.2, 0.2, 0.6, 0.6))
         
         self.initUI()
@@ -265,9 +276,9 @@ class ConfiguracionWin(QMainWindow):
         parametrosFFTLayout.addWidget(self.cmbFFTRate, 0, 1)
         parametrosFFTLayout.addWidget(QLabel("[Hz]"), 0, 2)
         
-        parametrosFFTLayout.addWidget(QLabel("Número de muestras:"), 1, 0)
+        parametrosFFTLayout.addWidget(QLabel("Tamaño del vector:"), 1, 0)
         self.cmbFFTNSamples = QComboBox()
-        self.cmbFFTNSamples.addItems(["512", "1024", "2048", "4096", "8192"])
+        self.cmbFFTNSamples.addItems(["2048", "4096", "8192"])
         self.cmbFFTNSamples.setCurrentText("1024")
         parametrosFFTLayout.addWidget(self.cmbFFTNSamples, 1, 1)
         parametrosFFTGroup.setLayout(parametrosFFTLayout)
@@ -427,15 +438,46 @@ class ConfiguracionWin(QMainWindow):
             # Si no hay dispositivo, usar el valor del modelo
             self.cmbFFTRate.addItem(str(self.vController.cModel.rate))
         
-        # Número de muestras
-        fft_n_samples = str(self.vController.cModel.chunk)
-        idx = self.cmbFFTNSamples.findText(fft_n_samples)
+        # Número de muestras (FFT)
+        # Debe ser SIEMPRE MAYOR O IGUAL al buffer (chunk) del dispositivo,
+        # pero ya no forzamos que sean exactamente iguales ni que el cambio
+        # de FFT modifique el chunk.
+        chunk_actual = int(getattr(self.vController.cModel, "chunk", 1024))
+
+        # Opciones base permitidas para la FFT
+        opciones_base = [2048, 4096, 8192]
+
+        # Filtrar para que ninguna opción sea menor que el chunk seleccionado
+        opciones_filtradas = [v for v in opciones_base if v >= chunk_actual]
+
+        # Si por algún motivo el chunk es mayor a todas las opciones base,
+        # nos aseguramos de incluirlo para no dejar la lista vacía.
+        if not opciones_filtradas or chunk_actual > opciones_filtradas[-1]:
+            opciones_filtradas.append(chunk_actual)
+
+        # Actualizar el combo de número de muestras
+        self.cmbFFTNSamples.blockSignals(True)
+        self.cmbFFTNSamples.clear()
+        for v in sorted(set(opciones_filtradas)):
+            self.cmbFFTNSamples.addItem(str(v))
+
+        # Intentar preseleccionar el último valor usado en la vista,
+        # pero respetando la restricción de ser >= chunk_actual.
+        fft_n_samples_vista = int(
+            getattr(self.vista, "var_fft_n_samples", chunk_actual)
+        )
+        # Asegurar que no sea menor que el chunk
+        fft_n_samples_vista = max(fft_n_samples_vista, chunk_actual)
+
+        fft_n_samples_str = str(fft_n_samples_vista)
+        idx = self.cmbFFTNSamples.findText(fft_n_samples_str)
         if idx >= 0:
             self.cmbFFTNSamples.setCurrentIndex(idx)
         else:
-            # Si el valor del modelo no está en la lista, agregarlo
-            self.cmbFFTNSamples.addItem(fft_n_samples)
-            self.cmbFFTNSamples.setCurrentText(fft_n_samples)
+            # Si no está, seleccionar el primer valor disponible
+            self.cmbFFTNSamples.setCurrentIndex(0)
+
+        self.cmbFFTNSamples.blockSignals(False)
         
         # Valores de nivel
         self.cbEscalaYNivel.setChecked(getattr(self.vista, 'var_logModeYNivel', False))

@@ -11,10 +11,19 @@ from funciones.consDisp import probar_frecuencias_entrada, frecuencias_comunes
 class ConfigDispWin(QMainWindow):
     frecuenciaMuestreoCambiada = pyqtSignal(int)
     
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+    
     def __init__(self, vController, parent_cal_win=None):
         super().__init__()
         self.setWindowTitle("Configuración de dispositivos")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         screen = QApplication.primaryScreen().size()
         self.anchoX = screen.width()
         self.altoY = screen.height()
@@ -115,7 +124,7 @@ class ConfigDispWin(QMainWindow):
         self.cmbRate = QComboBox()
         #self.txtChunk = QLineEdit(str(self.vController.cModel.chunk))
         self.cmbBuffer = QComboBox()
-        self.cmbBuffer.addItems(["128","256", "512", "1024", "2048", "4096", "8192"])
+        self.cmbBuffer.addItems(["2048", "4096", "8192"])
         self.lblRate = QLabel("Frecuencia de muestreo (Hz):")
         rateChunkLayoutH1.addWidget(self.lblRate)
         rateChunkLayoutH1.addWidget(self.cmbRate)
@@ -164,14 +173,23 @@ class ConfigDispWin(QMainWindow):
         self.actualizarFrecuenciasEntrada(self.cmbDispositivosEntrada.currentIndex())
         
         # Seleccionar el buffer actual del modelo
-        buffer_actual = str(self.vController.cModel.chunk)
+        # Forzar un mínimo de 2048 para que no aparezca 1024 ni valores menores
+        buffer_actual_val = int(getattr(self.vController.cModel, "chunk", 2048))
+        if buffer_actual_val < 2048:
+            buffer_actual_val = 2048
+            # Opcional: actualizar también el modelo para mantener coherencia
+            try:
+                self.vController.cModel.chunk = buffer_actual_val
+            except Exception:
+                pass
+
+        buffer_actual = str(buffer_actual_val)
         idx_buffer = self.cmbBuffer.findText(buffer_actual)
         if idx_buffer >= 0:
             self.cmbBuffer.setCurrentIndex(idx_buffer)
         else:
-            # Si el valor actual no está en la lista, agregarlo
-            self.cmbBuffer.addItem(buffer_actual)
-            self.cmbBuffer.setCurrentText(buffer_actual)
+            # Si por alguna razón el valor no está, seleccionar el primer elemento (2048)
+            self.cmbBuffer.setCurrentIndex(0)
         
         # Desbloquear señales después de inicializar todo
         self.cmbDispositivosEntrada.blockSignals(False)
@@ -262,48 +280,56 @@ class ConfigDispWin(QMainWindow):
             print(f"Dispositivo salida seleccionado: {device_index_salida}")
             print(f"Rate: {rate}, Chunk: {chunk}")
             
-            # Cambiar el dispositivo de entrada si es diferente al actual
-            if device_index_entrada != dispositivo_entrada_actual:
-                print(f"Cambiando dispositivo de entrada de {dispositivo_entrada_actual} a {device_index_entrada}")
-                
-                try:
-                    # initialize_audio_stream ahora maneja el cierre del stream anterior automáticamente
-                    # con el delay necesario y validación de parámetros
-                    print("Inicializando nuevo stream...")
-                    self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
-                    
-                    # Verificar que el cambio se aplicó correctamente
-                    nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
-                    print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
-                    
-                    if nuevo_dispositivo_entrada == device_index_entrada:
-                        print("✅ Cambio de dispositivo de entrada exitoso")
-                    else:
-                        print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
-                        QMessageBox.warning(self, "Advertencia", 
-                            "El dispositivo se configuró pero puede que no esté funcionando correctamente.")
-                except Exception as e:
-                    error_msg = str(e)
-                    print(f"❌ Error al cambiar dispositivo de entrada: {error_msg}")
-                    
-                    # Mensaje más amigable para el usuario
-                    if "Unanticipated host error" in error_msg or "-9999" in error_msg:
-                        QMessageBox.critical(self, "Error de Dispositivo", 
-                            f"No se pudo inicializar el dispositivo de audio seleccionado.\n\n"
-                            f"Posibles causas:\n"
-                            f"• El dispositivo está siendo usado por otra aplicación\n"
-                            f"• Los parámetros (Rate: {rate} Hz, Buffer: {chunk}) no son compatibles\n"
-                            f"• El dispositivo no está disponible\n\n"
-                            f"Intenta:\n"
-                            f"• Cerrar otras aplicaciones que usen audio\n"
-                            f"• Seleccionar una frecuencia diferente\n"
-                            f"• Probar con otro dispositivo")
-                    else:
-                        QMessageBox.critical(self, "Error", 
-                            f"Error al cambiar dispositivo de entrada:\n{error_msg}")
-                    return  # No continuar si falla el cambio de dispositivo de entrada
-            else:
-                print("No se requiere cambio de dispositivo de entrada")
+            # Cambiar el dispositivo de entrada o, si es el mismo, al menos actualizar rate/chunk
+            try:
+                if device_index_entrada != dispositivo_entrada_actual:
+                    print(f"Cambiando dispositivo de entrada de {dispositivo_entrada_actual} a {device_index_entrada}")
+                else:
+                    print("Actualizando parámetros de audio (rate/chunk) para el mismo dispositivo de entrada")
+
+                # initialize_audio_stream maneja el cierre del stream anterior y valida parámetros
+                print("Inicializando / actualizando stream de entrada...")
+                self.vController.cModel.initialize_audio_stream(device_index_entrada, rate, chunk)
+
+                # Verificar que el cambio se aplicó correctamente
+                nuevo_dispositivo_entrada = self.vController.cModel.getDispositivoActual()
+                print(f"Dispositivo entrada después del cambio: {nuevo_dispositivo_entrada}")
+
+                if nuevo_dispositivo_entrada == device_index_entrada:
+                    print("✅ Parámetros de entrada aplicados correctamente")
+                else:
+                    print("⚠️ El cambio de dispositivo de entrada no se aplicó correctamente")
+                    QMessageBox.warning(
+                        self,
+                        "Advertencia",
+                        "El dispositivo se configuró pero puede que no esté funcionando correctamente.",
+                    )
+            except Exception as e:
+                error_msg = str(e)
+                print(f"❌ Error al configurar dispositivo/parámetros de entrada: {error_msg}")
+
+                # Mensaje más amigable para el usuario
+                if "Unanticipated host error" in error_msg or "-9999" in error_msg:
+                    QMessageBox.critical(
+                        self,
+                        "Error de Dispositivo",
+                        f"No se pudo inicializar el dispositivo de audio seleccionado.\n\n"
+                        f"Posibles causas:\n"
+                        f"• El dispositivo está siendo usado por otra aplicación\n"
+                        f"• Los parámetros (Rate: {rate} Hz, Buffer: {chunk}) no son compatibles\n"
+                        f"• El dispositivo no está disponible\n\n"
+                        f"Intenta:\n"
+                        f"• Cerrar otras aplicaciones que usen audio\n"
+                        f"• Seleccionar una frecuencia diferente\n"
+                        f"• Probar con otro dispositivo",
+                    )
+                else:
+                    QMessageBox.critical(
+                        self,
+                        "Error",
+                        f"Error al cambiar dispositivo de entrada o parámetros de audio:\n{error_msg}",
+                    )
+                return  # No continuar si falla la configuración de entrada
             
             # Cambiar el dispositivo de salida si es diferente al actual
             if device_index_salida != dispositivo_salida_actual:
@@ -329,7 +355,18 @@ class ConfigDispWin(QMainWindow):
             # Actualizar el label con el nuevo nombre del dispositivo
             if self.parent_cal_win is not None:
                 self.parent_cal_win.actualizarNombreDispositivos()
-            
+
+            # --- Sincronizar parámetros FFT por defecto con la configuración del dispositivo ---
+            # De esta forma, el "número de muestras" (chunk) elegido aquí queda guardado
+            # y se usa como valor por defecto en los gráficos/FFT, hasta que
+            # la ventana de configuración de gráfico lo cambie explícitamente.
+            try:
+                if hasattr(self.vController, "cVista"):
+                    self.vController.cVista.var_fft_rate = rate
+                    self.vController.cVista.var_fft_n_samples = chunk
+            except Exception as e:
+                print(f"Advertencia al actualizar parámetros FFT en la vista: {e}")
+
             self.close()
             
         except Exception as e:

@@ -10,7 +10,7 @@ from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
-                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame, QStyle)
+                             QMenu, QMessageBox, QColorDialog, QFileDialog, QFrame, QStyle, QComboBox)
 
 from PyQt5.QtGui import QPixmap, QIcon
 from pyqtgraph.Qt import  QtCore
@@ -103,6 +103,15 @@ class FrequencyAxisItem(pg.AxisItem):
 
 class vista(QMainWindow):
 
+    def _get_image_path(self, image_name):
+        """Helper method to get image path that works in both dev and frozen environments"""
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            return os.path.join(sys._MEIPASS, 'img', image_name)
+        else:
+            # If running in development
+            return os.path.join('img', image_name)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # Actualizar dimensiones
@@ -119,10 +128,10 @@ class vista(QMainWindow):
         
         # Actualizar tamaño de los logos
         if hasattr(self, 'logoCintra') and hasattr(self, 'logoUTN'):
-            self.logoCintra.setPixmap(QPixmap('img/Logocintra.png').scaled(
+            self.logoCintra.setPixmap(QPixmap(self._get_image_path('Logocintra.png')).scaled(
                 logo_width, logo_height,
                 QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
-            self.logoUTN.setPixmap(QPixmap('img/LogoCINTRA1.png').scaled(
+            self.logoUTN.setPixmap(QPixmap(self._get_image_path('LogoCINTRA1.png')).scaled(
                 logo_width, logo_height,
                 QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
 
@@ -164,6 +173,7 @@ class vista(QMainWindow):
         # Luego inicializamos la ventana principal
         super().__init__()
         self.vController = Controller
+        self.waveform_2 = None # Inicializar referencia para el segundo gráfico
         
         
     
@@ -175,7 +185,7 @@ class vista(QMainWindow):
 
         # Configuración de la ventana principal
         self.setWindowTitle("SAMNS")
-        self.setWindowIcon(QIcon('img/LogoCINTRA1.png'))
+        self.setWindowIcon(QIcon(self._get_image_path('LogoCINTRA1.png')))
         self.setGeometry(int(self.anchoX * 0.01), int(self.altoY * 0.025), 
                         int(self.anchoX * 0.95), int(self.altoY * 0.9))
         
@@ -237,6 +247,7 @@ class vista(QMainWindow):
         self.var_yMaxTiempo = 1
         self.var_xMinEspectro = np.log10(20)
         self.var_xMaxEspectro = np.log10(20000)
+
         self.var_eje2Visible = True
         self.var_valoresOctavas = True
         self.var_yMinEspectro = -120
@@ -281,6 +292,16 @@ class vista(QMainWindow):
             "#A93226","#1A5276","#16A085",
             # p99
             "#922B21","#154360","#117A65",
+            # Max (New) - bold colors
+            "#C0392B", "#2E86C1", "#1E8449",
+            # Min (New) - lighter colors
+            "#E6B0AA", "#AED6F1", "#A9DFBF",
+            # Peak (New) - bold
+            "#E74C3C", "#3498DB", "#27AE60",
+            # Fast (New) - Use Rapido colors
+            "#C0392B", "#125E91", "#28B463",
+            # Slow (New) - Use Lento colors
+            "#FF8E7B", "#7FB8EA", "#58D68D",
             ]
         
         # Centralización de colores por defecto
@@ -342,9 +363,9 @@ class vista(QMainWindow):
         self.btngbr.setCheckable(True)
         self.btngbr.clicked.connect(self.grabar)
         
-        icon_play_path = "img/boton-de-play.png" 
+        icon_play_path = self._get_image_path("boton-de-play.png") 
         self.btngbr.setIcon(QIcon(icon_play_path))
-        icon_import_path = "img/importar.png"
+        icon_import_path = self._get_image_path("importar.png")
         self.btn.setIcon(QIcon(icon_import_path))
         
        
@@ -408,23 +429,151 @@ class vista(QMainWindow):
         tipoGraficoGroup.setLayout(tipoGraficoLayout)
         self.rightLayout.addWidget(tipoGraficoGroup)
         
-        # Filtros ponderados
+        # Filtros ponderados (MODIFICADO PARA DOS GRÁFICOS)
         self.filtrosGroup = QGroupBox("Filtros ponderados frecuenciales")
-        filtrosLayout = QHBoxLayout()
+        filtrosLayout = QVBoxLayout() # Cambiado a vertical para alojar dos filas
+        
+        # --- Grupo 1: Gráfico Superior ---
+        self.lblG1 = QLabel("Gráfico 1 (Superior)")
+        self.lblG1.setStyleSheet("font-weight: bold;")
+        row1Layout = QHBoxLayout()
         
         self.r0 = QRadioButton("A")
         self.r1 = QRadioButton("C")
         self.r2 = QRadioButton("Z")
-        self.r2.setChecked(True)
+        self.r2.setChecked(True) # Z por defecto
         
         # Connect radio button signals to graficar method
         self.r0.toggled.connect(lambda: self.vController.graficar())
         self.r1.toggled.connect(lambda: self.vController.graficar())
         self.r2.toggled.connect(lambda: self.vController.graficar())
         
-        filtrosLayout.addWidget(self.r0)
-        filtrosLayout.addWidget(self.r1)
-        filtrosLayout.addWidget(self.r2)
+        row1Layout.addWidget(self.r0)
+        row1Layout.addWidget(self.r1)
+        row1Layout.addWidget(self.r2)
+        
+        row1Layout.addWidget(self.r2)
+        
+        # Checkboxes para métricas G1 (Contenedor para ocultar)
+        self.metricsG1Container = QWidget()
+        metricsG1Layout = QVBoxLayout(self.metricsG1Container) # Cambiado a vertical
+        metricsG1Layout.setContentsMargins(0,0,0,0)
+        
+        # Fila 1: Leq y Percentiles
+        row1MetricsG1 = QHBoxLayout()
+        row1MetricsG1.setContentsMargins(0,0,0,0)
+        
+        # Fila 2: Max, Min, Peak, Time-weighted
+        row2MetricsG1 = QHBoxLayout()
+        row2MetricsG1.setContentsMargins(0,0,0,0)
+        
+        self.cbLeqG1 = QCheckBox("Leq")
+        self.cbLMaxG1 = QCheckBox("Lmax")
+        self.cbLMinG1 = QCheckBox("Lmin")
+        self.cbLPkG1 = QCheckBox("Lpk")
+        self.cbLInstG1 = QCheckBox("Inst")
+        self.cbLFastG1 = QCheckBox("Fast")
+        self.cbLSlowG1 = QCheckBox("Slow")
+        self.cbL01G1 = QCheckBox("L01")
+        self.cbL10G1 = QCheckBox("L10")
+        self.cbL50G1 = QCheckBox("L50")
+        self.cbL90G1 = QCheckBox("L90")
+        self.cbL99G1 = QCheckBox("L99")
+        
+        # Leq seleccionado por defecto
+        self.cbLeqG1.setChecked(True)
+        
+        # Agregar a layouts correspondientes
+        # Fila 1: Leq, L01-L99
+        for cb in [self.cbLeqG1, self.cbL01G1, self.cbL10G1, self.cbL50G1, self.cbL90G1, self.cbL99G1]:
+            row1MetricsG1.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        # Fila 2: Resto
+        for cb in [self.cbLMaxG1, self.cbLMinG1, self.cbLPkG1, self.cbLInstG1, self.cbLFastG1, self.cbLSlowG1]:
+            row2MetricsG1.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        metricsG1Layout.addLayout(row1MetricsG1)
+        metricsG1Layout.addLayout(row2MetricsG1)
+            
+        row1Layout.addWidget(self.metricsG1Container)
+        
+        # --- Grupo 2: Gráfico Inferior (Contenedor para ocultarlo) ---
+        self.filtrosG2Container = QWidget()
+        vboxG2 = QVBoxLayout(self.filtrosG2Container)
+        vboxG2.setContentsMargins(0,0,0,0)
+        
+        self.lblG2 = QLabel("Gráfico 2 (Inferior)")
+        self.lblG2.setStyleSheet("font-weight: bold;")
+        row2Layout = QHBoxLayout()
+        
+        self.r3 = QRadioButton("A")
+        self.r4 = QRadioButton("C")
+        self.r5 = QRadioButton("Z")
+        self.r5.setChecked(True) # Z por defecto
+        
+        # Connect radio button signals to graficar method
+        self.r3.toggled.connect(lambda: self.vController.graficar())
+        self.r4.toggled.connect(lambda: self.vController.graficar())
+        self.r5.toggled.connect(lambda: self.vController.graficar())
+        
+        row2Layout.addWidget(self.r3)
+        row2Layout.addWidget(self.r4)
+        row2Layout.addWidget(self.r5)
+        
+        row2Layout.addWidget(self.r5)
+        
+        # Checkboxes para métricas G2
+        self.metricsG2Container = QWidget()
+        metricsG2Layout = QVBoxLayout(self.metricsG2Container) # Vertical
+        metricsG2Layout.setContentsMargins(0,0,0,0)
+        
+        # Fila 1 G2
+        row1MetricsG2 = QHBoxLayout()
+        row1MetricsG2.setContentsMargins(0,0,0,0)
+        
+        # Fila 2 G2
+        row2MetricsG2 = QHBoxLayout()
+        row2MetricsG2.setContentsMargins(0,0,0,0)
+        
+        self.cbLeqG2 = QCheckBox("Leq")
+        self.cbLMaxG2 = QCheckBox("Lmax")
+        self.cbLMinG2 = QCheckBox("Lmin")
+        self.cbLPkG2 = QCheckBox("Lpk")
+        self.cbLInstG2 = QCheckBox("Inst")
+        self.cbLFastG2 = QCheckBox("Fast")
+        self.cbLSlowG2 = QCheckBox("Slow")
+        self.cbL01G2 = QCheckBox("L01")
+        self.cbL10G2 = QCheckBox("L10")
+        self.cbL50G2 = QCheckBox("L50")
+        self.cbL90G2 = QCheckBox("L90")
+        self.cbL99G2 = QCheckBox("L99")
+        
+        self.cbLeqG2.setChecked(True)
+        
+        # Fila 1
+        for cb in [self.cbLeqG2, self.cbL01G2, self.cbL10G2, self.cbL50G2, self.cbL90G2, self.cbL99G2]:
+            row1MetricsG2.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        # Fila 2
+        for cb in [self.cbLMaxG2, self.cbLMinG2, self.cbLPkG2, self.cbLInstG2, self.cbLFastG2, self.cbLSlowG2]:
+            row2MetricsG2.addWidget(cb)
+            cb.stateChanged.connect(lambda: self.vController.graficar())
+            
+        metricsG2Layout.addLayout(row1MetricsG2)
+        metricsG2Layout.addLayout(row2MetricsG2)
+            
+        row2Layout.addWidget(self.metricsG2Container)
+        
+        vboxG2.addWidget(self.lblG2)
+        vboxG2.addLayout(row2Layout)
+        
+        filtrosLayout.addWidget(self.lblG1)
+        filtrosLayout.addLayout(row1Layout)
+        filtrosLayout.addWidget(self.filtrosG2Container)
+        
         self.filtrosGroup.setLayout(filtrosLayout)
         self.rightLayout.addWidget(self.filtrosGroup)
         
@@ -670,12 +819,12 @@ class vista(QMainWindow):
         logo_height = max(int(self.altoY * 0.1), min_logo_height)
 
         self.logoCintra = QLabel()
-        self.logoCintra.setPixmap(QPixmap('img/Logocintra.png').scaled(
+        self.logoCintra.setPixmap(QPixmap(self._get_image_path('Logocintra.png')).scaled(
             logo_width, logo_height,
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         
         self.logoUTN = QLabel()
-        self.logoUTN.setPixmap(QPixmap('img/LogoCINTRA1.png').scaled(
+        self.logoUTN.setPixmap(QPixmap(self._get_image_path('LogoCINTRA1.png')).scaled(
             logo_width, logo_height,
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         
@@ -881,11 +1030,11 @@ class vista(QMainWindow):
         """Edita el botón de grabar para que se vea como un botón de pausa"""
         if self.btngbr.isChecked():
             self.btngbr.setText("Pausar")
-            self.btngbr.setIcon(QIcon("img/boton-de-pausa.png"))
+            self.btngbr.setIcon(QIcon(self._get_image_path("boton-de-pausa.png")))
         else:
             self.ejexcreado = False
             self.btngbr.setText("Grabar")
-            self.btngbr.setIcon(QIcon("img/boton-de-play.png"))
+            self.btngbr.setIcon(QIcon(self._get_image_path("boton-de-play.png")))
     
     def _sync_vb_right(self):
         if hasattr(self, 'vb_right'):
@@ -932,6 +1081,7 @@ class vista(QMainWindow):
         # Limpiar el gráfico actual
         self.waveform1.clear()
         self._remove_right_axis()
+        self._remove_second_waveform() # Remover segundo gráfico si existe
         
         # Recrear los objetos de gráfico que fueron eliminados por clear()
         self.ptdomTiempo = self.waveform1.plot(pen=(138, 1, 1), width=2)
@@ -966,8 +1116,38 @@ class vista(QMainWindow):
         self.filtrosGroup.setVisible(True)
         self.nivelesGroup.setVisible(False)
         
+        # Inicializar título base para evitar que se use uno incorrecto de otra vista
+        self._ejeY_titulo_base = "Nivel (dB)"
+        
         
         self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+        
+        
+        # Asegurar que existe el segundo gráfico SOLO para vista dual (barras)
+        # Por defecto "Línea" o "" implica un solo gráfico
+        tipo = self.var_tipoGraficoEspectro if hasattr(self, 'var_tipoGraficoEspectro') else ""
+        if tipo in ["Barras-octavas", "Barras-tercios"]:
+            self._ensure_second_waveform()
+            
+            # Mostrar controles del segundo gráfico
+            if hasattr(self, 'filtrosG2Container'):
+                self.filtrosG2Container.setVisible(True)
+            if hasattr(self, 'lblG1'):
+                self.lblG1.setText("Gráfico 1 (Superior)")
+            # Mostrar controles de métricas
+            if hasattr(self, 'metricsG1Container'):
+                self.metricsG1Container.setVisible(True)
+        else:
+            self._remove_second_waveform()
+            
+            # Ocultar controles del segundo gráfico
+            if hasattr(self, 'filtrosG2Container'):
+                self.filtrosG2Container.setVisible(False)
+            if hasattr(self, 'lblG1'):
+                self.lblG1.setText("Filtro ponderado")
+            # Ocultar controles de métricas porque en Lineal no aplica percentil
+            if hasattr(self, 'metricsG1Container'):
+                self.metricsG1Container.setVisible(False)
         
         # Resetear bandera de nivel
         self.nivel_configured = False
@@ -984,7 +1164,7 @@ class vista(QMainWindow):
         if all(hasattr(self, a) for a in ("var_xMinEspectro", "var_xMaxEspectro")):
             self.aplicarConfiguracionEspectro()
         else:
-            # Configuración por defecto para gráfico de frecuencia
+            # Configuración por defecto para gráfico de frecuencia 1
             self.waveform1.setLogMode(x=True, y=False)     # Escala logarítmica en X, lineal en Y
             self.waveform1.setXRange(np.log10(20), np.log10(20000))  # Rango de frecuencia logarítmico
             self.waveform1.setYRange(-120, 0)              # Rango de amplitud en dB
@@ -998,6 +1178,13 @@ class vista(QMainWindow):
                 (np.log10(20000), '20k')
             ]
             self.waveform1.getAxis('bottom').setTicks([ticks])
+            
+            # Configuración por defecto para gráfico de frecuencia 2
+            if self.waveform_2 is not None:
+                self.waveform_2.setLogMode(x=True, y=False)
+                self.waveform_2.setXRange(np.log10(20), np.log10(20000))
+                self.waveform_2.setYRange(-120, 0)
+                self.waveform_2.getAxis('bottom').setTicks([ticks])
             
             #self.waveform1.setLabel('left', 'Nivel (dB)')
             #self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
@@ -1027,6 +1214,7 @@ class vista(QMainWindow):
             self.nivel_configured = True
         
         self._remove_right_axis()
+        self._remove_second_waveform() # Remover segundo gráfico si existe
         
         # Habilitar Z Slow por defecto para que se vea algo en el gráfico
         self.cbNivSlowZ.setChecked(True)
@@ -1217,18 +1405,83 @@ class vista(QMainWindow):
                 pen = pg.mkPen(color=color, width=2)
                 if hasattr(self, 'ptdomEspect'):
                     self.ptdomEspect.setPen(pen)
+                
+                # Eliminar el segundo gráfico si existe, ya que Línea es vista única
+                self._remove_second_waveform()
+
+                # Actualizar controles de filtros
+                if hasattr(self, 'filtrosG2Container'):
+                    self.filtrosG2Container.setVisible(False)
+                if hasattr(self, 'lblG1'):
+                    self.lblG1.setText("Filtro ponderado")
+                # Ocultar controles de métricas
+                if hasattr(self, 'metricsG1Container'):
+                    self.metricsG1Container.setVisible(False)
+                
+                # Restaurar eje normal si estaba en modo barras
+                current_axis = self.waveform1.getAxis('bottom')
+                if isinstance(current_axis, FrequencyAxisItem):
+                    self.waveform1.setAxisItems({'bottom': self.log_x_axis})
+                    
+                    # Restaurar configuración de ticks para el eje principal
+                    ticks = [
+                        (np.log10(20), '20'),
+                        (np.log10(100), '100'),
+                        (np.log10(1000), '1k'),
+                        (np.log10(10000), '10k'),
+                        (np.log10(20000), '20k')
+                    ]
+                    self.log_x_axis.setTicks([ticks])
+
+                # Lo mismo para waveform_2
+                if getattr(self, 'waveform_2', None) is not None:
+                     self.waveform_2.clear() # Limpiar gráfico anterior
+                     current_axis_2 = self.waveform_2.getAxis('bottom')
+                     if isinstance(current_axis_2, FrequencyAxisItem):
+                        # Crear nuevo eje logarítmico para el segundo gráfico
+                        new_axis = LogAxis(orientation='bottom')
+                        self.waveform_2.setAxisItems({'bottom': new_axis})
+                        
+                        # Restaurar ticks
+                        ticks = [
+                            (np.log10(20), '20'),
+                            (np.log10(100), '100'),
+                            (np.log10(1000), '1k'),
+                            (np.log10(10000), '10k'),
+                            (np.log10(20000), '20k')
+                        ]
+                        new_axis.setTicks([ticks])
             elif tipoGrafico in ["Barras-octavas", "Barras-tercios"]:
+                # Asegurar que existe el segundo gráfico para barras
+                self._ensure_second_waveform()
+                
+                # Actualizar controles de filtros
+                if hasattr(self, 'filtrosG2Container'):
+                    self.filtrosG2Container.setVisible(True)
+                if hasattr(self, 'lblG1'):
+                    self.lblG1.setText("Gráfico 1 (Superior)")
+                # Mostrar controles de métricas
+                if hasattr(self, 'metricsG1Container'):
+                    self.metricsG1Container.setVisible(True)
+                
                 # Limpiar el gráfico y guardar el color
                 if hasattr(self, 'waveform1'):
                     self.waveform1.clear()
                 self.colorEspectro = color
-                # Crear un eje personalizado para las etiquetas de frecuencia
+                # Crear ejes personalizados para las etiquetas de frecuencia
                 if tipoGrafico == "Barras-octavas":
                     bandas= [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
                 else:
                     bandas= [16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
-                frequency_axis = FrequencyAxisItem(orientation='bottom', bandas=bandas)
-                self.waveform1.setAxisItems({'bottom': frequency_axis})
+                
+                # Para waveform1
+                frequency_axis_1 = FrequencyAxisItem(orientation='bottom', bandas=bandas)
+                self.waveform1.setAxisItems({'bottom': frequency_axis_1})
+                
+                # Para waveform_2 si existe
+                if getattr(self, 'waveform_2', None) is not None:
+                    frequency_axis_2 = FrequencyAxisItem(orientation='bottom', bandas=bandas)
+                    self.waveform_2.setAxisItems({'bottom': frequency_axis_2})
             
         except Exception as e:
             print(f"Error al actualizar estilo de gráfico de espectro: {e}")
@@ -1367,119 +1620,197 @@ class vista(QMainWindow):
                 if hasattr(self, 'colorEspectro'):
                     color = self.get_color_str(self.colorEspectro)
                 if tipoGrafico in ["Barras-octavas", "Barras-tercios"] and device_num == 1 and len(fft_freqs) > 0:
-                    # Calcular tercios de octava desde el modelo
-                    if tipoGrafico == "Barras-octavas":
-                        bandas, niveles = self.vController.cModel.calcular_octavas(fft_freqs, fft_magnitude)
-                    elif tipoGrafico == "Barras-tercios":
-                        bandas, niveles = self.vController.cModel.calcular_tercios_octava(fft_freqs, fft_magnitude)
-                    else:
-                        bandas, niveles = [], []
                     
-                    print("bandas:", bandas)
-                    print("niveles:", niveles)
                     
-                    if len(bandas) > 0 and len(niveles) > 0:
-                        self.waveform1.clear()
-                            
-                        # Forzar actualización del eje
-                        # frequency_axis.update_bandas(bandas)
-                        # self.waveform1.getAxis('bottom').update()
+                    # Helper para obtener métricas seleccionadas
+                    def get_selected_metrics(container):
+                        metrics = []
+                        if not hasattr(container, 'children'):
+                            return ["Leq"] # Fallback
                         
-                        # También podemos intentar forzar el redibujado completo
-                        self.waveform1.replot()
+                        # Mapeo de checkbox a nombre de métrica
+                        # Asumimos que los checkboxes son atributos de self
+                        labels = ["Leq", "LMax", "LMin", "LPk", "LInst", "LFast", "LSlow", "L01", "L10", "L50", "L90", "L99"]
                         
-                        # Usar posiciones secuenciales para las barras (0, 1, 2, 3...)
-                        x_positions = np.arange(len(bandas))
+                        # Identificar sufijo (G1 o G2)
+                        suffix = "G1" if container == self.metricsG1Container else "G2"
                         
-                        # Verificar que todos los arrays tengan la misma longitud
-                        if len(x_positions) != len(niveles):
-                            print(f"Error: Arrays con longitudes diferentes - x_positions: {len(x_positions)}, niveles: {len(niveles)}")
+                        for label in labels:
+                            cb_name = f"cb{label}{suffix}"
+                            if hasattr(self, cb_name):
+                                cb = getattr(self, cb_name)
+                                if cb.isChecked():
+                                    # Convertir LMax/LMin a Max/Min para el modelo
+                                    if label == "LMax": metrics.append("Max")
+                                    elif label == "LMin": metrics.append("Min")
+                                    elif label == "LPk": metrics.append("Peak")
+                                    elif label == "LInst": metrics.append("Inst")
+                                    elif label == "LFast": metrics.append("Fast")
+                                    elif label == "LSlow": metrics.append("Slow")
+                                    else: metrics.append(label)
+                        
+                        # Si no hay nada seleccionado, mostrar Instantáneo (puro) por defecto
+                        return metrics if metrics else ["Inst"]
+
+                    # Helper para color
+                    def get_metric_color_index(metric):
+                        # Base indices from self.coloresNiveles
+                        base_indices = {
+                            "Leq": 12,
+                            "L01": 15,
+                            "L10": 18,
+                            "L50": 21,
+                            "L90": 24,
+                            "L99": 27,
+                            "Max": 30, # New
+                            "Min": 33,  # New
+                            "Peak": 36, # New
+                            "Fast": 39, # New
+                            "Slow": 42  # New
+                        }
+                        return base_indices.get(metric, 12)
+
+                    # Función interna para dibujar barras en un plot específico
+                    def dibujar_barras(plot_widget, filtro, fft_freqs, fft_magnitude, selected_metrics):
+                        # Configurar modo lineal para ambos ejes (X es índice de banda)
+                        plot_widget.setLogMode(x=False, y=False)
+                        plot_widget.clear()
+                        
+                        if not selected_metrics:
                             return
-                        # Calcular la altura de las barras desde -120 dB hasta el valor capturado
-                        piso_ruido = -120.0
-                        bar_heights = niveles - piso_ruido  # Altura = valor_capturado - (-120) = valor_capturado + 120
-                        bar_bottoms = np.full_like(niveles, piso_ruido)  # Base de las barras en -120 dB
+
+                        # Obtener offset de filtro para color (Z=0, C=1, A=2 según indices observados en plot_statistical_level??)
+                        # Verificando líneas 1800+: 
+                        # Z L90 -> 24 (Base 24 + 0)
+                        # C L90 -> 25 (Base 24 + 1)
+                        # A L90 -> 26 (Base 24 + 2)
+                        # Entonces: Z=0, C=1, A=2
+                        filter_offset = 0
+                        if filtro == 'C': filter_offset = 1
+                        elif filtro == 'A': filter_offset = 2
                         
-                        # Debug: mostrar el color que se está usando
-                        # print(f"Color de las barras: {color}")
-                        # print(f"Tipo de color: {type(color)}")
+                        # Recopilar datos de todas las métricas
+                        # Dict: metric -> (bandas, niveles)
+                        data_map = {}
+                        all_bandas = [] 
                         
-                        # Crear barras individuales usando PlotDataItem
-                        #print("Creando barras individuales...")
-                        
-                        # Calcular el ancho de cada barra para que se toquen (sin espacios)
-                        total_width = len(bandas)  # Ancho total disponible
-                        bar_width = total_width / (len(bandas)+2)  # Ancho de cada barra
-                        
-                        for i, (x, height, nivel) in enumerate(zip(x_positions, bar_heights, niveles)):
-                            if height > 0:  # Solo crear barras con altura positiva
-                                # Calcular los límites de la barra (sin espacios)
-                                x_left = x - bar_width/2
-                                x_right = x + bar_width/2
-                                
-                                # Crear puntos para la barra: base y cima
-                                x_vals = [x_left, x_right, x_right, x_left, x_left]
-                                y_vals = [piso_ruido, piso_ruido, nivel, nivel, piso_ruido]
-                                
-                                # Usar el color de la configuración
-                                bar_color = self.get_color_str(color)
-                                #print(f"Usando color: {bar_color}")
-                                
-                                # Crear la barra como un PlotDataItem
-                                bar_item = pg.PlotDataItem(
-                                    x_vals, y_vals, 
-                                    pen=pg.mkPen('black', width=1),
-                                    brush=pg.mkBrush(bar_color),
-                                    fillLevel=piso_ruido,
-                                    fillBrush=pg.mkBrush(bar_color)
-                                )
-                                self.waveform1.addItem(bar_item)
-                                #print(f"Barra {i}: x={x:.1f}, ancho={bar_width:.2f}, altura={height:.1f}, nivel={nivel:.1f} dB")
-                        
-                        #print(f"Total de barras creadas: {len([h for h in bar_heights if h > 0])}")
-                        
-                        self.ejexcreado = True
-                        
-                        if self.var_valoresOctavas:
-                            for i, h in enumerate(niveles):
-                                # Position the text slightly above the bar
-                                text_item = pg.TextItem(text=f"{h:.2f}", anchor=(0.5, 0), color=(0, 0, 0, 115)) # Center horizontally, align to bottom of text
-                                text_item.setPos(x_positions[i], h) # Adjust 0.5 for desired offset
-                                text_item.setAngle(45)
-                                self.waveform1.addItem(text_item)
+                        for metric in selected_metrics:
+                            if metric == "Inst": # Legacy fallback, aunque ya no está en UI
+                                weighted_fft = self.apply_weighting(fft_freqs, fft_magnitude, filtro)
+                                if tipoGrafico == "Barras-octavas":
+                                    b, n = self.vController.cModel.calcular_octavas(fft_freqs, weighted_fft)
+                                elif tipoGrafico == "Barras-tercios":
+                                    b, n = self.vController.cModel.calcular_tercios_octava(fft_freqs, weighted_fft)
+                                else:
+                                    b, n = [], []
+                                data_map[metric] = (b, n)
+                            else:
+                                # Estadísticas del modelo (siempre Z)
+                                b, n_z = self.vController.cModel.get_spectral_stats(tipoGrafico, metric)
+                                if len(b) > 0:
+                                    # Ponderar
+                                    n = self.apply_weighting(b, n_z, filtro)
+                                    data_map[metric] = (b, n)
+                                else:
+                                    data_map[metric] = ([], [])
                             
-                        # Configurar rangos de ejes - ajustar para barras sin espacios
-                        #self.waveform1.setXRange(-0.5, len(bandas) - 0.5)
+                            if len(data_map[metric][0]) > 0:
+                                all_bandas = data_map[metric][0] # Asumimos mismas bandas para todos
+
+                        if len(all_bandas) == 0:
+                            return
+
+                        # Parámetros de dibujo agrupado
+                        num_metrics = len(selected_metrics)
+                        total_width = 0.8 # Ancho total del grupo (0.0 a 1.0 being full slot)
+                        bar_width = total_width / num_metrics
                         
-                        # Configurar rango Y usando la función auxiliar
-                        y_min, y_max = self.configure_bar_chart_y_range(niveles)
-                        self.waveform1.setYRange(y_min, y_max)
+                        x_base = np.arange(len(all_bandas))
+                        piso_ruido = -120.0
                         
-                        # Debug: mostrar información del rango Y
-                        # print(f"Gráfico de barras - Rango Y: {y_min:.1f} dB a {y_max:.1f} dB")
-                        # print(f"Niveles capturados: min={np.min(niveles):.1f} dB, max={np.max(niveles):.1f} dB")
-                        # print(f"Alturas de barras: {bar_heights[:5]}... (desde -120 dB hasta valores capturados)")
-                        # print(f"Las barras se extienden desde -120 dB hacia arriba hasta {y_max:.1f} dB")
-                        # print(f"Posiciones X: {x_positions[:5]}...")
-                        # print(f"Ancho de barras: {bar_width}")
-                        # print(f"Piso de ruido: {piso_ruido}")
+                        # Dibujar cada métrica
+                        max_level_found = -120
                         
-                        # Etiquetas de ejes
-                        self.waveform1.setLabel('left', 'Nivel (dB) - Barras desde -120 dB hacia arriba')
-                        self.waveform1.setLabel('bottom', 'Frecuencia (Hz)')
+                        for i, metric in enumerate(selected_metrics):
+                            bandas, niveles = data_map[metric]
+                            if len(bandas) == 0: continue
+                            
+                            # Calcular posición x centrada para el grupo
+                            # Offset relativo al centro: (i - (N-1)/2) * w
+                            center_offset = (i - (num_metrics - 1) / 2) * bar_width
+                            x_positions = x_base + center_offset
+                            
+                            bar_heights = niveles - piso_ruido
+                            
+                            # Color
+                            base_idx = get_metric_color_index(metric)
+                            color_idx = base_idx + filter_offset
+                            if 0 <= color_idx < len(self.coloresNiveles):
+                                bar_color = self.coloresNiveles[color_idx]
+                            else:
+                                bar_color = "#FFFFFF"
+                            
+                            # Dibujar barras como rectángulos individuales (más lento pero seguro)
+                            # O usar PlotDataItem con stepMode? No, grouped bars require custom geometry or multple BarGraphItems
+                            # BarGraphItem es más eficiente
+                            bg = pg.BarGraphItem(x=x_positions, height=bar_heights, width=bar_width, brush=bar_color, pen='k', y0=piso_ruido)
+                            plot_widget.addItem(bg)
+                            
+                            if len(niveles) > 0:
+                                max_level_found = max(max_level_found, np.max(niveles))
+                            
+                            # Etiquetas de valor (solo si octavas y pocas métricas?)
+                            if self.var_valoresOctavas:
+                                for j, h in enumerate(niveles):
+                                    text_item = pg.TextItem(text=f"{h:.1f}", anchor=(0.5, 0), color=(0, 0, 0, 150))
+                                    # Ajustar escala texto según ancho barra?
+                                    text_item.setPos(x_positions[j], h)
+                                    text_item.setAngle(45) # Rotar 90 para que quepan
+                                    font = text_item.textItem.font()
+                                    font.setPointSize(8)
+                                    text_item.setFont(font)
+                                    plot_widget.addItem(text_item)
+
+                        # Configurar rango Y
+                        y_max = 0 if max_level_found < 0 else max_level_found + 10
+                        if y_max < 0:
+                            y_max = 0
+                        y_min = -120
+                        # Sin calibrar: respetar límites de configuración (-120 / 0 dBFS)
+                        if not getattr(self.vController.cModel, 'calibracion_activa', False):
+                            if hasattr(self, 'var_yMinEspectro'):
+                                y_min = self.var_yMinEspectro
+                            if hasattr(self, 'var_yMaxEspectro'):
+                                y_max = self.var_yMaxEspectro
                         
-                        # Configurar modo lineal para ambos ejes
-                        self.waveform1.setLogMode(x=False, y=False)
+                        plot_widget.setYRange(y_min, y_max)
+    
+                        # Actualizar la base del título para persistencia (calibración badge)
+                        if plot_widget is self.waveform1:
+                            self._ejeY_titulo_base = f'Nivel {filtro} (dB)'
+                        else:
+                            plot_widget.setLabel('left', f'Nivel {filtro} (dB)')
                         
-                        # Limpiar línea de tiempo si existe
-                        # if hasattr(self, 'plot_line'):
-                        #     self.plot_line.setData([], [])
+                        # Las etiquetas del eje X son manejadas por FrequencyAxisItem
+                        # que se configura en actualizarEstiloGraficoEspectro
+
+
+                    # --- Gráfico 1 ---
+                    filtro1 = 'Z'
+                    if self.r0.isChecked(): filtro1 = 'A'
+                    elif self.r1.isChecked(): filtro1 = 'C'
+                    
+                    metrics1 = get_selected_metrics(self.metricsG1Container)
+                    dibujar_barras(self.waveform1, filtro1, fft_freqs, fft_magnitude, metrics1)
+                    
+                    # --- Gráfico 2 ---
+                    if self.waveform_2 is not None:
+                        filtro2 = 'Z'
+                        if self.r3.isChecked(): filtro2 = 'A'
+                        elif self.r4.isChecked(): filtro2 = 'C'
                         
-                        # Guardar referencia al item de barras para poder limpiarlo después
-                        #self.current_bar_item = bar_item
-                        
-                        #print(f"Graficando barras: {len(bandas)} bandas, niveles: {niveles[:5]}...")
-                        #print(f"Posiciones X: {len(x_positions)} posiciones, valores: {x_positions[:5]}...")
+                        metrics2 = get_selected_metrics(self.metricsG2Container)
+                        dibujar_barras(self.waveform_2, filtro2, fft_freqs, fft_magnitude, metrics2)
                         
                 else:
                     # Por defecto, línea
@@ -1851,35 +2182,37 @@ class vista(QMainWindow):
             self.var_valoresOctavas = config['espectro']['valoresOcta']
             self.var_anchoLineaEspectro = config['espectro']['anchoLinea']
             
-            # Parámetros FFT - guardar y actualizar el modelo si es necesario
+            # Parámetros FFT
+            # Guardamos siempre los valores seleccionados para el gráfico,
+            # pero SOLO reinicializamos el stream de audio si cambia la
+            # frecuencia de muestreo, NO el número de muestras de FFT.
             if 'fft_rate' in config['espectro'] and 'fft_n_samples' in config['espectro']:
                 nueva_fft_rate = config['espectro']['fft_rate']
                 nueva_fft_n_samples = config['espectro']['fft_n_samples']
-                
-                # Guardar en variables locales
+
+                # Guardar en variables locales usadas para el cálculo de la FFT
                 self.var_fft_rate = nueva_fft_rate
                 self.var_fft_n_samples = nueva_fft_n_samples
-                
-                # Si los valores son diferentes a los del modelo, reinicializar el stream
-                if (nueva_fft_rate != self.vController.cModel.rate or 
-                    nueva_fft_n_samples != self.vController.cModel.chunk):
-                    
-                    print(f"Actualizando parámetros de audio: Rate {nueva_fft_rate} Hz, Chunk {nueva_fft_n_samples}")
-                    
-                    # Obtener el dispositivo actual antes de reinicializar
+
+                # Si solo cambia fft_n_samples, el stream NO se toca.
+                # Si cambia la frecuencia de muestreo, sí es necesario
+                # reinicializar el stream con el mismo chunk actual.
+                if nueva_fft_rate != self.vController.cModel.rate:
+                    print(
+                        f"Actualizando parámetros de audio: "
+                        f"Rate {nueva_fft_rate} Hz (chunk actual: {self.vController.cModel.chunk})"
+                    )
+
                     dispositivo_actual = self.vController.cModel.getDispositivoActual()
-                    
-                    # Reinicializar el stream de audio con los nuevos parámetros
                     try:
                         self.vController.cModel.initialize_audio_stream(
                             device_index=dispositivo_actual,
                             rate=int(nueva_fft_rate),
-                            chunk=int(nueva_fft_n_samples)
+                            chunk=int(self.vController.cModel.chunk)
                         )
-                        print(f"✅ Stream actualizado exitosamente")
+                        print("✅ Stream actualizado exitosamente")
                     except Exception as e:
                         print(f"⚠️ Error al actualizar stream: {e}")
-                        # Si falla, al menos guardar los valores preferidos
             
             # Configuración de nivel
             self.var_logModeYNivel = config['nivel']['logModeY']
@@ -1927,3 +2260,51 @@ class vista(QMainWindow):
         
         # Aceptar el evento de cierre
         event.accept()
+
+    def apply_weighting(self, freqs, db_values, weighting):
+        if weighting == 'Z':
+            return db_values
+        
+        # Evitar log(0) o division por cero si hay frecuencia 0
+        valid_indices = freqs > 0
+        if not np.any(valid_indices):
+            return db_values
+            
+        freqs_valid = freqs[valid_indices]
+        f2 = freqs_valid ** 2
+        weight = np.zeros_like(db_values)
+        
+        if weighting == 'A':
+            # RA(f) = (12194^2 * f^4) / ((f^2 + 20.6^2) * sqrt((f^2 + 107.7^2)(f^2 + 737.9^2)) * (f^2 + 12194^2))
+            const = 12194**2 * f2**2
+            denom = ((f2 + 20.6**2) * np.sqrt((f2 + 107.7**2) * (f2 + 737.9**2)) * (f2 + 12194**2))
+            ra = const / denom
+            # Evitar log(0)
+            weight[valid_indices] = 20 * np.log10(np.maximum(ra, 1e-10)) + 2.00
+            
+        elif weighting == 'C':
+            # RC(f) = (12194^2 * f^2) / ((f^2 + 20.6^2) * (f^2 + 12194^2))
+            const = 12194**2 * f2
+            denom = ((f2 + 20.6**2) * (f2 + 12194**2))
+            rc = const / denom
+            weight[valid_indices] = 20 * np.log10(np.maximum(rc, 1e-10)) + 0.06
+            
+        return db_values + weight
+
+    def _ensure_second_waveform(self):
+        if self.waveform_2 is None:
+            # self.winGraph1.nextRow() # Evitar crear filas infinitas
+            self.second_axis = FrequencyAxisItem(orientation='bottom') # Eje por defecto
+            self.waveform_2 = self.winGraph1.addPlot(row=1, col=0, axisItems={'bottom': self.second_axis})
+            self.waveform_2.setClipToView(True)
+            self.waveform_2.showGrid(x=True, y=True)
+            self.waveform_2.setYRange(-120, 0, padding=0)
+
+    def _remove_second_waveform(self):
+        if self.waveform_2 is not None:
+             self.winGraph1.removeItem(self.waveform_2)
+             self.waveform_2 = None
+             # Nota: pg.GraphicsLayoutWidget no elimina la fila automáticamente fácil, 
+             # pero al remover el item si es el único, debería quedar vacío.
+             # Si queda un hueco, podría ser aceptable o requerir limpiar y reconstruir.
+             # Para simplificar: solo removemos el item.
