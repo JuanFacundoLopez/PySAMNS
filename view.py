@@ -10,7 +10,7 @@ from ventanas.generadorWin import GeneradorWin
 
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton,
                              QLabel, QGroupBox, QRadioButton, QCheckBox, QAction, QWidget, QGridLayout,
-                             QMenu, QMessageBox, QColorDialog, QFileDialog,QFrame, QComboBox)
+                             QMenu, QMessageBox, QColorDialog, QFileDialog, QFrame, QStyle, QComboBox)
 
 from PyQt5.QtGui import QPixmap, QIcon
 from pyqtgraph.Qt import  QtCore
@@ -374,11 +374,19 @@ class vista(QMainWindow):
         self.btn.setProperty("class", "grabacion")
         self.btngbr.setProperty("class", "grabacion")
         
+        self.btnGuardar = QPushButton("Guardar")
+        self.btnGuardar.setToolTip("Guardar la última grabación manual")
+        # Use standard save icon
+        self.btnGuardar.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
+        self.btnGuardar.clicked.connect(self.vController.guardar_grabacion_manual)
+        self.btnGuardar.setEnabled(False)
+        self.btnGuardar.setProperty("class", "grabacion")
         
         self.cronometroGrabacion = QLabel("0:00 s")
         self.cronometroGrabacion.setStyleSheet("font: bold 20pt")
         buttonLayout.addWidget(self.btn)
         buttonLayout.addWidget(self.btngbr)
+        buttonLayout.addWidget(self.btnGuardar)
         buttonLayout.addWidget(self.cronometroGrabacion)
         buttonLayout.addStretch()
         self.columna1tab1.addLayout(buttonLayout)
@@ -1075,6 +1083,9 @@ class vista(QMainWindow):
         self._remove_right_axis()
         self._remove_second_waveform() # Remover segundo gráfico si existe
         
+        # Recrear los objetos de gráfico que fueron eliminados por clear()
+        self.ptdomTiempo = self.waveform1.plot(pen=(138, 1, 1), width=2)
+        self.ptdomEspect = self.waveform1.plot(pen=(138, 63, 1), width=2)
         
         # Asegurar que se use el eje de tiempo personalizado
         if not hasattr(self, 'time_axis') or self.waveform1.getAxis('bottom') != self.time_axis:
@@ -1096,7 +1107,8 @@ class vista(QMainWindow):
         
         # Actualizar el gráfico
         self.waveform1.replot()
-        self.vController.graficar()
+        # NOTA: No llamamos a graficar() aquí porque interfiere con graficarImportada()
+        # El llamado a graficar/graficarImportada se hace desde el controlador según corresponda
         
     def ventanaFrecuencia(self):
         self.btnNivel.setChecked(False)
@@ -1143,6 +1155,10 @@ class vista(QMainWindow):
         # Configurar el gráfico para frecuencia
         self.waveform1.clear()
         
+        # Recrear los objetos de gráfico que fueron eliminados por clear()
+        self.ptdomTiempo = self.waveform1.plot(pen=(138, 1, 1), width=2)
+        self.ptdomEspect = self.waveform1.plot(pen=(138, 63, 1), width=2)
+        
         # Aplicar configuración personalizada si existe, sino usar valores por defecto
         #if hasattr(self, 'txtXMinEspectro') and hasattr(self, 'txtXMaxEspectro'):
         if all(hasattr(self, a) for a in ("var_xMinEspectro", "var_xMaxEspectro")):
@@ -1176,7 +1192,8 @@ class vista(QMainWindow):
         
         # Actualizar el gráfico
         self.waveform1.replot()
-        self.vController.graficar()
+        # NOTA: No llamamos a graficar() aquí porque interfiere con graficarImportada()
+        # El llamado a graficar/graficarImportada se hace desde el controlador según corresponda
         
     def ventanaNivel(self):
         self.btnTiempo.setChecked(False)
